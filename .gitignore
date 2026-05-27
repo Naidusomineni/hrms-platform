@@ -1,0 +1,35 @@
+# Environment
+.env
+*.env.local
+*.env.production
+
+# Java / Maven
+backend/target/
+**/*.class
+*.jar
+*.war
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.idea/
+*.iml
+.vscode/settings.json
+*.suo *.ntvs* *.njsproj *.sln
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Uploads
+uploads/
+
+# Docker
+*.pid

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Welcome to HRMS</title></head>
+<body style="font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:20px">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1)">
+    <div style="background:linear-gradient(135deg,#0D9488,#0EA5E9);padding:40px;text-align:center">
+      <h1 style="color:#fff;margin:0;font-size:32px">🎉 Welcome!</h1>
+      <p style="color:rgba(255,255,255,0.9);margin:8px 0 0">HRMS Platform</p>
+    </div>
+    <div style="padding:40px">
+      <h2 style="color:#1e293b">Hi <span th:text="${firstName}">Employee</span>,</h2>
+      <p style="color:#475569;line-height:1.7">Your employee account has been created. You can now access the HRMS Platform.</p>
+      <div style="background:#f8fafc;border-radius:8px;padding:20px;margin:24px 0">
+        <p style="margin:0 0 8px;color:#64748b;font-size:14px;font-weight:600">TEMPORARY PASSWORD</p>
+        <p style="margin:0;font-family:monospace;font-size:18px;color:#1D4ED8;font-weight:700" th:text="${tempPassword}">password</p>
+        <p style="margin:8px 0 0;color:#ef4444;font-size:12px">⚠️ Please change this password after first login</p>
+      </div>
+      <div style="text-align:center;margin:24px 0">
+        <a th:href="${loginUrl}" style="background:#0D9488;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px">Login Now</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

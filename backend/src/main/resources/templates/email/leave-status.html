@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Leave Status Update</title></head>
+<body style="font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:20px">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1)">
+    <div th:style="'background:linear-gradient(135deg,' + (${status} == 'APPROVED' ? '#16A34A,#4ADE80' : '#DC2626,#F87171') + ');padding:40px;text-align:center'">
+      <h1 style="color:#fff;margin:0" th:text="${status == 'APPROVED'} ? '✅ Leave Approved' : '❌ Leave Rejected'">Leave Update</h1>
+    </div>
+    <div style="padding:40px">
+      <h2 style="color:#1e293b">Hi <span th:text="${firstName}">User</span>,</h2>
+      <p th:if="${status == 'APPROVED'}" style="color:#475569">Your leave request has been <strong style="color:#16A34A">approved</strong>.</p>
+      <p th:if="${status != 'APPROVED'}" style="color:#475569">Your leave request has been <strong style="color:#DC2626">rejected</strong>.</p>
+      <div style="background:#f8fafc;border-radius:8px;padding:20px;margin:20px 0">
+        <p style="margin:4px 0"><strong>Type:</strong> <span th:text="${leaveType}">Annual</span></p>
+        <p style="margin:4px 0"><strong>From:</strong> <span th:text="${startDate}">date</span></p>
+        <p style="margin:4px 0"><strong>To:</strong> <span th:text="${endDate}">date</span></p>
+        <p th:if="${comments}" style="margin:4px 0"><strong>Comments:</strong> <span th:text="${comments}">-</span></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

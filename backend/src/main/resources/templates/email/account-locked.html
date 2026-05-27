@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Account Locked</title></head>
+<body style="font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:20px">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1)">
+    <div style="background:linear-gradient(135deg,#B45309,#F59E0B);padding:40px;text-align:center">
+      <h1 style="color:#fff;margin:0">⚠️ Security Alert</h1>
+    </div>
+    <div style="padding:40px">
+      <h2 style="color:#1e293b">Hi <span th:text="${firstName}">User</span>,</h2>
+      <p style="color:#475569">Your account has been temporarily locked due to multiple failed login attempts.</p>
+      <p style="color:#475569">It will be automatically unlocked after <strong th:text="${lockMinutes}">30</strong> minutes.</p>
+      <p style="color:#94a3b8;font-size:13px">If this wasn't you, please contact your HR administrator immediately.</p>
+    </div>
+  </div>
+</body>
+</html>

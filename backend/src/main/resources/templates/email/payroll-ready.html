@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Salary Slip Ready</title></head>
+<body style="font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:20px">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1)">
+    <div style="background:linear-gradient(135deg,#7C3AED,#A78BFA);padding:40px;text-align:center">
+      <h1 style="color:#fff;margin:0">💰 Salary Credited</h1>
+    </div>
+    <div style="padding:40px">
+      <h2 style="color:#1e293b">Hi <span th:text="${firstName}">User</span>,</h2>
+      <p style="color:#475569">Your salary slip for <strong th:text="${month + ' ' + year}">Month Year</strong> is ready.</p>
+      <div style="background:#f8fafc;border-radius:8px;padding:24px;text-align:center;margin:24px 0">
+        <p style="color:#64748b;margin:0">Net Salary Credited</p>
+        <h2 style="color:#7C3AED;margin:8px 0;font-size:32px" th:text="${netSalary}">₹0</h2>
+      </div>
+      <div style="text-align:center">
+        <a th:href="${loginUrl}" style="background:#7C3AED;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600">View Payslip</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

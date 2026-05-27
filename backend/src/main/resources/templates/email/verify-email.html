@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Verify Your Email</title></head>
+<body style="font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:20px">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1)">
+    <div style="background:linear-gradient(135deg,#1D4ED8,#0EA5E9);padding:40px;text-align:center">
+      <h1 style="color:#fff;margin:0;font-size:28px">HRMS Platform</h1>
+      <p style="color:rgba(255,255,255,0.85);margin:8px 0 0">Enterprise HR Management</p>
+    </div>
+    <div style="padding:40px">
+      <h2 style="color:#1e293b">Hi <span th:text="${firstName}">User</span>,</h2>
+      <p style="color:#475569;line-height:1.7">Welcome to HRMS Platform! Please click the button below to verify your email address and activate your account.</p>
+      <div style="text-align:center;margin:32px 0">
+        <a th:href="${verifyUrl}" style="background:#1D4ED8;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;display:inline-block">Verify Email Address</a>
+      </div>
+      <p style="color:#94a3b8;font-size:13px">This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
+    </div>
+    <div style="background:#f8fafc;padding:20px;text-align:center;color:#94a3b8;font-size:12px">
+      <p>© 2024 <span th:text="${appName}">HRMS Platform</span>. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>

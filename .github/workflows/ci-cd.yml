@@ -1,0 +1,152 @@
+name: HRMS CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/hrms-backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/hrms-frontend
+
+jobs:
+  # ── Backend ──────────────────────────────────────────────────────
+  backend-ci:
+    name: Backend — Test & Build
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testroot
+          MYSQL_DATABASE: hrms_test
+        ports: ['3306:3306']
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Run Tests
+        working-directory: ./backend
+        run: mvn test -B
+        env:
+          DB_USERNAME: root
+          DB_PASSWORD: testroot
+          DB_HOST: localhost
+          JWT_SECRET: test-secret-key-for-ci-minimum-32-chars
+
+      - name: Build JAR
+        working-directory: ./backend
+        run: mvn package -DskipTests -B
+
+      - name: Upload Test Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: backend/target/surefire-reports/
+
+      - name: Docker Build & Push (main only)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker build -t ${{ env.BACKEND_IMAGE }}:${{ github.sha }} \
+                       -t ${{ env.BACKEND_IMAGE }}:latest ./backend
+          docker push ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+          docker push ${{ env.BACKEND_IMAGE }}:latest
+
+  # ── Frontend ─────────────────────────────────────────────────────
+  frontend-ci:
+    name: Frontend — Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: ./frontend
+        run: npm run lint --if-present || true
+
+      - name: Build
+        working-directory: ./frontend
+        run: npm run build
+        env:
+          VITE_API_URL: /api
+
+      - name: Docker Build & Push (main only)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker build -t ${{ env.FRONTEND_IMAGE }}:${{ github.sha }} \
+                       -t ${{ env.FRONTEND_IMAGE }}:latest ./frontend
+          docker push ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+          docker push ${{ env.FRONTEND_IMAGE }}:latest
+
+  # ── Deploy to Production ─────────────────────────────────────────
+  deploy:
+    name: Deploy to Production
+    needs: [backend-ci, frontend-ci]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd /opt/hrms
+            
+            # Pull latest images
+            docker compose pull backend frontend
+            
+            # Rolling restart (zero downtime)
+            docker compose up -d --no-deps --scale backend=2 backend
+            sleep 30
+            docker compose up -d --no-deps backend
+            docker compose up -d --no-deps frontend
+            
+            # Cleanup old images
+            docker image prune -f
+            
+            echo "✅ Deployment successful at $(date)"
+
+      - name: Notify Slack (optional)
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          COLOR=$([[ "$STATUS" == "success" ]] && echo "good" || echo "danger")
+          curl -s -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-type: application/json' \
+            -d "{\"attachments\":[{\"color\":\"$COLOR\",\"text\":\"HRMS Deploy: $STATUS — ${{ github.sha }}\"}]}" || true

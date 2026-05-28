@@ -30,20 +30,39 @@ apiClient.interceptors.response.use(
   (response) => response,
 
   (error) => {
+    const originalRequest = error.config
 
-    if (error.response?.status === 401) {
-
-      // Clear auth data
+    // If unauthorized, try refresh once and retry original request
+    if (error.response?.status === 401 && !originalRequest?._retry) {
+      originalRequest._retry = true
+      const refreshToken = localStorage.getItem('refreshToken')
+      if (refreshToken) {
+        return apiClient.post('/v1/auth/refresh', { refreshToken })
+          .then(res => {
+            const data = res.data.data  
+            localStorage.setItem('accessToken', data.accessToken)
+            localStorage.setItem('refreshToken', data.refreshToken)
+            apiClient.defaults.headers.common['Authorization'] = `Bearer ${data.accessToken}`
+            originalRequest.headers['Authorization'] = `Bearer ${data.accessToken}`
+            return apiClient(originalRequest)
+          })
+          .catch(() => {
+            localStorage.removeItem('accessToken')
+            localStorage.removeItem('refreshToken')
+            localStorage.removeItem('hrms_user')
+            window.location.href = '/login'
+            return Promise.reject(error)
+          })
+      }
+      // no refresh token, clear and redirect
       localStorage.removeItem('accessToken')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('hrms_user')
-
-      // Redirect to login
       window.location.href = '/login'
     }
 
     return Promise.reject(error)
   }
-)
+) 
 
 export default apiClient

@@ -8,18 +8,18 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "payroll_slips",
-    uniqueConstraints = {@UniqueConstraint(columnNames = {"employee_id","month","year"}, name = "uk_payroll")},
+    uniqueConstraints = {@UniqueConstraint(columnNames = {"employee_id","payroll_month","payroll_year"}, name = "uk_payroll")},
     indexes = {@Index(name = "idx_payroll_emp", columnList = "employee_id"),
-               @Index(name = "idx_payroll_period", columnList = "year,month")})
+               @Index(name = "idx_payroll_period", columnList = "payroll_year,payroll_month")})
 @Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
 public class PayrollSlip extends BaseEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "payroll_month", nullable = false)
     private Integer month;
 
-    @Column(nullable = false)
+    @Column(name = "payroll_year", nullable = false)
     private Integer year;
 
     @Column(name = "basic_salary", precision = 12, scale = 2)

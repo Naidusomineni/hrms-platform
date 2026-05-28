@@ -104,8 +104,8 @@ const EmployeeFormPage = () => {
           <Input {...register('lastName')} label="Last Name" placeholder="Doe" error={errors.lastName?.message} required />
           <Input {...register('email')} label="Email" type="email" placeholder="john@company.com" error={errors.email?.message} required />
           <Input {...register('phoneNumber')} label="Phone Number" placeholder="9876543210" />
-          <Input {...register('dateOfBirth')} label="Date of Birth" type="date" />
-          <Select {...register('gender')} label="Gender">
+          <Input {...register('dateOfBirth', { setValueAs: v => v === '' ? undefined : v })} label="Date of Birth" type="date" />
+          <Select {...register('gender', { setValueAs: v => v === '' ? undefined : v })} label="Gender">
             <option value="">Select gender</option>
             <option value="MALE">Male</option>
             <option value="FEMALE">Female</option>
@@ -136,11 +136,11 @@ const EmployeeFormPage = () => {
               <option key={s} value={s}>{s}</option>
             ))}
           </Select>
-          <Select {...register('departmentId')} label="Department">
+          <Select {...register('departmentId', { setValueAs: v => v === '' ? undefined : Number(v) })} label="Department">
             <option value="">Unassigned</option>
             {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </Select>
-          <Input {...register('salary')} label="Monthly Salary (₹)" type="number" placeholder="75000" />
+          <Input {...register('salary', { setValueAs: v => v === '' ? undefined : Number(v) })} label="Monthly Salary (₹)" type="number" placeholder="75000" />
           {!isEdit && <Input {...register('password')} label="Login Password" type="password" placeholder="Min 8 characters" helperText="Employee will use this to log in" />}
         </Section>
 

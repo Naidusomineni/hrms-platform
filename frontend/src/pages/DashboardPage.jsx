@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts'
-import { Users, Building2, UserCheck, UserX, Clock, CalendarDays, Briefcase, TrendingUp, Gift, ChevronRight } from 'lucide-react'
+import { Users, User, Building2, UserCheck, UserX, Clock, CalendarDays, Briefcase, TrendingUp, Gift, ChevronRight } from 'lucide-react'
 import { dashboardAPI } from '../api/dashboardAPI'
 import { StatCard, Card, CardHeader, CardBody, Spinner, Badge } from '../components/common/index.jsx'
 import { format } from 'date-fns'
@@ -14,15 +14,17 @@ const statusBadge = { ACTIVE:'success', PROBATION:'warning', ON_LEAVE:'info', TE
 const DashboardPage = () => {
   const { user } = useSelector(s => s.auth)
   const navigate = useNavigate()
+  const isAdminHR = ['ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN'].includes(user?.role)
   const [stats, setStats] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(isAdminHR)
 
   useEffect(() => {
+    if (!isAdminHR) return
     dashboardAPI.getAdminStats()
       .then(r => setStats(r.data.data))
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [])
+  }, [isAdminHR])
 
   const greeting = () => {
     const h = new Date().getHours()
@@ -32,6 +34,26 @@ const DashboardPage = () => {
   }
 
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>
+
+  if (!isAdminHR) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="card">
+          <CardHeader>
+            <h3 className="font-bold text-slate-900">Employee Home</h3>
+            <p className="text-sm text-slate-500">Quick access to your profile, attendance, and leave requests.</p>
+          </CardHeader>
+          <CardBody>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <StatCard title="My Profile" value={user?.fullName || 'Profile'} icon={User} gradient="gradient-primary" onClick={() => navigate('/profile')} />
+              <StatCard title="Attendance" value="View records" icon={Clock} gradient="gradient-success" onClick={() => navigate('/attendance')} />
+              <StatCard title="Leave" value="Apply / track" icon={CalendarDays} gradient="gradient-warning" onClick={() => navigate('/leaves')} />
+            </div>
+          </CardBody>
+        </div>
+      </div>
+    )
+  }
 
   const deptData = stats?.employeesByDepartment
     ? Object.entries(stats.employeesByDepartment).map(([name, count]) => ({ name, count }))
@@ -109,7 +131,7 @@ const DashboardPage = () => {
         </div>
 
         {/* Attendance Pie */}
-        <card className="card">
+        <Card className="card">
           <CardHeader>
             <h3 className="font-bold text-slate-800">Today's Attendance</h3>
             <p className="text-sm text-slate-400 mt-0.5">{format(new Date(),'MMM d, yyyy')}</p>
@@ -132,7 +154,7 @@ const DashboardPage = () => {
               </div>
             )}
           </CardBody>
-        </card>
+        </Card>
       </div>
 
       {/* Bottom Row */}

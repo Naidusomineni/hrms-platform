@@ -26,25 +26,27 @@ import AdminPage from './features/admin/AdminPage'
 
 function App() {
   const dispatch = useDispatch()
-  const { isAuthenticated } = useSelector(s => s.auth)
+  const { isAuthenticated, user } = useSelector(s => s.auth)
 
   useEffect(() => {
     const rt = localStorage.getItem('refreshToken')
     if (rt && !isAuthenticated) dispatch(refreshAccessToken())
   }, [])
 
+  const homeRoute = user?.role === 'ROLE_EMPLOYEE' ? '/profile' : '/dashboard'
+
   return (
     <Routes>
       {/* Public */}
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
-      <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to={homeRoute} replace /> : <LoginPage />} />
+      <Route path="/register" element={isAuthenticated ? <Navigate to={homeRoute} replace /> : <RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
 
       {/* Protected */}
       <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route index element={<Navigate to={homeRoute} replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="employees" element={<EmployeeListPage />} />
         <Route path="employees/new" element={<EmployeeFormPage />} />

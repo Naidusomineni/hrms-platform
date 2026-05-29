@@ -1,6 +1,7 @@
 package com.hrms.controller.v1;
 
 import com.hrms.dto.response.ApiResponse;
+import com.hrms.dto.response.UserResponse;
 import com.hrms.entity.User;
 import com.hrms.exception.ResourceNotFoundException;
 import com.hrms.repository.UserRepository;
@@ -25,11 +26,13 @@ public class AdminController {
     private final UserRepository userRepository;
 
     @GetMapping("/users")
-    public ResponseEntity<ApiResponse<Page<User>>> getAllUsers(
+    public ResponseEntity<ApiResponse<Page<UserResponse>>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        return ResponseEntity.ok(ApiResponse.success(userRepository.findAll(pageable)));
+        Page<UserResponse> responsePage = userRepository.findAll(pageable)
+            .map(this::toResponse);
+        return ResponseEntity.ok(ApiResponse.success(responsePage));
     }
 
     @PatchMapping("/users/{id}/status")
@@ -40,6 +43,20 @@ public class AdminController {
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
         userRepository.updateActiveStatus(id, body.get("isActive"));
         return ResponseEntity.ok(ApiResponse.success("User status updated"));
+    }
+
+    private UserResponse toResponse(User user) {
+        return UserResponse.builder()
+            .id(user.getId())
+            .firstName(user.getFirstName())
+            .lastName(user.getLastName())
+            .email(user.getEmail())
+            .role(user.getRole())
+            .isActive(user.getIsActive())
+            .emailVerified(user.getEmailVerified())
+            .createdAt(user.getCreatedAt())
+            .updatedAt(user.getUpdatedAt())
+            .build();
     }
 
     @PatchMapping("/users/{id}/role")

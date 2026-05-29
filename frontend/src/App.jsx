@@ -22,6 +22,7 @@ import AttendancePage from './features/attendance/AttendancePage'
 import LeavePage from './features/leave/LeavePage'
 import PayrollPage from './features/payroll/PayrollPage'
 import ProfilePage from './pages/ProfilePage'
+import NotificationPage from './features/notifications/NotificationPage'
 import AdminPage from './features/admin/AdminPage'
 
 function App() {
@@ -56,6 +57,7 @@ function App() {
         <Route path="attendance" element={<AttendancePage />} />
         <Route path="leaves" element={<LeavePage />} />
         <Route path="payroll" element={<PayrollPage />} />
+        <Route path="notifications" element={<NotificationPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="admin" element={
           <ProtectedRoute roles={['ROLE_ADMIN','ROLE_SUPER_ADMIN']}>

@@ -9,7 +9,7 @@ import { clsx } from 'clsx'
 const titles = {
   '/dashboard':'Dashboard', '/employees':'Employees', '/employees/new':'Add Employee',
   '/departments':'Departments', '/attendance':'Attendance', '/leaves':'Leave Management',
-  '/payroll':'Payroll', '/profile':'My Profile', '/admin':'Admin Panel',
+  '/payroll':'Payroll', '/notifications':'Notifications', '/profile':'My Profile', '/admin':'Admin Panel',
 }
 
 const Topbar = () => {
@@ -48,7 +48,7 @@ const Topbar = () => {
         </button>
 
         {/* Notifications */}
-        <button onClick={() => navigate('/profile')}
+        <button onClick={() => navigate('/notifications')}
           className="relative p-2 rounded-xl hover:bg-slate-100 transition-colors">
           <Bell size={18} className="text-slate-500" />
           {unreadCount > 0 && (

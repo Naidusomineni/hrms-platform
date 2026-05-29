@@ -16,7 +16,7 @@ const NAV = [
   { path:'/departments', label:'Departments', icon:Building2,       roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR'] },
   { path:'/attendance',  label:'Attendance',  icon:Clock,           roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },
   { path:'/leaves',      label:'Leave',       icon:CalendarDays,    roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },
-  { path:'/payroll',     label:'Payroll',     icon:DollarSign,      roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR'] },
+  { path:'/payroll',     label:'Payroll',     icon:DollarSign,      roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },
   { path:'/profile',     label:'My Profile',  icon:User,            roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },
   { path:'/admin',       label:'Admin Panel', icon:Shield,          roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN'] },
 ]

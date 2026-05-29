@@ -8,6 +8,9 @@ const AdminPage = () => {
   const [activeTab, setActiveTab] = useState('users')
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [roleUpdating, setRoleUpdating] = useState(false)
+  const [roleChanges, setRoleChanges] = useState({})
 
   useEffect(() => { if (activeTab === 'users') fetchUsers() }, [activeTab])
 
@@ -27,6 +30,27 @@ const AdminPage = () => {
       fetchUsers()
     } catch { toast.error('Failed to update user status') }
   }
+
+  const updateRole = async (userId, newRole) => {
+    if (!newRole) return
+    setRoleUpdating(true)
+    try {
+      await apiClient.patch(`/v1/admin/users/${userId}/role`, { role: newRole })
+      toast.success('Role updated successfully')
+      setRoleChanges(prev => ({ ...prev, [userId]: undefined }))
+      fetchUsers()
+    } catch {
+      toast.error('Failed to update user role')
+    } finally {
+      setRoleUpdating(false)
+    }
+  }
+
+  const filteredUsers = users.filter(u => {
+    const term = searchTerm.trim().toLowerCase()
+    if (!term) return true
+    return [u.firstName, u.lastName, u.email, u.role].some(value => value?.toLowerCase().includes(term))
+  })
 
   const tabs = [
     { key:'users', label:'User Management', icon:Users },
@@ -60,11 +84,18 @@ const AdminPage = () => {
       {activeTab === 'users' && (
         <Card>
           <CardHeader>
-            <h3 className="font-bold text-slate-800">All Users</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Manage user accounts, roles, and access</p>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h3 className="font-bold text-slate-800">All Users</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Manage user accounts, roles, and access</p>
+              </div>
+              <div className="max-w-sm w-full">
+                <SearchInput value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search users…" />
+              </div>
+            </div>
           </CardHeader>
           {loading ? <div className="py-12"><Spinner size="lg"/></div>
-            : users.length === 0 ? <div className="py-8"><EmptyState icon={Users} title="No users found" /></div>
+            : filteredUsers.length === 0 ? <div className="py-8"><EmptyState icon={Users} title="No users found" /></div>
             : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -73,7 +104,7 @@ const AdminPage = () => {
                       <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}
                   </tr></thead>
                   <tbody className="divide-y divide-slate-50">
-                    {users.map(u => (
+                    {filteredUsers.map(u => (
                       <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
@@ -87,9 +118,20 @@ const AdminPage = () => {
                           </div>
                         </td>
                         <td className="px-5 py-4">
-                          <Badge variant={u.role?.includes('ADMIN') ? 'danger' : u.role?.includes('HR') ? 'info' : 'default'}>
-                            {u.role?.replace('ROLE_','')}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={u.role?.includes('ADMIN') ? 'danger' : u.role?.includes('HR') ? 'info' : 'default'}>
+                              {u.role?.replace('ROLE_','')}
+                            </Badge>
+                            <select
+                              value={roleChanges[u.id] ?? u.role}
+                              onChange={e => setRoleChanges(prev => ({ ...prev, [u.id]: e.target.value }))}
+                              className="input bg-white text-xs"
+                            >
+                              {['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'].map(role => (
+                                <option key={role} value={role}>{role.replace('ROLE_','')}</option>
+                              ))}
+                            </select>
+                          </div>
                         </td>
                         <td className="px-5 py-4">
                           <Badge variant={u.isActive ? 'success' : 'danger'}>{u.isActive ? 'Active' : 'Inactive'}</Badge>
@@ -97,10 +139,16 @@ const AdminPage = () => {
                         <td className="px-5 py-4">
                           <Badge variant={u.emailVerified ? 'success' : 'warning'}>{u.emailVerified ? 'Verified' : 'Pending'}</Badge>
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-5 py-4 space-y-2">
                           <Button variant={u.isActive ? 'danger' : 'success'} size="sm"
                             onClick={() => toggleActive(u.id, u.isActive)}>
                             {u.isActive ? 'Deactivate' : 'Activate'}
+                          </Button>
+                          <Button variant="secondary" size="sm"
+                            onClick={() => updateRole(u.id, roleChanges[u.id] ?? u.role)}
+                            loading={roleUpdating}
+                            disabled={!roleChanges[u.id] || (roleChanges[u.id] === u.role)}>
+                            Update role
                           </Button>
                         </td>
                       </tr>

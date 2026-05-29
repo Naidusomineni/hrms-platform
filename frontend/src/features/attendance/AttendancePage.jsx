@@ -33,7 +33,13 @@ const AttendancePage = () => {
       attendanceAPI.getByDate(format(new Date(),'yyyy-MM-dd')).then(r => setTodayList(r.data.data || [])).catch(() => {})
       employeeAPI.getAll({ size: 200 }).then(r => setEmployees(r.data.data?.content || [])).catch(() => {})
     }
-  }, [])
+  }, [isAdminHR])
+
+  useEffect(() => {
+    if (!isAdminHR && user?.employeeId) {
+      setSelectedEmpId(String(user.employeeId))
+    }
+  }, [isAdminHR, user?.employeeId])
 
   useEffect(() => {
     if (!selectedEmpId) return
@@ -84,6 +90,12 @@ const AttendancePage = () => {
               {employees.map(e => <option key={e.id} value={e.id}>{e.fullName} ({e.employeeNumber})</option>)}
             </select>
           </div>
+        </Card>
+      )}
+
+      {!isAdminHR && !selectedEmpId && (
+        <Card className="p-6">
+          <p className="text-sm text-slate-500">Your account is not linked to an employee record yet. Contact HR to enable attendance tracking.</p>
         </Card>
       )}
 

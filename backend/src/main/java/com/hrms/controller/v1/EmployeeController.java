@@ -12,7 +12,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/v1/employees")
@@ -48,6 +51,24 @@ public class EmployeeController {
     @Operation(summary = "Get employee by ID")
     public ResponseEntity<ApiResponse<EmployeeResponse>> getById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(employeeService.getById(id)));
+    }
+
+    @PostMapping(value = "/{id}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload employee profile photo")
+    public ResponseEntity<ApiResponse<EmployeeResponse>> uploadPhoto(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success("Profile photo uploaded", employeeService.uploadProfilePicture(id, file, userDetails)));
+    }
+
+    @PostMapping(value = "/{id}/document", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload employee resume/document")
+    public ResponseEntity<ApiResponse<EmployeeResponse>> uploadDocument(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success("Document uploaded", employeeService.uploadDocument(id, file, userDetails)));
     }
 
     @GetMapping("/department/{deptId}")

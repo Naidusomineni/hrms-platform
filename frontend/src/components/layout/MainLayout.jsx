@@ -1,11 +1,16 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 
 const MainLayout = () => {
-  const { sidebarOpen } = useSelector(s => s.ui)
+  const { sidebarOpen, theme } = useSelector(s => s.ui)
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+  }, [theme])
+
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar />

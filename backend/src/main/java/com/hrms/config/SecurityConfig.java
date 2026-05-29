@@ -68,7 +68,11 @@ public class SecurityConfig {
                         .requestMatchers("/v1/dashboard/**")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR")
 
-                        // Employee APIs
+                        // Employee self-service APIs
+                        .requestMatchers(HttpMethod.GET, "/v1/employees/*").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/v1/employees/*/photo", "/v1/employees/*/document").authenticated()
+
+                        // Employee management APIs
                         .requestMatchers("/v1/employees/**")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR")
 

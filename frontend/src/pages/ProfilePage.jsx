@@ -1,11 +1,12 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 import { useSelector } from 'react-redux'
 import { authAPI } from '../api/authAPI'
-import { Input, Button, Card, CardHeader, CardBody, Alert } from '../components/common/index.jsx'
-import { User, Lock, Shield, Mail, Clock, Monitor } from 'lucide-react'
+import { employeeAPI } from '../api/employeeAPI'
+import { Input, Button, Card, CardHeader, CardBody, Alert, Spinner } from '../components/common/index.jsx'
+import { User, Lock, Shield, Mail, Clock, Monitor, UploadCloud, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 
@@ -20,6 +21,10 @@ const ProfilePage = () => {
   const [changingPw, setChangingPw] = useState(false)
   const [loginHistory, setLoginHistory] = useState([])
   const [historyLoaded, setHistoryLoaded] = useState(false)
+  const [employeeDetails, setEmployeeDetails] = useState(null)
+  const [loadingEmployee, setLoadingEmployee] = useState(true)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [uploadingDoc, setUploadingDoc] = useState(false)
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
     resolver: yupResolver(pwSchema)
@@ -36,6 +41,75 @@ const ProfilePage = () => {
       setChangingPw(false)
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to change password')
+    }
+  }
+
+  const fetchEmployee = async () => {
+    if (!user?.employeeId) {
+      setLoadingEmployee(false)
+      return
+    }
+    try {
+      const res = await employeeAPI.getById(user.employeeId)
+      setEmployeeDetails(res.data.data)
+    } catch {
+      toast.error('Failed to load profile details')
+    } finally {
+      setLoadingEmployee(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchEmployee()
+  }, [user?.employeeId])
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+      toast.error('Please upload a JPG, PNG, or WEBP image')
+      return
+    }
+    if (!user?.employeeId) return
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      setUploadingPhoto(true)
+      const res = await employeeAPI.uploadPhoto(user.employeeId, formData)
+      setEmployeeDetails(res.data.data)
+      toast.success('Profile picture uploaded successfully')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Upload failed')
+    } finally {
+      setUploadingPhoto(false)
+      e.target.value = null
+    }
+  }
+
+  const handleDocumentUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!['application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type)) {
+      toast.error('Please upload a PDF, DOC, or DOCX file')
+      return
+    }
+    if (!user?.employeeId) return
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      setUploadingDoc(true)
+      const res = await employeeAPI.uploadDoc(user.employeeId, formData)
+      setEmployeeDetails(res.data.data)
+      toast.success('Document uploaded successfully')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Upload failed')
+    } finally {
+      setUploadingDoc(false)
+      e.target.value = null
     }
   }
 
@@ -63,8 +137,11 @@ const ProfilePage = () => {
       <Card>
         <CardBody className="py-8">
           <div className="flex items-center gap-6">
-            <div className={`w-20 h-20 ${roleColors[user?.role] || 'gradient-primary'} rounded-2xl flex items-center justify-center text-white text-3xl font-black shadow-lg`}>
-              {user?.fullName?.charAt(0)}
+            <div className={`w-20 h-20 ${roleColors[user?.role] || 'gradient-primary'} rounded-2xl overflow-hidden shadow-lg`}>
+              {employeeDetails?.profilePictureUrl
+                ? <img src={employeeDetails.profilePictureUrl} alt="Profile" className="w-full h-full object-cover" />
+                : <div className="flex items-center justify-center w-full h-full text-white text-3xl font-black">{user?.fullName?.charAt(0)}</div>
+              }
             </div>
             <div>
               <h3 className="text-2xl font-black text-slate-900">{user?.fullName}</h3>
@@ -135,6 +212,50 @@ const ProfilePage = () => {
             </form>
           </CardBody>
         )}
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-slate-100 rounded-lg"><UploadCloud size={16} className="text-slate-600"/></div>
+            <h3 className="font-bold text-slate-800">Profile Uploads</h3>
+          </div>
+        </CardHeader>
+        <CardBody className="space-y-4">
+          {user?.employeeId ? (
+            <>
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-slate-600">Profile Picture</p>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={uploadingPhoto}
+                  onChange={handlePhotoUpload}
+                  className="w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-600 file:text-white hover:file:bg-primary-700"
+                />
+                {employeeDetails?.profilePictureUrl && (
+                  <a href={employeeDetails.profilePictureUrl} target="_blank" rel="noreferrer" className="text-sm text-primary-600 hover:underline">View current profile image</a>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-slate-600">Resume / Document</p>
+                <input
+                  type="file"
+                  accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  disabled={uploadingDoc}
+                  onChange={handleDocumentUpload}
+                  className="w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-600 file:text-white hover:file:bg-primary-700"
+                />
+                {employeeDetails?.resumeUrl && (
+                  <a href={employeeDetails.resumeUrl} target="_blank" rel="noreferrer" className="text-sm text-primary-600 hover:underline">Download uploaded document</a>
+                )}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-slate-500">Upload support is available once your employee record is linked.</p>
+          )}
+        </CardBody>
       </Card>
 
       {/* Login History */}

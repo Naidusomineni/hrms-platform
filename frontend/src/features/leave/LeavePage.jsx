@@ -26,6 +26,13 @@ const LeavePage = () => {
   const [applyModal, setApplyModal] = useState(false)
   const [reviewModal, setReviewModal] = useState(null) // {leave, action}
 
+  useEffect(() => {
+    if (!isAdminHR && user?.employeeId) {
+      const empId = String(user.employeeId)
+      setSelectedEmpId(empId)
+    }
+  }, [isAdminHR, user])
+
   const { register, handleSubmit, reset, watch, formState: { isSubmitting } } = useForm()
   const { register: regReview, handleSubmit: handleReview, reset: resetReview, formState: { isSubmitting: reviewSubmitting } } = useForm()
 
@@ -57,10 +64,10 @@ const LeavePage = () => {
   useEffect(() => {
     if (activeTab === 'pending') fetchPending()
     else if (selectedEmpId) fetchForEmp(selectedEmpId)
-  }, [activeTab])
+  }, [activeTab, selectedEmpId])
 
   const onApply = async (data) => {
-    const empId = data.employeeId || selectedEmpId
+    const empId = data.employeeId || selectedEmpId || user?.employeeId
     if (!empId) { toast.error('Please select an employee'); return }
     try {
       await leaveAPI.apply(empId, { leaveType:data.leaveType, startDate:data.startDate, endDate:data.endDate, reason:data.reason })
@@ -104,8 +111,8 @@ const LeavePage = () => {
         </div>
       )}
 
-      {/* Employee selector for history tab */}
-      {(activeTab==='history' || !isAdminHR) && isAdminHR && (
+      {/* Employee selector for HR/Admin users */}
+      {isAdminHR && (
         <Card className="p-4">
           <div className="flex items-center gap-4">
             <label className="text-sm font-semibold text-slate-600 shrink-0">Employee:</label>
@@ -121,7 +128,7 @@ const LeavePage = () => {
       <Card className="overflow-hidden">
         {loading ? <div className="py-16"><Spinner size="lg"/></div> :
          displayLeaves.length === 0 ? (
-          <div className="py-12"><EmptyState icon={Calendar} title={activeTab==='pending' ? 'No pending leaves' : 'No leave records'} description="Apply for leave or select an employee"/></div>
+          <div className="py-12"><EmptyState icon={Calendar} title={activeTab==='pending' ? 'No pending leaves' : 'No leave records'} description={isAdminHR ? 'Apply for leave or select an employee' : 'Apply for leave to create your first record'} /></div>
         ) : (
           <>
             <div className="overflow-x-auto">

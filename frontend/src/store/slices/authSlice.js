@@ -9,7 +9,7 @@ export const loginUser = createAsyncThunk('auth/login', async (creds, { rejectWi
     localStorage.setItem('refreshToken', data.refreshToken)
     localStorage.setItem('accessToken', data.accessToken)
     localStorage.setItem('hrms_user', JSON.stringify({
-      userId: data.userId, email: data.email, fullName: data.fullName,
+      userId: data.userId, employeeId: data.employeeId, email: data.email, fullName: data.fullName,
       role: data.role, emailVerified: data.emailVerified, profilePicture: data.profilePicture
     }))
     toast.success(`Welcome back, ${data.fullName}!`)
@@ -28,7 +28,7 @@ export const registerUser = createAsyncThunk('auth/register', async (data, { rej
     localStorage.setItem('refreshToken', d.refreshToken)
     localStorage.setItem('accessToken', d.accessToken)
     localStorage.setItem('hrms_user', JSON.stringify({
-      userId: d.userId, email: d.email, fullName: d.fullName, role: d.role, emailVerified: d.emailVerified
+      userId: d.userId, employeeId: d.employeeId, email: d.email, fullName: d.fullName, role: d.role, emailVerified: d.emailVerified
     }))
     toast.success('Account created! Please verify your email.')
     return d
@@ -92,14 +92,14 @@ const authSlice = createSlice({
       .addCase(loginUser.fulfilled, (state, { payload }) => {
         state.loading = false; state.isAuthenticated = true
         state.accessToken = payload.accessToken
-        state.user = { userId: payload.userId, email: payload.email, fullName: payload.fullName, role: payload.role, emailVerified: payload.emailVerified, profilePicture: payload.profilePicture }
+        state.user = { userId: payload.userId, employeeId: payload.employeeId, email: payload.email, fullName: payload.fullName, role: payload.role, emailVerified: payload.emailVerified, profilePicture: payload.profilePicture }
       })
       .addCase(loginUser.rejected, setError)
       .addCase(registerUser.pending, setLoading)
       .addCase(registerUser.fulfilled, (state, { payload }) => {
         state.loading = false; state.isAuthenticated = true
         state.accessToken = payload.accessToken
-        state.user = { userId: payload.userId, email: payload.email, fullName: payload.fullName, role: payload.role, emailVerified: payload.emailVerified }
+        state.user = { userId: payload.userId, employeeId: payload.employeeId, email: payload.email, fullName: payload.fullName, role: payload.role, emailVerified: payload.emailVerified }
       })
       .addCase(registerUser.rejected, setError)
       .addCase(logoutUser.fulfilled, (state) => {
@@ -108,7 +108,10 @@ const authSlice = createSlice({
       .addCase(refreshAccessToken.fulfilled, (state, { payload }) => {
         localStorage.setItem('accessToken', payload.accessToken)
         state.accessToken = payload.accessToken; state.isAuthenticated = true
-        if (payload.fullName) state.user = { userId: payload.userId, email: payload.email, fullName: payload.fullName, role: payload.role }
+        if (payload.fullName) {
+          state.user = { userId: payload.userId, employeeId: payload.employeeId, email: payload.email, fullName: payload.fullName, role: payload.role }
+          localStorage.setItem('hrms_user', JSON.stringify(state.user))
+        }
       })
       .addCase(refreshAccessToken.rejected, (state) => {
         state.user = null; state.accessToken = null; state.isAuthenticated = false

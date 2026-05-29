@@ -8,6 +8,7 @@ public class AuthResponse {
     private String refreshToken;
     @Builder.Default private String tokenType = "Bearer";
     private Long userId;
+    private Long employeeId;
     private String email;
     private String fullName;
     private Role role;

@@ -25,8 +25,23 @@ const PayrollPage = () => {
   }, [])
 
   useEffect(() => {
+    if (!isAdminHR && user?.employeeId) {
+      const empId = String(user.employeeId)
+      setSelectedEmpId(empId)
+      setProcessForm(f => ({ ...f, employeeId: empId }))
+    }
+  }, [isAdminHR, user])
+
+  useEffect(() => {
     if (selectedEmpId) fetchSlips(selectedEmpId)
   }, [selectedEmpId])
+
+  useEffect(() => {
+    if (!isAdminHR && user?.employeeId && selectedEmpId === '') {
+      const empId = String(user.employeeId)
+      setSelectedEmpId(empId)
+    }
+  }, [isAdminHR, user, selectedEmpId])
 
   const fetchEmployees = async () => {
     try {

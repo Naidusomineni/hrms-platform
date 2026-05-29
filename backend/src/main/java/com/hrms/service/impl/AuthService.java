@@ -89,6 +89,17 @@ public class AuthService {
             throw new DuplicateResourceException("User", "email", request.getEmail());
         }
 
+        // SECURITY FIX: Self-registration only allows ROLE_EMPLOYEE
+        Role assignedRole = request.getRole();
+        if (assignedRole == null || (assignedRole != Role.ROLE_EMPLOYEE && assignedRole != Role.ROLE_ADMIN && assignedRole != Role.ROLE_HR)) {
+            assignedRole = Role.ROLE_EMPLOYEE;
+        }
+        // Force employee role for self-registration
+        if (assignedRole == Role.ROLE_ADMIN || assignedRole == Role.ROLE_HR) {
+            log.warn("⚠️  Prevented privilege escalation attempt: user {} tried to register as {}", request.getEmail(), assignedRole);
+            assignedRole = Role.ROLE_EMPLOYEE;
+        }
+
         // Generate email verification token
         String verifyToken = UUID.randomUUID().toString();
 
@@ -97,7 +108,7 @@ public class AuthService {
             .lastName(request.getLastName())
             .email(request.getEmail())
             .password(passwordEncoder.encode(request.getPassword()))
-            .role(request.getRole() != null ? request.getRole() : Role.ROLE_EMPLOYEE)
+            .role(assignedRole)
             .isActive(true)
             .emailVerified(false)
             .emailVerifyToken(passwordEncoder.encode(verifyToken))
@@ -105,7 +116,7 @@ public class AuthService {
             .build();
 
         user = userRepository.save(user);
-        log.info("User registered: id={}, email={}", user.getId(), user.getEmail());
+        log.info("User registered: id={}, email={}, role={}", user.getId(), user.getEmail(), assignedRole);
 
         // Send verification email (async — won't block the response)
         emailService.sendEmailVerification(user.getEmail(), user.getFirstName(), verifyToken);
@@ -388,11 +399,16 @@ public class AuthService {
     }
 
     private AuthResponse buildAuthResponse(User user, String accessToken, String refreshToken) {
+        Long employeeId = null;
+        if (user.getEmployee() != null) {
+            employeeId = user.getEmployee().getId();
+        }
         return AuthResponse.builder()
             .accessToken(accessToken)
             .refreshToken(refreshToken)
             .tokenType("Bearer")
             .userId(user.getId())
+            .employeeId(employeeId)
             .email(user.getEmail())
             .fullName(user.getFullName())
             .role(user.getRole())

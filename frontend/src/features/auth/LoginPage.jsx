@@ -25,7 +25,11 @@ const LoginPage = () => {
 
   const onSubmit = async (data) => {
     const result = await dispatch(loginUser(data))
-    if (loginUser.fulfilled.match(result)) navigate(from, { replace: true })
+    if (loginUser.fulfilled.match(result)) {
+      const role = result.payload?.role
+      const home = role === 'ROLE_EMPLOYEE' ? '/profile' : '/dashboard'
+      navigate(from === '/login' || from === '/register' ? home : from, { replace: true })
+    }
   }
 
   return (

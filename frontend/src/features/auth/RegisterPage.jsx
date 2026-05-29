@@ -24,7 +24,11 @@ const RegisterPage = () => {
 
   const onSubmit = async (data) => {
     const result = await dispatch(registerUser(data))
-    if (registerUser.fulfilled.match(result)) navigate('/dashboard', { replace: true })
+    if (registerUser.fulfilled.match(result)) {
+      const role = result.payload?.role
+      const home = role === 'ROLE_EMPLOYEE' ? '/profile' : '/dashboard'
+      navigate(home, { replace: true })
+    }
   }
 
   return (
@@ -45,12 +49,11 @@ const RegisterPage = () => {
             </div>
             <Input {...register('email')} label="Email" type="email" placeholder="you@company.com" error={errors.email?.message} required />
             <Input {...register('password')} label="Password" type="password" placeholder="Min 8 characters" error={errors.password?.message} required />
-            <Select {...register('role')} label="Role" error={errors.role?.message} required>
-              <option value="">Select role</option>
-              <option value="ROLE_ADMIN">Admin</option>
-              <option value="ROLE_HR">HR</option>
-              <option value="ROLE_EMPLOYEE">Employee</option>
-            </Select>
+            <input type="hidden" {...register('role')} value="ROLE_EMPLOYEE" />
+            <div className="text-sm text-slate-600 bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <p className="font-semibold">Account Type: Employee</p>
+              <p className="text-xs text-slate-500 mt-1">Self-registration creates employee accounts. Admin and HR roles are assigned by administrators only.</p>
+            </div>
             <Button type="submit" variant="primary" size="lg" loading={loading} className="w-full mt-2">Create Account</Button>
           </form>
           <p className="text-center text-sm text-slate-500 mt-6">

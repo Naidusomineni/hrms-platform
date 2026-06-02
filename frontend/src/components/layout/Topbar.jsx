@@ -32,10 +32,10 @@ const Topbar = () => {
   }, [user?.userId])
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 shadow-sm">
+    <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-6 shrink-0 shadow-sm">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">{pageTitle}</h1>
-        <p className="text-xs text-slate-400">
+        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">{pageTitle}</h1>
+        <p className="text-xs text-slate-400 dark:text-slate-400">
           {new Date().toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
         </p>
       </div>

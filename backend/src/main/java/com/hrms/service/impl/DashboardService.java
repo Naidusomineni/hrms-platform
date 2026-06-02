@@ -55,8 +55,11 @@ public class DashboardService {
 
         // Upcoming birthdays (next 7 days)
         LocalDate nextWeek = today.plusDays(7);
-        List<Map<String, Object>> birthdays = employeeRepository
-            .findUpcomingBirthdays(today.getMonthValue(), today.getDayOfMonth(), nextWeek.getDayOfMonth())
+        int startDay = today.getDayOfYear();
+        int endDay = nextWeek.getDayOfYear();
+        List<Map<String, Object>> birthdays = (endDay >= startDay
+            ? employeeRepository.findUpcomingBirthdaysBetween(startDay, endDay)
+            : employeeRepository.findUpcomingBirthdaysWrap(startDay, endDay))
             .stream()
             .map(e -> {
                 Map<String, Object> m = new LinkedHashMap<>();

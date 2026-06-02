@@ -40,4 +40,14 @@ public class AuditService {
     public Page<AuditLog> getAll(Pageable pageable) {
         return auditLogRepository.findAllByOrderByPerformedAtDesc(pageable);
     }
+
+    @Transactional(readOnly = true)
+    public Page<AuditLog> getAll(Pageable pageable, String query, String action, String entityType, String performedBy) {
+        return auditLogRepository.search(
+            query == null || query.isBlank() ? null : query.trim(),
+            action == null || action.isBlank() ? null : action.trim(),
+            entityType == null || entityType.isBlank() ? null : entityType.trim(),
+            performedBy == null || performedBy.isBlank() ? null : performedBy.trim(),
+            pageable);
+    }
 }

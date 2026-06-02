@@ -7,6 +7,7 @@ import com.hrms.enums.*;
 import com.hrms.exception.*;
 import com.hrms.repository.*;
 import com.hrms.service.EmailService;
+import com.hrms.service.impl.AuditService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ public class EmployeeService {
     private final DepartmentRepository departmentRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final AuditService auditService;
 
     @Value("${file.upload.base-dir}")
     private String uploadBaseDir;
@@ -105,6 +107,7 @@ public class EmployeeService {
 
         emp = employeeRepository.save(emp);
         emailService.sendWelcomeEmail(emp.getEmail(), emp.getFirstName(), password);
+        auditService.log("EMPLOYEE_CREATED", "EMPLOYEE", emp.getId(), "Created employee " + emp.getFullName());
         log.info("Employee created: {} ({})", emp.getFullName(), emp.getEmployeeNumber());
         return toResponse(emp);
     }
@@ -154,7 +157,9 @@ public class EmployeeService {
         emp.setEmergencyContactPhone(req.getEmergencyContactPhone());
         emp.setEmergencyContactRelation(req.getEmergencyContactRelation());
 
-        return toResponse(employeeRepository.save(emp));
+        Employee updated = employeeRepository.save(emp);
+        auditService.log("EMPLOYEE_UPDATED", "EMPLOYEE", updated.getId(), "Updated employee " + updated.getFullName());
+        return toResponse(updated);
     }
 
     public void delete(Long id) {
@@ -162,6 +167,7 @@ public class EmployeeService {
         emp.setDeleted(true);
         emp.setEmploymentStatus(EmploymentStatus.TERMINATED);
         employeeRepository.save(emp);
+        auditService.log("EMPLOYEE_DELETED", "EMPLOYEE", emp.getId(), "Soft-deleted employee " + emp.getFullName());
         log.info("Employee soft-deleted: {}", emp.getEmployeeNumber());
     }
 
@@ -173,7 +179,9 @@ public class EmployeeService {
         String fileName = storeFile(file, profilePictureDir);
         String url = buildFileUrl("profiles", fileName);
         emp.setProfilePictureUrl(url);
-        return toResponse(employeeRepository.save(emp));
+        Employee saved = employeeRepository.save(emp);
+        auditService.log("EMPLOYEE_PHOTO_UPLOAD", "EMPLOYEE", saved.getId(), "Uploaded profile picture for " + saved.getFullName());
+        return toResponse(saved);
     }
 
     public EmployeeResponse uploadDocument(Long id, MultipartFile file, UserDetails userDetails) {
@@ -184,7 +192,9 @@ public class EmployeeService {
         String fileName = storeFile(file, documentDir);
         String url = buildFileUrl("documents", fileName);
         emp.setResumeUrl(url);
-        return toResponse(employeeRepository.save(emp));
+        Employee saved = employeeRepository.save(emp);
+        auditService.log("EMPLOYEE_DOCUMENT_UPLOAD", "EMPLOYEE", saved.getId(), "Uploaded document for " + saved.getFullName());
+        return toResponse(saved);
     }
 
     private void validateFile(MultipartFile file, String allowedTypes, String fieldName) {

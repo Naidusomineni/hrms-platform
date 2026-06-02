@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
@@ -10,13 +10,16 @@ import { ArrowLeft, Save, User, Briefcase, MapPin, Heart, CreditCard } from 'luc
 import toast from 'react-hot-toast'
 import { useState } from 'react'
 
-const schema = yup.object({
+const schema = (isEdit) => yup.object({
   firstName: yup.string().min(2).max(50).required('First name is required'),
   lastName:  yup.string().min(2).max(50).required('Last name is required'),
   email:     yup.string().email().required('Email is required'),
+  phoneNumber: yup.string().matches(/^[0-9]{10,15}$/, 'Phone number must be 10-15 digits').nullable(true),
   designation: yup.string().required('Designation is required'),
   dateOfJoining: yup.string().required('Date of joining is required'),
   employmentStatus: yup.string().required('Status is required'),
+  salary: yup.number().typeError('Salary must be a number').min(0, 'Salary must be zero or more').nullable(true),
+  password: isEdit ? yup.string().nullable(true) : yup.string().min(8, 'Password must be at least 8 characters').required('Password is required'),
 })
 
 const Section = ({ icon: Icon, title, children }) => (
@@ -39,8 +42,10 @@ const EmployeeFormPage = () => {
   const [loading, setLoading] = useState(false)
   const [fetchingEmp, setFetchingEmp] = useState(isEdit)
 
-  const { register, handleSubmit, setValue, reset, formState: { errors, isSubmitting } } = useForm({
-    resolver: yupResolver(schema),
+  const validationSchema = useMemo(() => schema(isEdit), [isEdit])
+
+  const { register, handleSubmit, setValue, reset, setError, formState: { errors, isSubmitting } } = useForm({
+    resolver: yupResolver(validationSchema),
     defaultValues: { employmentStatus: 'PROBATION', shiftType: 'MORNING', country: 'India' }
   })
 
@@ -75,12 +80,17 @@ const EmployeeFormPage = () => {
         navigate(`/employees/${res.data.data.id}`)
       }
     } catch (err) {
-      const msg = err.response?.data?.message || err.response?.data?.data
-      if (typeof msg === 'object') {
-        Object.values(msg).forEach(m => toast.error(m))
-      } else {
-        toast.error(msg || 'Failed to save employee')
+      const response = err.response?.data
+      const errors = response?.data
+      if (response?.message === 'Validation failed' && errors && typeof errors === 'object') {
+        Object.entries(errors).forEach(([field, message]) => {
+          setError(field, { type: 'server', message })
+        })
+        toast.error('Please fix the highlighted fields')
+        return
       }
+      const msg = typeof errors === 'string' ? errors : response?.message
+      toast.error(msg || 'Failed to save employee')
     }
   }
 

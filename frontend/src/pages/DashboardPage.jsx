@@ -189,24 +189,30 @@ const DashboardPage = () => {
         )}
 
         {/* Upcoming Birthdays */}
-        {stats?.upcomingBirthdays?.length > 0 && (
-          <Card>
-            <CardHeader>
-              <h3 className="font-bold text-slate-800 flex items-center gap-2"><Gift size={16} className="text-pink-500"/>Upcoming Birthdays</h3>
-            </CardHeader>
+        <Card>
+          <CardHeader>
+            <h3 className="font-bold text-slate-800 flex items-center gap-2"><Gift size={16} className="text-pink-500"/>Upcoming Birthdays</h3>
+          </CardHeader>
+          {stats?.upcomingBirthdays?.length > 0 ? (
             <div className="divide-y divide-slate-50">
               {stats.upcomingBirthdays.map((b, i) => (
                 <div key={i} className="flex items-center gap-3 px-6 py-3">
                   <div className="w-9 h-9 bg-pink-100 rounded-xl flex items-center justify-center text-pink-600 text-lg shrink-0">🎂</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-800">{b.name}</p>
-                    <p className="text-xs text-slate-400">{b.department} · {b.dateOfBirth ? format(new Date(b.dateOfBirth),'MMMM d') : ''}</p>
+                    <p className="text-xs text-slate-400">{b.department || 'Unassigned'} · {b.dateOfBirth ? format(new Date(b.dateOfBirth),'MMMM d') : 'Date unknown'}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </Card>
-        )}
+          ) : (
+            <CardBody>
+              <div className="flex items-center justify-center h-36 text-slate-500 text-sm">
+                No upcoming birthdays in the next 7 days.
+              </div>
+            </CardBody>
+          )}
+        </Card>
       </div>
     </div>
   )

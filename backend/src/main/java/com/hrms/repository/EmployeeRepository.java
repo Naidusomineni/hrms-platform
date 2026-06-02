@@ -40,9 +40,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
     @Query("SELECT e FROM Employee e WHERE e.manager.id = :managerId")
     List<Employee> findDirectReports(@Param("managerId") Long managerId);
 
-    @Query("""
-        SELECT e FROM Employee e WHERE MONTH(e.dateOfBirth) = :month
-        AND DAY(e.dateOfBirth) BETWEEN :dayFrom AND :dayTo
-        """)
-    List<Employee> findUpcomingBirthdays(@Param("month") int month, @Param("dayFrom") int dayFrom, @Param("dayTo") int dayTo);
+    @Query("SELECT e FROM Employee e WHERE FUNCTION('DAYOFYEAR', e.dateOfBirth) BETWEEN :startDay AND :endDay")
+    List<Employee> findUpcomingBirthdaysBetween(@Param("startDay") int startDay, @Param("endDay") int endDay);
+
+    @Query("SELECT e FROM Employee e WHERE FUNCTION('DAYOFYEAR', e.dateOfBirth) >= :startDay OR FUNCTION('DAYOFYEAR', e.dateOfBirth) <= :endDay")
+    List<Employee> findUpcomingBirthdaysWrap(@Param("startDay") int startDay, @Param("endDay") int endDay);
 }

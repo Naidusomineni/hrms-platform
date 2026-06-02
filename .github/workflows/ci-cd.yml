@@ -12,8 +12,9 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/hrms-backend
-  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/hrms-frontend
+  IMAGE_OWNER: naidusomineni
+  BACKEND_IMAGE: ghcr.io/naidusomineni/hrms-backend
+  FRONTEND_IMAGE: ghcr.io/naidusomineni/hrms-frontend
 
 jobs:
   # ── Backend ──────────────────────────────────────────────────────

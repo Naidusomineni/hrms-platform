@@ -48,7 +48,9 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: testroot
           DB_HOST: localhost
-          JWT_SECRET: test-secret-key-for-ci-minimum-32-chars
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
 
       - name: Build JAR
         working-directory: ./backend

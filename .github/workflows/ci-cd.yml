@@ -118,11 +118,10 @@ jobs:
       - name: Build and push frontend image
         if: github.ref == 'refs/heads/main'
         run: |
-          docker build -f frontend/Dockerfile -t ${{ env.FRONTEND_IMAGE }}:${{ github.sha }} -t ${{ env.FRONTEND_IMAGE }}:latest .
+          docker build -f frontend/Dockerfile -t ${{ env.FRONTEND_IMAGE }}:${{ github.sha }} -t ${{ env.FRONTEND_IMAGE }}:latest ./frontend
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           docker push ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
           docker push ${{ env.FRONTEND_IMAGE }}:latest
-
   # ── Deploy to Production ─────────────────────────────────────────
   deploy:
     name: Deploy to Production

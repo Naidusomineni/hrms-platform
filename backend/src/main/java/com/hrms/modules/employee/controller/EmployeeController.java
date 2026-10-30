@@ -1,0 +1,100 @@
+package com.hrms.modules.employee.controller;
+import com.hrms.modules.employee.service.EmployeeService;
+
+import com.hrms.dto.request.EmployeeRequest;
+import com.hrms.dto.response.*;
+import com.hrms.enums.EmploymentStatus;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.*;
+import org.springframework.http.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+@RestController
+@RequestMapping("/v1/employees")
+@RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
+@Tag(name = "Employee Management")
+public class EmployeeController {
+
+    private final EmployeeService employeeService;
+
+    @PostMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR')")
+    @Operation(summary = "Create employee + linked user account")
+    public ResponseEntity<ApiResponse<EmployeeResponse>> create(@Valid @RequestBody EmployeeRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(ApiResponse.success("Employee created successfully", employeeService.create(req)));
+    }
+
+    @GetMapping
+    @Operation(summary = "List all employees — paginated, searchable, sortable")
+    public ResponseEntity<ApiResponse<Page<EmployeeResponse>>> getAll(
+            @RequestParam(name = "search", required=false) String search,
+            @RequestParam(name = "page", defaultValue="0") int page,
+            @RequestParam(name = "size", defaultValue="10") int size,
+            @RequestParam(name = "sortBy", defaultValue="createdAt") String sortBy,
+            @RequestParam(name = "sortDir", defaultValue="desc") String sortDir) {
+        Sort sort = "asc".equalsIgnoreCase(sortDir) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Page<EmployeeResponse> result = employeeService.getAll(search, PageRequest.of(page, size, sort));
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Get employee by ID")
+    public ResponseEntity<ApiResponse<EmployeeResponse>> getById(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(ApiResponse.success(employeeService.getById(id)));
+    }
+
+    @PostMapping(value = "/{id}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload employee profile photo")
+    public ResponseEntity<ApiResponse<EmployeeResponse>> uploadPhoto(
+            @PathVariable("id") Long id,
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success("Profile photo uploaded", employeeService.uploadProfilePicture(id, file, userDetails)));
+    }
+
+    @PostMapping(value = "/{id}/document", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload employee resume/document")
+    public ResponseEntity<ApiResponse<EmployeeResponse>> uploadDocument(
+            @PathVariable("id") Long id,
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success("Document uploaded", employeeService.uploadDocument(id, file, userDetails)));
+    }
+
+    @GetMapping("/department/{deptId}")
+    @Operation(summary = "Get employees by department")
+    public ResponseEntity<ApiResponse<Page<EmployeeResponse>>> getByDept(
+            @PathVariable("deptId") Long deptId,
+            @RequestParam(name = "page", defaultValue="0") int page,
+            @RequestParam(name = "size", defaultValue="10") int size) {
+        return ResponseEntity.ok(ApiResponse.success(
+            employeeService.getByDepartment(deptId, PageRequest.of(page, size))));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR')")
+    @Operation(summary = "Update employee")
+    public ResponseEntity<ApiResponse<EmployeeResponse>> update(
+            @PathVariable("id") Long id, @Valid @RequestBody EmployeeRequest req) {
+        return ResponseEntity.ok(ApiResponse.success("Employee updated", employeeService.update(id, req)));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
+    @Operation(summary = "Soft-delete employee")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
+        employeeService.delete(id);
+        return ResponseEntity.ok(ApiResponse.success("Employee removed successfully"));
+    }
+}

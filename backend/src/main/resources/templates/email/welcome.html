@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to HRMS — Official Onboarding & Credentials</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f1f5f9;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <!-- Main Container -->
+        <table role="presentation" width="100%" style="max-width:620px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 10px 25px -5px rgba(15,23,42,0.08),0 8px 10px -6px rgba(15,23,42,0.04);border:1px solid #e2e8f0;" cellspacing="0" cellpadding="0">
+          
+          <!-- Corporate Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 50%,#0284c7 100%);padding:40px 36px;text-align:center;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center">
+                    <div style="display:inline-block;padding:10px 18px;background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border-radius:30px;border:1px solid rgba(255,255,255,0.25);margin-bottom:16px;">
+                      <span style="color:#ffffff;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">HRMS Cloud Enterprise</span>
+                    </div>
+                    <h1 style="color:#ffffff;font-size:26px;font-weight:800;letter-spacing:-0.5px;margin:0 0 8px;">Welcome to the Team! 🎉</h1>
+                    <p style="color:#bfdbfe;font-size:14px;margin:0;">Official Employment Onboarding & Account Credentials</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding:36px;">
+              <p style="font-size:15px;line-height:24px;color:#334155;margin:0 0 16px;">
+                Dear <strong th:text="${fullName != null ? fullName : firstName}">Employee</strong>,
+              </p>
+              <p style="font-size:14px;line-height:24px;color:#475569;margin:0 0 24px;">
+                We are thrilled to welcome you to our organization! Your official profile and employee portal account have been provisioned in the Human Resources Management System (HRMS).
+              </p>
+
+              <!-- Employment Metadata Card -->
+              <table role="presentation" width="100%" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:28px;" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="padding:18px 22px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td width="50%" style="padding-bottom:12px;">
+                          <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Employee ID</div>
+                          <div style="font-size:14px;font-weight:700;color:#0f172a;margin-top:2px;" th:text="${employeeNumber}">EMP0000</div>
+                        </td>
+                        <td width="50%" style="padding-bottom:12px;">
+                          <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Department</div>
+                          <div style="font-size:14px;font-weight:700;color:#0f172a;margin-top:2px;" th:text="${department}">Engineering</div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td width="50%">
+                          <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Designation</div>
+                          <div style="font-size:14px;font-weight:700;color:#0f172a;margin-top:2px;" th:text="${designation}">Software Engineer</div>
+                        </td>
+                        <td width="50%">
+                          <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Official Work Email</div>
+                          <div style="font-size:14px;font-weight:700;color:#2563eb;margin-top:2px;" th:text="${email}">emp@company.com</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Credentials Box -->
+              <div style="background-color:#eff6ff;border:1.5px dashed #3b82f6;border-radius:12px;padding:22px;margin-bottom:28px;text-align:center;">
+                <div style="font-size:12px;font-weight:800;color:#1e40af;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
+                  🔑 Your Confidential Login Credentials
+                </div>
+                
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:16px;">
+                  <tr>
+                    <td align="center">
+                      <div style="display:inline-block;background:#ffffff;padding:8px 18px;border-radius:8px;border:1px solid #bfdbfe;margin-bottom:8px;min-width:240px;">
+                        <span style="font-size:11px;color:#64748b;font-weight:600;display:block;">USERNAME</span>
+                        <strong style="font-size:14px;color:#0f172a;" th:text="${email}">employee@company.com</strong>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center">
+                      <div style="display:inline-block;background:#ffffff;padding:8px 18px;border-radius:8px;border:1px solid #bfdbfe;min-width:240px;">
+                        <span style="font-size:11px;color:#64748b;font-weight:600;display:block;">TEMPORARY PASSWORD</span>
+                        <strong style="font-family:'Courier New',Courier,monospace;font-size:17px;color:#1d4ed8;letter-spacing:1px;" th:text="${tempPassword}">Abcd@1234</strong>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="font-size:12px;color:#ef4444;font-weight:600;margin:0;">
+                  ⚠️ Mandatory: You will be required to create a new permanent password on your first login.
+                </p>
+              </div>
+
+              <!-- CTA Button -->
+              <div style="text-align:center;margin-bottom:32px;">
+                <a th:href="${loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 38px;border-radius:10px;box-shadow:0 4px 12px rgba(37,99,235,0.3);letter-spacing:0.2px;">
+                  Sign In to Employee Portal →
+                </a>
+              </div>
+
+              <!-- Security Directives -->
+              <div style="background-color:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-bottom:24px;">
+                <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px;">🛡️ Enterprise Security Directives:</div>
+                <ul style="margin:0;padding-left:18px;font-size:12px;color:#78350f;line-height:20px;">
+                  <li>Do not share your temporary credentials or password with anyone, including IT staff.</li>
+                  <li>Always access the portal through official organization networks and secure browsers.</li>
+                  <li>Keep your emergency contacts and banking details up to date in the self-service profile.</li>
+                </ul>
+              </div>
+
+              <p style="font-size:13px;line-height:20px;color:#64748b;margin:0;">
+                If you encounter any difficulty signing in or have questions regarding your onboarding, please reach out to your HR Operations partner or IT Helpdesk.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#f8fafc;padding:24px 36px;border-top:1px solid #e2e8f0;text-align:center;">
+              <p style="font-size:11px;color:#94a3b8;margin:0 0 6px;">
+                This is an automated system notification from your organization's Human Resources Management System.
+              </p>
+              <p style="font-size:11px;color:#cbd5e1;margin:0;">
+                © 2026 HRMS Cloud Platform. All rights reserved. Confidential & Proprietary.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

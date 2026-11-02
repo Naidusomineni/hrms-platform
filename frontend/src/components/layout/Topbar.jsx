@@ -60,12 +60,21 @@ const Topbar = () => {
 
         {/* User avatar */}
         <button onClick={() => navigate('/profile')}
-          className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition-colors">
-          <div className="w-8 h-8 gradient-primary rounded-xl flex items-center justify-center text-white text-sm font-bold">
-            {user?.fullName?.charAt(0) || 'U'}
+          className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          <div className="w-8 h-8 rounded-xl overflow-hidden bg-primary-600 flex items-center justify-center text-white text-xs font-bold border border-slate-200 dark:border-slate-700 shrink-0">
+            {user?.profilePicture ? (
+              <img
+                src={user.profilePicture}
+                alt={user.fullName || 'User'}
+                className="w-full h-full object-cover"
+                onError={(e) => { e.currentTarget.style.display = 'none' }}
+              />
+            ) : (
+              <span>{user?.fullName?.charAt(0) || 'U'}</span>
+            )}
           </div>
           <div className="hidden sm:block text-left">
-            <p className="text-sm font-semibold text-slate-800 leading-tight">{user?.fullName}</p>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 leading-tight">{user?.fullName}</p>
             <p className="text-xs text-slate-400">{user?.role?.replace('ROLE_','')}</p>
           </div>
         </button>

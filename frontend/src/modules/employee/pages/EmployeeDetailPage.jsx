@@ -55,8 +55,17 @@ const EmployeeDetailPage = () => {
       <Card>
         <CardBody className="py-8">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-            <div className="w-24 h-24 gradient-primary rounded-2xl flex items-center justify-center text-white text-4xl font-black shadow-lg shrink-0">
-              {emp.firstName?.charAt(0)}{emp.lastName?.charAt(0)}
+            <div className="w-24 h-24 gradient-primary rounded-2xl flex items-center justify-center text-white text-4xl font-black shadow-lg shrink-0 overflow-hidden">
+              {emp.profilePictureUrl ? (
+                <img
+                  src={emp.profilePictureUrl}
+                  alt={emp.fullName}
+                  className="w-full h-full object-cover"
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                />
+              ) : (
+                <span>{emp.firstName?.charAt(0)}{emp.lastName?.charAt(0)}</span>
+              )}
             </div>
             <div className="text-center sm:text-left flex-1">
               <h2 className="text-2xl font-black text-slate-900">{emp.fullName}</h2>

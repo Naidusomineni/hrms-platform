@@ -131,6 +131,12 @@ public class EmployeeService {
         return toResponse(findById(id));
     }
 
+    public EmployeeResponse getByEmail(String email) {
+        Employee emp = employeeRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee profile not found for email: " + email));
+        return toResponse(emp);
+    }
+
     @Transactional(readOnly = true)
     public Page<EmployeeResponse> getAll(String search, Pageable pageable) {
         String tenantId = TenantContext.getTenantId();
@@ -262,15 +268,30 @@ public class EmployeeService {
 
     public EmployeeResponse uploadProfilePicture(Long id, MultipartFile file, UserDetails userDetails) {
         Employee emp = findById(id);
-        verifyOwnerOrAdmin(emp.getUser().getEmail(), userDetails);
+        if (emp.getUser() != null) {
+            verifyOwnerOrAdmin(emp.getUser().getEmail(), userDetails);
+        }
         validateFile(file, allowedImageTypes, "image");
 
         String fileName = storeFile(file, profilePictureDir);
         String url = buildFileUrl("profiles", fileName);
         emp.setProfilePictureUrl(url);
+        if (emp.getUser() != null) {
+            emp.getUser().setProfilePicture(url);
+            userRepository.save(emp.getUser());
+        }
         Employee saved = employeeRepository.save(emp);
         auditService.log("EMPLOYEE_PHOTO_UPLOAD", "EMPLOYEE", saved.getId(), "Uploaded profile picture for " + saved.getFullName());
         return toResponse(saved);
+    }
+
+    public EmployeeResponse uploadProfilePictureForCurrentUser(MultipartFile file, UserDetails userDetails) {
+        if (userDetails == null) {
+            throw new AccessDeniedException("Unauthorized");
+        }
+        Employee emp = employeeRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee profile not found for user: " + userDetails.getUsername()));
+        return uploadProfilePicture(emp.getId(), file, userDetails);
     }
 
     public EmployeeResponse uploadDocument(Long id, MultipartFile file, UserDetails userDetails) {

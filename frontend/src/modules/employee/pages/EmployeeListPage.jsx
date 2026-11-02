@@ -107,8 +107,17 @@ const EmployeeListPage = () => {
                     <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors group">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 gradient-primary rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0">
-                            {emp.firstName?.charAt(0)}{emp.lastName?.charAt(0)}
+                          <div className="w-9 h-9 gradient-primary rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
+                            {emp.profilePictureUrl ? (
+                              <img
+                                src={emp.profilePictureUrl}
+                                alt={emp.fullName}
+                                className="w-full h-full object-cover"
+                                onError={(e) => { e.currentTarget.style.display = 'none' }}
+                              />
+                            ) : (
+                              <span>{emp.firstName?.charAt(0)}{emp.lastName?.charAt(0)}</span>
+                            )}
                           </div>
                           <div>
                             <p className="font-semibold text-slate-800">{emp.fullName}</p>

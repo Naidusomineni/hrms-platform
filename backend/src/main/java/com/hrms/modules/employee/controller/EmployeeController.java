@@ -48,10 +48,27 @@ public class EmployeeController {
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
+    @GetMapping("/me")
+    @Operation(summary = "Get current authenticated employee profile")
+    public ResponseEntity<ApiResponse<EmployeeResponse>> getMyProfile(@AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Unauthorized");
+        }
+        return ResponseEntity.ok(ApiResponse.success(employeeService.getByEmail(userDetails.getUsername())));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get employee by ID")
     public ResponseEntity<ApiResponse<EmployeeResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(employeeService.getById(id)));
+    }
+
+    @PostMapping(value = "/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload current authenticated employee profile photo")
+    public ResponseEntity<ApiResponse<EmployeeResponse>> uploadMyPhoto(
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success("Profile photo uploaded", employeeService.uploadProfilePictureForCurrentUser(file, userDetails)));
     }
 
     @PostMapping(value = "/{id}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

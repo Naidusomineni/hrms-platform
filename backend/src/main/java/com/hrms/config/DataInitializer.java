@@ -5,6 +5,8 @@ import com.hrms.entity.Tenant;
 import com.hrms.entity.TenantRole;
 import com.hrms.entity.User;
 import com.hrms.enums.Role;
+import com.hrms.entity.Employee;
+import com.hrms.repository.EmployeeRepository;
 import com.hrms.repository.DepartmentRepository;
 import com.hrms.repository.TenantRepository;
 import com.hrms.repository.TenantRoleRepository;
@@ -15,6 +17,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,6 +34,7 @@ public class DataInitializer implements CommandLineRunner {
     private final TenantRepository tenantRepository;
     private final TenantRoleRepository tenantRoleRepository;
     private final UserRepository userRepository;
+    private final EmployeeRepository employeeRepository;
     private final DepartmentRepository departmentRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -113,5 +117,29 @@ public class DataInitializer implements CommandLineRunner {
             ));
             log.info("Default users seeded: admin@hrms.com, hr@hrms.com, manager@hrms.com, emp@hrms.com");
         }
+
+        // Ensure admin user has an associated employee profile so admin features & profile photos function seamlessly
+        userRepository.findByEmail("admin@hrms.com").ifPresent(adminUser -> {
+            if (employeeRepository.findByUserId(adminUser.getId()).isEmpty()) {
+                Department engDept = departmentRepository.findAll().stream().findFirst().orElse(null);
+                Employee adminEmp = Employee.builder()
+                    .user(adminUser)
+                    .department(engDept)
+                    .employeeNumber("EMP-ADM-0001")
+                    .firstName(adminUser.getFirstName())
+                    .lastName(adminUser.getLastName())
+                    .email(adminUser.getEmail())
+                    .designation("System Administrator")
+                    .employmentStatus(com.hrms.enums.EmploymentStatus.ACTIVE)
+                    .dateOfJoining(LocalDate.now())
+                    .leaveBalance(24)
+                    .sickLeaveBalance(12)
+                    .casualLeaveBalance(12)
+                    .deleted(false)
+                    .build();
+                employeeRepository.save(adminEmp);
+                log.info("Linked administrative employee record EMP-ADM-0001 for admin@hrms.com");
+            }
+        });
     }
 }

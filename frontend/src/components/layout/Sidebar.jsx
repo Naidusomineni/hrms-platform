@@ -167,8 +167,17 @@ const Sidebar = () => {
       <div className="border-t border-slate-800 p-3">
         {sidebarOpen && user && (
           <div className="flex items-center gap-3 mb-3 px-2 py-2.5 rounded-xl bg-slate-800">
-            <div className="w-8 h-8 gradient-primary rounded-lg flex items-center justify-center font-bold text-sm shrink-0">
-              {user.fullName?.charAt(0)}
+            <div className="w-8 h-8 rounded-lg overflow-hidden bg-primary-600 flex items-center justify-center font-bold text-xs shrink-0 text-white border border-slate-700">
+              {user.profilePicture ? (
+                <img
+                  src={user.profilePicture}
+                  alt={user.fullName || 'User'}
+                  className="w-full h-full object-cover"
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                />
+              ) : (
+                <span>{user.fullName?.charAt(0) || 'U'}</span>
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-white truncate">{user.fullName}</p>

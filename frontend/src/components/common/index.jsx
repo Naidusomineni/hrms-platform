@@ -262,3 +262,7 @@ export const SearchInput = ({ value, onChange, placeholder='Search...', classNam
 // ── Error Boundary ───────────────────────────────────────────────
 export { ErrorBoundary } from './ErrorBoundary'
 
+// ── Photo Cropper Modal ──────────────────────────────────────────
+export { ProfilePhotoCropperModal } from './ProfilePhotoCropperModal'
+
+

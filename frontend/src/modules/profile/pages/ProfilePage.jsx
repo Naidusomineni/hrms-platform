@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { authAPI } from '../../../api/authAPI'
 import { employeeAPI } from '../../../api/employeeAPI'
 import { updateCurrentUser, logoutUser } from '../../../store/slices/authSlice'
-import { Input, Button, Card, CardHeader, CardBody, Alert, Spinner } from '../../../components/common/index.jsx'
+import { Input, Button, Card, CardHeader, CardBody, Alert, Spinner, ProfilePhotoCropperModal } from '../../../components/common/index.jsx'
 import { User, Lock, Shield, Mail, Clock, Monitor, UploadCloud, FileText, Camera, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -33,6 +33,8 @@ const ProfilePage = () => {
   const [uploadingDoc, setUploadingDoc] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [imageVersion, setImageVersion] = useState(Date.now())
+  const [cropImageSrc, setCropImageSrc] = useState(null)
+  const [isCropperOpen, setIsCropperOpen] = useState(false)
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
     resolver: yupResolver(pwSchema)
@@ -83,20 +85,35 @@ const ProfilePage = () => {
     fetchEmployee()
   }, [user?.employeeId, user?.userId])
 
-  const handlePhotoUpload = async (e) => {
+  const handleFileSelect = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
     if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
       toast.error('Please upload a JPG, PNG, or WEBP image')
       return
     }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB')
+      return
+    }
 
+    const reader = new FileReader()
+    reader.onload = () => {
+      setCropImageSrc(reader.result)
+      setIsCropperOpen(true)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleCropComplete = async (croppedBlob) => {
+    const file = new File([croppedBlob], 'profile_avatar.jpg', { type: 'image/jpeg' })
     const formData = new FormData()
     formData.append('file', file)
 
     try {
       setUploadingPhoto(true)
-      const res = await employeeAPI.uploadPhoto(user?.employeeId, formData)
+      const empId = employeeDetails?.id || user?.employeeId
+      const res = await employeeAPI.uploadPhoto(empId, formData)
       const emp = res.data?.data
       if (emp) {
         setEmployeeDetails(emp)
@@ -106,13 +123,21 @@ const ProfilePage = () => {
           dispatch(updateCurrentUser({ profilePicture: emp.profilePictureUrl }))
         }
       }
-      toast.success('Profile picture updated successfully')
+      setIsCropperOpen(false)
+      setCropImageSrc(null)
+      toast.success('Profile photo framed and updated successfully!')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Upload failed')
     } finally {
       setUploadingPhoto(false)
-      if (e.target) e.target.value = ''
+      if (photoInputRef.current) photoInputRef.current.value = ''
     }
+  }
+
+  const handleCloseCropper = () => {
+    setIsCropperOpen(false)
+    setCropImageSrc(null)
+    if (photoInputRef.current) photoInputRef.current.value = ''
   }
 
   const handleDocumentUpload = async (e) => {
@@ -128,7 +153,8 @@ const ProfilePage = () => {
 
     try {
       setUploadingDoc(true)
-      const res = await employeeAPI.uploadDoc(user?.employeeId, formData)
+      const empId = employeeDetails?.id || user?.employeeId
+      const res = await employeeAPI.uploadDoc(empId, formData)
       setEmployeeDetails(res.data?.data)
       toast.success('Document uploaded successfully')
     } catch (err) {
@@ -223,7 +249,7 @@ const ProfilePage = () => {
                 accept="image/jpeg,image/png,image/webp"
                 className="hidden"
                 disabled={uploadingPhoto}
-                onChange={handlePhotoUpload}
+                onChange={handleFileSelect}
               />
             </div>
 
@@ -460,6 +486,16 @@ const ProfilePage = () => {
           </CardBody>
         )}
       </Card>
+      {/* WhatsApp / Instagram style Photo Framing Cropper Modal */}
+      {isCropperOpen && cropImageSrc && (
+        <ProfilePhotoCropperModal
+          isOpen={isCropperOpen}
+          imageSrc={cropImageSrc}
+          onClose={handleCloseCropper}
+          onCropComplete={handleCropComplete}
+          uploading={uploadingPhoto}
+        />
+      )}
     </div>
   )
 }

@@ -9,7 +9,18 @@ import {
   User, Check, ChevronRight, Search, Filter, ShieldCheck, Hash
 } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
+import { clsx } from 'clsx'
 import toast from 'react-hot-toast'
+
+const safeFormatDate = (dateVal, formatStr = 'dd-MMM HH:mm') => {
+  if (!dateVal) return 'N/A'
+  try {
+    const d = new Date(dateVal)
+    return isNaN(d.getTime()) ? 'N/A' : format(d, formatStr)
+  } catch {
+    return 'N/A'
+  }
+}
 
 const priorityBadge = {
   CRITICAL: 'danger',
@@ -460,7 +471,7 @@ const HelpdeskPage = () => {
                                 isBreached ? 'text-red-600 font-semibold' : 'text-slate-600'
                               )}>
                                 <Clock size={12} className={isBreached ? 'text-red-500' : 'text-slate-400'} />
-                                {format(new Date(ticket.slaDeadline), 'dd-MMM HH:mm')}
+                                {safeFormatDate(ticket.slaDeadline, 'dd-MMM HH:mm')}
                                 {isBreached && <span className="text-[10px] bg-red-100 text-red-700 px-1.5 rounded">BREACHED</span>}
                               </span>
                             ) : (
@@ -470,7 +481,7 @@ const HelpdeskPage = () => {
                         </td>
                         <td className="py-3.5 px-4">
                           <Badge variant={statusBadge[ticket.status] || 'default'}>
-                            {ticket.status.replace('_', ' ')}
+                            {(ticket.status || 'OPEN').replace('_', ' ')}
                           </Badge>
                         </td>
                         <td className="py-3.5 px-4 text-right">
@@ -595,18 +606,18 @@ const HelpdeskPage = () => {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-bold text-slate-900">{selectedTicket.title}</h3>
-                  <Badge variant={priorityBadge[selectedTicket.priority]}>{selectedTicket.priority}</Badge>
-                  <Badge variant={statusBadge[selectedTicket.status]}>{selectedTicket.status.replace('_', ' ')}</Badge>
+                  <Badge variant={priorityBadge[selectedTicket.priority] || 'default'}>{selectedTicket.priority}</Badge>
+                  <Badge variant={statusBadge[selectedTicket.status] || 'default'}>{(selectedTicket.status || 'OPEN').replace('_', ' ')}</Badge>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Logged by <span className="font-semibold text-slate-700">{selectedTicket.employeeName}</span> ({selectedTicket.departmentName}) • {selectedTicket.createdAt ? format(new Date(selectedTicket.createdAt), 'dd-MMM-yyyy HH:mm') : ''}
+                  Logged by <span className="font-semibold text-slate-700">{selectedTicket.employeeName}</span> ({selectedTicket.departmentName}) • {selectedTicket.createdAt ? safeFormatDate(selectedTicket.createdAt, 'dd-MMM-yyyy HH:mm') : ''}
                 </p>
               </div>
 
               <div className="text-right">
                 <p className="text-xs text-slate-400 font-semibold uppercase">SLA Target</p>
                 <p className="text-sm font-mono font-bold text-slate-800">
-                  {selectedTicket.slaDeadline ? format(new Date(selectedTicket.slaDeadline), 'dd-MMM HH:mm') : 'N/A'}
+                  {selectedTicket.slaDeadline ? safeFormatDate(selectedTicket.slaDeadline, 'dd-MMM HH:mm') : 'N/A'}
                 </p>
               </div>
             </div>
@@ -624,7 +635,7 @@ const HelpdeskPage = () => {
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
                 <div className="flex items-center gap-2 text-emerald-800 font-semibold text-xs mb-1">
                   <CheckCircle2 size={14} />
-                  Resolution Details ({selectedTicket.resolvedAt ? format(new Date(selectedTicket.resolvedAt), 'dd-MMM HH:mm') : 'Resolved'})
+                  Resolution Details ({selectedTicket.resolvedAt ? safeFormatDate(selectedTicket.resolvedAt, 'dd-MMM HH:mm') : 'Resolved'})
                 </div>
                 <p className="text-xs text-emerald-900 whitespace-pre-wrap">{selectedTicket.resolutionNotes}</p>
               </div>
@@ -710,7 +721,7 @@ const HelpdeskPage = () => {
                           )}
                         </span>
                         <span className="text-slate-400 text-[11px]">
-                          {c.createdAt ? format(new Date(c.createdAt), 'dd-MMM HH:mm') : ''}
+                          {c.createdAt ? safeFormatDate(c.createdAt, 'dd-MMM HH:mm') : ''}
                         </span>
                       </div>
                       <p className="text-slate-700 whitespace-pre-wrap">{c.commentText}</p>

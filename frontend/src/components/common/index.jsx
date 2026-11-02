@@ -258,3 +258,7 @@ export const SearchInput = ({ value, onChange, placeholder='Search...', classNam
     />
   </div>
 )
+
+// ── Error Boundary ───────────────────────────────────────────────
+export { ErrorBoundary } from './ErrorBoundary'
+

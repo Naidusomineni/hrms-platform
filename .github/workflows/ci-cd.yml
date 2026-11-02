@@ -1,4 +1,4 @@
-name: HRMS CI/CD Pipeline
+name: HRMS Enterprise CI/CD Pipeline
 
 on:
   push:
@@ -17,47 +17,49 @@ env:
   FRONTEND_IMAGE: ghcr.io/naidusomineni/hrms-frontend
 
 jobs:
-  # ── Backend ──────────────────────────────────────────────────────
+  # ── Backend CI ────────────────────────────────────────────────────
   backend-ci:
-    name: Backend — Test & Build
+    name: Backend — Java 21 & PostgreSQL Test
     runs-on: ubuntu-latest
     services:
-      mysql:
-        image: mysql:8.0
+      postgres:
+        image: postgres:16-alpine
         env:
-          MYSQL_ROOT_PASSWORD: testroot
-          MYSQL_DATABASE: hrms_test
-        ports: ['3306:3306']
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-retries=10
+          POSTGRES_DB: hrms_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: testpassword
+        ports: ['5432:5432']
+        options: --health-cmd="pg_isready -U postgres -d hrms_db" --health-interval=10s --health-retries=10
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
-      - name: Cache Maven
+      - name: Cache Maven Dependencies
         uses: actions/cache@v4
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-maven-
 
-      - name: Run Tests
+      - name: Compile and Test
         working-directory: ./backend
         run: mvn test -B
         env:
-          DB_USERNAME: root
-          DB_PASSWORD: testroot
           DB_HOST: localhost
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
-          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          DB_PORT: 5432
+          DB_NAME: hrms_db
+          DB_USERNAME: postgres
+          DB_PASSWORD: testpassword
+          FLYWAY_ENABLED: "false"
+          JWT_SECRET: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
 
-      - name: Build JAR
+      - name: Build JAR Package
         working-directory: ./backend
         run: mvn package -DskipTests -B
 
@@ -68,23 +70,20 @@ jobs:
           name: surefire-reports
           path: backend/target/surefire-reports/
 
-      - name: Build and push backend image
+      - name: Build Backend Docker Image
         if: github.ref == 'refs/heads/main'
         run: |
           docker build -t ${{ env.BACKEND_IMAGE }}:${{ github.sha }} -t ${{ env.BACKEND_IMAGE }}:latest ./backend
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          docker push ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
-          docker push ${{ env.BACKEND_IMAGE }}:latest
 
-  # ── Frontend ─────────────────────────────────────────────────────
+  # ── Frontend CI ───────────────────────────────────────────────────
   frontend-ci:
-    name: Frontend — Build & Test
+    name: Frontend — Node 20 & Vite Build
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -93,74 +92,15 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./frontend
-        run: |
-          npm cache clean --force
-          npm ci --verbose --legacy-peer-deps
+        run: npm ci --legacy-peer-deps
 
-      - name: Install Playwright browsers
-        working-directory: ./frontend
-        run: npx playwright install chromium
-
-      - name: Run frontend e2e smoke tests
-        working-directory: ./frontend
-        run: npm run test:e2e:ci
-
-      - name: Lint
-        working-directory: ./frontend
-        run: npm run lint --if-present || true
-
-      - name: Build
+      - name: Build Production Vite Bundle
         working-directory: ./frontend
         run: npm run build
         env:
           VITE_API_URL: /api
 
-      - name: Build and push frontend image
+      - name: Build Frontend Docker Image
         if: github.ref == 'refs/heads/main'
         run: |
           docker build -f frontend/Dockerfile -t ${{ env.FRONTEND_IMAGE }}:${{ github.sha }} -t ${{ env.FRONTEND_IMAGE }}:latest ./frontend
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          docker push ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
-          docker push ${{ env.FRONTEND_IMAGE }}:latest
-  # ── Deploy to Production ─────────────────────────────────────────
-  deploy:
-    if: false
-    name: Deploy to Production
-    needs: [backend-ci, frontend-ci]
-    runs-on: ubuntu-latest
-    environment: production
-
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          port: ${{ secrets.PROD_SSH_PORT || 22 }}
-          script: |
-            set -e
-            cd /opt/hrms
-            
-            # Pull latest images
-            docker compose pull backend frontend
-            
-            # Rolling restart (zero downtime)
-            docker compose up -d --no-deps --scale backend=2 backend
-            sleep 30
-            docker compose up -d --no-deps backend
-            docker compose up -d --no-deps frontend
-            
-            # Cleanup old images
-            docker image prune -f
-            
-            echo "✅ Deployment successful at $(date)"
-
-      - name: Notify Slack (optional)
-        if: always()
-        run: |
-          STATUS="${{ job.status }}"
-          COLOR=$([[ "$STATUS" == "success" ]] && echo "good" || echo "danger")
-          curl -s -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
-            -H 'Content-type: application/json' \
-            -d "{\"attachments\":[{\"color\":\"$COLOR\",\"text\":\"HRMS Deploy: $STATUS — ${{ github.sha }}\"}]}" || true

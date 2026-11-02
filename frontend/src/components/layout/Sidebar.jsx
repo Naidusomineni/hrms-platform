@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Users, Building2, Clock, CalendarDays,
   DollarSign, User, Settings, LogOut, ChevronLeft, ChevronRight,
   Briefcase, Shield, BarChart3, CheckSquare, FileText, Send,
-  Target, Laptop, AlertCircle, XCircle, UserMinus, LifeBuoy, Megaphone, CalendarClock
+  Target, Laptop, AlertCircle, XCircle, UserMinus, LifeBuoy, Megaphone, CalendarClock, BrainCircuit
 } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -21,6 +21,7 @@ const NAV = [
   { path:'/requests',    label:'My Requests',     icon:Send,            roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },
   { path:'/attendance',  label:'Attendance',      icon:Clock,           roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },
   { path:'/shifts',      label:'Shift & Roster',  icon:CalendarClock,   roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },
+  { path:'/intelligence',label:'AI HR & Insights',icon:BrainCircuit,   roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },
   { path:'/leaves',      label:'Leave',           icon:CalendarDays,    roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },
   { path:'/documents',   label:'Document Vault',  icon:FileText,        roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },
   { path:'/announcements',label:'Announcements',  icon:Megaphone,       roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },

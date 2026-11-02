@@ -67,7 +67,7 @@ Write-Host "[PASS] Database Check: must_change_password = $mustChange (Expected:
 Write-Host "`n--- STEP 3: Verify MNC Email Console Dispatch & Extract Temp Password ---" -ForegroundColor Yellow
 Start-Sleep -Seconds 1
 $activeTaskLog = (Get-ChildItem "C:\Users\bapan\.gemini\antigravity\brain\4200cace-c3c3-4728-9673-88340078f039\.system_generated\tasks\task-*.log" |
-    Where-Object { Select-String -Path $_.FullName -Pattern "HRMS PLATFORM v2.0" -Quiet } |
+    Where-Object { Select-String -Path $_.FullName -Pattern "HrmsPlatformApplication" -Quiet } |
     Sort-Object LastWriteTime -Descending |
     Select-Object -First 1).FullName
 $logContent = Get-Content $activeTaskLog -Raw

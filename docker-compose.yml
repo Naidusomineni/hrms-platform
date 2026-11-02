@@ -1,38 +1,35 @@
 version: '3.9'
 
 # ══════════════════════════════════════════════════════
-# HRMS Platform — Production Docker Compose
-# Services: MySQL · Redis · Backend · Frontend (Nginx)
+# HRMS Platform — Production Enterprise Docker Compose
+# Services: PostgreSQL 16 · Redis · Backend (Java 21) · Frontend (Nginx)
 #            Prometheus · Grafana
 # ══════════════════════════════════════════════════════
 
 services:
 
-  # ── MySQL ──────────────────────────────────────────
-  mysql:
-    image: mysql:8.0
-    container_name: hrms-mysql
+  # ── PostgreSQL Database ─────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: hrms-postgres
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
-      MYSQL_DATABASE: hrms_db
-      MYSQL_USER: ${DB_USERNAME:-hrmsuser}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-hrmspass}
+      POSTGRES_DB: hrms_db
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-Naidu@98666}
     ports:
-      - "3306:3306"
+      - "5433:5432"
     volumes:
-      - mysql-data:/var/lib/mysql
-      - ./docs/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD","mysqladmin","ping","-h","localhost","-u","root","-p${DB_ROOT_PASSWORD:-rootpass}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d hrms_db"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 20s
     networks: [hrms-net]
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
-  # ── Redis ──────────────────────────────────────────
+  # ── Redis Cache & Token Store ───────────────────────
   redis:
     image: redis:7.2-alpine
     container_name: hrms-redis
@@ -43,13 +40,13 @@ services:
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD","redis-cli","-a","${REDIS_PASSWORD:-redispass}","ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redispass}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks: [hrms-net]
 
-  # ── Spring Boot Backend ────────────────────────────
+  # ── Spring Boot Backend (Java 21) ────────────────────
   backend:
     build:
       context: ./backend
@@ -57,17 +54,18 @@ services:
     container_name: hrms-backend
     restart: unless-stopped
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     environment:
-      DB_HOST: mysql
-      DB_PORT: 3306
+      DB_HOST: postgres
+      DB_PORT: 5432
       DB_NAME: hrms_db
-      DB_USERNAME: ${DB_USERNAME:-hrmsuser}
-      DB_PASSWORD: ${DB_PASSWORD:-hrmspass}
-      JWT_SECRET: ${JWT_SECRET:-change-this-secret-minimum-32-chars-long}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-Naidu@98666}
+      FLYWAY_ENABLED: "true"
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
       JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY:-900000}
       JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-604800000}
       REDIS_HOST: redis
@@ -75,27 +73,27 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redispass}
       MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
       MAIL_PORT: ${MAIL_PORT:-587}
-      MAIL_USERNAME: ${MAIL_USERNAME}
-      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
-      CORS_ORIGINS: http://localhost,http://frontend
+      CORS_ORIGINS: http://localhost,http://frontend,http://localhost:5173
       JPA_DDL: update
       JPA_SHOW_SQL: "false"
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: default
     ports:
       - "8080:8080"
     volumes:
       - uploads-data:/app/uploads
       - logs-data:/app/logs
     healthcheck:
-      test: ["CMD-SHELL","curl -f http://localhost:8080/api/actuator/health/liveness || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/api/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 90s
+      start_period: 60s
     networks: [hrms-net]
 
-  # ── React Frontend (Nginx) ─────────────────────────
+  # ── React Frontend (Nginx Alpine) ───────────────────
   frontend:
     build:
       context: ./frontend
@@ -108,11 +106,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    volumes:
-      - ./infra/nginx/ssl:/etc/nginx/ssl:ro
     networks: [hrms-net]
 
-  # ── Prometheus ─────────────────────────────────────
+  # ── Prometheus Metrics ──────────────────────────────
   prometheus:
     image: prom/prometheus:latest
     container_name: hrms-prometheus
@@ -127,7 +123,7 @@ services:
       - "9090:9090"
     networks: [hrms-net]
 
-  # ── Grafana ────────────────────────────────────────
+  # ── Grafana Dashboards ──────────────────────────────
   grafana:
     image: grafana/grafana:latest
     container_name: hrms-grafana
@@ -144,12 +140,12 @@ services:
     networks: [hrms-net]
 
 volumes:
-  mysql-data:     driver: local
-  redis-data:     driver: local
-  uploads-data:   driver: local
-  logs-data:      driver: local
-  prometheus-data:driver: local
-  grafana-data:   driver: local
+  postgres-data:   driver: local
+  redis-data:      driver: local
+  uploads-data:    driver: local
+  logs-data:       driver: local
+  prometheus-data: driver: local
+  grafana-data:    driver: local
 
 networks:
   hrms-net:

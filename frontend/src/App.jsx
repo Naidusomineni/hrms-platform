@@ -41,6 +41,7 @@ import ShiftRosterPage from './modules/shift/pages/ShiftRosterPage'
 // Phase 4 Modules
 import OffboardingPage from './modules/offboarding/pages/OffboardingPage'
 import WorkforceIntelligencePage from './modules/intelligence/pages/WorkforceIntelligencePage'
+import ExpenseClaimsPage from './modules/expense/pages/ExpenseClaimsPage'
 
 function App() {
   const dispatch = useDispatch()
@@ -82,6 +83,7 @@ function App() {
         <Route path="employees/:id/edit" element={<EmployeeFormPage />} />
         <Route path="departments" element={<DepartmentPage />} />
         <Route path="payroll" element={<PayrollPage />} />
+        <Route path="expenses" element={<ExpenseClaimsPage />} />
         <Route path="notifications" element={<NotificationPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="performance" element={<PerformancePage />} />

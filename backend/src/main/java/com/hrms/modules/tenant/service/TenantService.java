@@ -69,4 +69,13 @@ public class TenantService {
         setting.setConfigValue(value);
         return tenantSettingRepository.save(setting);
     }
+
+    public Tenant updateTenantBranding(String tenantId, String name, String logoUrl, String primaryColor) {
+        Tenant tenant = getTenantById(tenantId);
+        if (name != null && !name.isBlank()) tenant.setName(name);
+        if (logoUrl != null) tenant.setLogoUrl(logoUrl);
+        if (primaryColor != null && !primaryColor.isBlank()) tenant.setPrimaryColor(primaryColor);
+        log.info("Updated branding for tenant {}: name={}, primaryColor={}", tenantId, name, primaryColor);
+        return tenantRepository.save(tenant);
+    }
 }

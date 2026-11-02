@@ -34,15 +34,16 @@
 
 | Category | New Features |
 |----------|-------------|
-| **Multi-Tenancy** | SaaS organization tenant isolation (`X-Tenant-ID`), dynamic tenant themes, isolated audit trails, strict defense-in-depth |
-| **Security & Auth** | Account lockout, 6-digit OTP reset with resend cooldown, mandatory first-login password enforcement (`mustChangePassword`), temporary credential auto-generation, refresh token rotation |
+| **Multi-Tenancy** | SaaS organization tenant isolation (`X-Tenant-ID`), Subdomain routing (`Host` header), dynamic white-label corporate themes, strict defense-in-depth |
+| **Security & 2FA** | Bank-grade RFC 6238 2FA TOTP (Google Authenticator & Authy), single-use recovery codes, account lockout, 6-digit OTP reset with resend cooldown, mandatory first-login password enforcement (`mustChangePassword`), refresh token rotation |
+| **Expenses & Payouts**| Corporate business expense claims (Travel, Meals, Broadband, Supplies, Fuel, Certifications), 2-stage approval workflow (Manager -> Finance), automated 1-click sync into monthly payroll payslips |
 | **Shift & Roster** | Weekly team roster calendar matrix, morning/afternoon/overnight shifts, night differential allowances, 2-tier mutual peer/manager shift swap state machine |
-| **Attendance 2.0** | Live shift digital stopwatch, break tracker (`Take Break` / `Resume Work`), biometric turnstile fleet integration, bulk CSV punch sync |
-| **Payroll 2.0** | 1-Click vector PDF payslip generator with embedded verification QR code and Indian rupee words, corporate bank batch NEFT/RTGS CSV export |
+| **Attendance 2.0** | Live shift digital stopwatch, break tracker (`Take Break` / `Resume Work`), biometric turnstile fleet integration, bulk CSV punch sync, Geo-Fenced GPS attendance with Haversine office radius validation |
+| **Payroll 2.0** | 1-Click vector PDF payslip generator with embedded verification QR code and Indian rupee words, non-taxable business reimbursements, corporate bank batch NEFT/RTGS CSV export |
 | **Offboarding & F&F** | Employee resignation lifecycle, 4-department clearance NOC (IT, Finance, HR, Manager), statutory Gratuity & Leave encashment calculation, Relieving & Experience Letter PDF generation |
 | **Workforce AI** | Generative AI HR knowledge copilot (RAG semantic search for leave/tax/POSH policies), predictive attrition flight risk radar, candidate ATS resume match scorecard |
 | **Service Desk & Comms** | IT support tickets with SLA countdown timers and diagnostic comments, company broadcast announcements with employee read-acknowledgement tracking |
-| **Database** | Upgraded to PostgreSQL 18 & 16, 10 versioned Flyway migrations (V1–V10), 52 relational tables with composite indexes |
+| **Database** | Upgraded to PostgreSQL 18 & 16, 11 versioned Flyway migrations (V1–V11), 53 relational tables with composite indexes |
 | **Cloud & DevOps** | Multi-stage Docker (Java 21 Temurin + Nginx Alpine), Docker Compose with Postgres 16 & Redis 7.2, hardened GitHub Actions CI/CD pipeline |
 
 ---
@@ -89,6 +90,8 @@
 
 ### 🏢 SaaS Multi-Tenancy
 - [x] Header-based tenant resolution (`X-Tenant-ID`) with subdomain and query param fallbacks
+- [x] Subdomain Host header resolution (e.g. `acme.hrms.com` or `acme.localhost`)
+- [x] Dynamic corporate white-labeling: custom logos, brand colors (`#HEX`), and company display names
 - [x] Defense-in-depth isolation: `BaseTenantEntity` enforces tenant context on all entities
 - [x] Zero unbounded `findAll()` standard across all database queries
 - [x] Tenant-specific branding, department structures, policy rules, and audit logs
@@ -107,6 +110,9 @@
 - [x] 5-tier role-based access control: SUPER_ADMIN, ADMIN, HR, MANAGER, EMPLOYEE
 - [x] Silent token refresh through Axios response interceptor
 - [x] Session invalidation and distributed token blacklisting via Redis
+- [x] Bank-grade RFC 6238 Two-Factor Authentication (2FA / TOTP) via Google Authenticator, Microsoft Authenticator, and Authy
+- [x] Single-use encrypted backup recovery codes (8 emergency keys)
+- [x] Two-step login challenge flow with temporary MFA verification tokens
 
 ### 👥 Employee Management
 - [x] Full CRUD operations with soft delete and multi-tenant scoping
@@ -129,6 +135,8 @@
 - [x] Biometric turnstile fleet integration: REST webhook listener and device registry
 - [x] Bulk biometric CSV punch file upload and reconciliation engine
 - [x] Attendance regularization request and approval workflow
+- [x] Precision Geo-Fenced Mobile & Web GPS punch: Haversine distance validation against office coordinates
+- [x] Office location registry with configurable geo-fence radius (e.g. 200m) and IP whitelisting
 - [x] Status tracking: Present, Absent, Half Day, WFH, On Leave, Late Mark
 
 ### 🔄 Shift & Roster Management
@@ -145,9 +153,17 @@
 - [x] Apply, approve, reject, and cancellation workflows with notification triggers
 - [x] Automatic balance deduction, calendar overlap prevention, and weekend exclusion
 
+### 🧾 Expense Claims & Business Reimbursements
+- [x] Corporate employee claim submission across 7 categories (Travel, Meals, Broadband, Supplies, Fuel, Certifications)
+- [x] Receipt attachment upload and audit tracking
+- [x] 2-Stage approval state machine: Reporting Manager Review → Finance Department Audit
+- [x] Automated 1-Click sync with Payroll 2.0: approved claims automatically disburse with monthly payslips
+- [x] Real-time claim status tracking: `SUBMITTED`, `MANAGER_APPROVED`, `FINANCE_APPROVED`, `DISBURSED`, `REJECTED`
+
 ### 💰 Payroll & Compensation
 - [x] 1-Click batch payroll execution across all active employees
 - [x] Salary breakdown: Basic (50%), HRA (20%), Special Allowance, Night Allowance
+- [x] Non-taxable business expense reimbursement integration
 - [x] Statutory deductions: PF (12%), Professional Tax, TDS
 - [x] 1-Click vector PDF payslip generator with embedded verification QR code, digital seal, and Indian rupee words
 - [x] Corporate bank batch disbursement CSV export (NEFT / RTGS / IMPS)
@@ -381,6 +397,9 @@ All API endpoints are prefixed with `/api/v1/` and resolve organization multi-te
 | POST | `/auth/reset-password` | Public | Reset password using verified 6-digit OTP |
 | POST | `/auth/first-login-change-password` | Bearer | Mandatory permanent password set on first login |
 | GET | `/auth/login-history` | Bearer | Retrieve user login audit history |
+| POST | `/auth/2fa/setup` | Bearer | Initialize 2FA TOTP setup (returns secret & otpauth QR URI) |
+| POST | `/auth/2fa/enable` | Bearer | Enable 2FA TOTP by verifying initial 6-digit code |
+| POST | `/auth/2fa/disable` | Bearer | Disable 2FA TOTP by supplying current 6-digit code or backup code |
 
 ### Employees (`/api/v1/employees`)
 | Method | Endpoint | Roles | Description |
@@ -413,6 +432,16 @@ All API endpoints are prefixed with `/api/v1/` and resolve organization multi-te
 | GET | `/payroll/employee/{id}` | All | Retrieve employee payslip history |
 | GET | `/payroll/bank-batch` | ADMIN, HR | Query NEFT/RTGS bank disbursement batch |
 | GET | `/payroll/bank-batch-export` | ADMIN, HR | Download corporate bank batch payout CSV |
+
+### Expense Claims & Reimbursements (`/api/v1/expenses`)
+| Method | Endpoint | Roles | Description |
+|--------|----------|-------|-------------|
+| POST | `/expenses/claims?employeeId=` | All | Submit new business expense claim with receipt |
+| GET | `/expenses/claims/my?employeeId=` | All | Retrieve current employee's submitted expense claims |
+| GET | `/expenses/claims?status=` | ADMIN, HR, MANAGER | List all claims with optional status filtering |
+| GET | `/expenses/claims/{id}` | All | Get single expense claim details |
+| PUT | `/expenses/claims/{id}/manager-review` | ADMIN, HR, MANAGER | Manager review and sign-off (APPROVE / REJECT) |
+| PUT | `/expenses/claims/{id}/finance-review` | ADMIN, HR | Finance audit review and sign-off (APPROVE / REJECT) |
 
 ### Offboarding & F&F (`/api/v1/offboarding`)
 | Method | Endpoint | Roles | Description |
@@ -598,6 +627,9 @@ powershell -ExecutionPolicy Bypass -File .\test_phase4_milestone4_shift_roster.p
 
 # 6. Generative HR Assistant & Workforce Intelligence
 powershell -ExecutionPolicy Bypass -File .\test_phase4_milestone5_workforce_intelligence.ps1
+
+# 7. Enterprise Operations, Expense Claims, Geo-Fencing, White-Labeling & 2FA TOTP
+powershell -ExecutionPolicy Bypass -File .\test_phase6_enterprise_operations.ps1
 ```
 
 ---

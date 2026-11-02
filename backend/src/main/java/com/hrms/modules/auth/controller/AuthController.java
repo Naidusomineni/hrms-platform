@@ -103,4 +103,30 @@ public class AuthController {
     public ResponseEntity<ApiResponse<?>> loginHistory(@RequestParam("userId") Long userId) {
         return ResponseEntity.ok(ApiResponse.success(authService.getLoginHistory(userId)));
     }
+
+    @PostMapping("/2fa/setup")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Initialize 2FA TOTP setup (returns secret & otpauth QR URI)")
+    public ResponseEntity<ApiResponse<com.hrms.modules.auth.dto.TotpSetupResponse>> setupTotp(@RequestParam Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(authService.setupTotp(userId)));
+    }
+
+    @PostMapping("/2fa/enable")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Enable 2FA TOTP by verifying initial 6-digit code")
+    public ResponseEntity<ApiResponse<com.hrms.modules.auth.dto.TotpEnableResponse>> enableTotp(
+            @RequestParam Long userId,
+            @RequestParam int code) {
+        return ResponseEntity.ok(ApiResponse.success("2FA enabled successfully", authService.enableTotp(userId, code)));
+    }
+
+    @PostMapping("/2fa/disable")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Disable 2FA TOTP by supplying current 6-digit code or backup code")
+    public ResponseEntity<ApiResponse<Void>> disableTotp(
+            @RequestParam Long userId,
+            @RequestParam int code) {
+        authService.disableTotp(userId, code);
+        return ResponseEntity.ok(ApiResponse.success("2FA disabled successfully"));
+    }
 }

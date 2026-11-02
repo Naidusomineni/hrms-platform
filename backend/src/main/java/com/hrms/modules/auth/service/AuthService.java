@@ -64,6 +64,7 @@ public class AuthService {
     private final UserDetailsServiceImpl userDetailsService;
     private final EmailService emailService;
     private final DistributedTokenBlacklistService tokenBlacklistService;
+    private final TotpService totpService = new TotpService();
 
     @Value("${jwt.refresh-token.expiration}")
     private Long refreshTokenExpirationMs;
@@ -155,6 +156,25 @@ public class AuthService {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
+
+            // 2FA TOTP Challenge Verification
+            if (Boolean.TRUE.equals(user.getTotpEnabled())) {
+                if (request.getTotpCode() == null) {
+                    log.info("2FA MFA challenge required for user: {}", user.getEmail());
+                    return AuthResponse.builder()
+                            .email(user.getEmail())
+                            .totpEnabled(true)
+                            .tokenType("MFA_REQUIRED")
+                            .build();
+                }
+                boolean validTotp = totpService.verifyCode(user.getTotpSecret(), request.getTotpCode());
+                if (!validTotp) {
+                    validTotp = verifyAndConsumeBackupCode(user, String.valueOf(request.getTotpCode()));
+                }
+                if (!validTotp) {
+                    throw new BadCredentialsException("Invalid 2FA authentication code");
+                }
+            }
 
             // Reset failed attempts on success
             user.setFailedLoginAttempts(0);
@@ -401,6 +421,84 @@ public class AuthService {
             return xForwardedFor.split(",")[0].trim();
         }
         return request.getRemoteAddr();
+    }
+
+    // ── 2FA TOTP (GOOGLE AUTHENTICATOR) ─────────────────────────
+
+    public com.hrms.modules.auth.dto.TotpSetupResponse setupTotp(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        String secret = totpService.generateSecretKey();
+        user.setTotpSecret(secret);
+        userRepository.save(user);
+
+        String qrUri = totpService.getOtpAuthUri(secret, user.getEmail(), "HRMS Corporate");
+        return com.hrms.modules.auth.dto.TotpSetupResponse.builder()
+                .secret(secret)
+                .qrCodeUri(qrUri)
+                .email(user.getEmail())
+                .build();
+    }
+
+    public com.hrms.modules.auth.dto.TotpEnableResponse enableTotp(Long userId, int code) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        if (user.getTotpSecret() == null) {
+            throw new BadRequestException("2FA setup not initialized for this account");
+        }
+        boolean valid = totpService.verifyCode(user.getTotpSecret(), code);
+        if (!valid) {
+            throw new BadRequestException("Invalid 6-digit verification code");
+        }
+        user.setTotpEnabled(true);
+        List<String> rawBackupCodes = totpService.generateBackupCodes();
+        String hashedCodes = rawBackupCodes.stream()
+                .map(passwordEncoder::encode)
+                .collect(Collectors.joining(";"));
+        user.setTotpBackupCodes(hashedCodes);
+        userRepository.save(user);
+
+        log.info("2FA successfully enabled for user id={}", userId);
+        return com.hrms.modules.auth.dto.TotpEnableResponse.builder()
+                .enabled(true)
+                .backupCodes(rawBackupCodes)
+                .build();
+    }
+
+    public void disableTotp(Long userId, int code) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        if (!Boolean.TRUE.equals(user.getTotpEnabled())) {
+            throw new BadRequestException("2FA is not enabled on this account");
+        }
+        boolean valid = totpService.verifyCode(user.getTotpSecret(), code) ||
+                verifyAndConsumeBackupCode(user, String.valueOf(code));
+        if (!valid) {
+            throw new BadRequestException("Invalid 2FA code or backup code");
+        }
+        user.setTotpEnabled(false);
+        user.setTotpSecret(null);
+        user.setTotpBackupCodes(null);
+        userRepository.save(user);
+        log.info("2FA disabled for user id={}", userId);
+    }
+
+    private boolean verifyAndConsumeBackupCode(User user, String code) {
+        if (user.getTotpBackupCodes() == null || user.getTotpBackupCodes().isBlank()) {
+            return false;
+        }
+        String[] hashedList = user.getTotpBackupCodes().split(";");
+        for (int i = 0; i < hashedList.length; i++) {
+            if (passwordEncoder.matches(code, hashedList[i])) {
+                List<String> remaining = new java.util.ArrayList<>(List.of(hashedList));
+                remaining.remove(i);
+                user.setTotpBackupCodes(String.join(";", remaining));
+                userRepository.save(user);
+                log.info("Backup code consumed successfully for user {}", user.getEmail());
+                return true;
+            }
+        }
+        return false;
     }
 
     private AuthResponse buildAuthResponse(User user, String accessToken, String refreshToken) {

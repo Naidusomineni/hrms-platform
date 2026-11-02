@@ -64,4 +64,16 @@ public class TenantController {
             "Setting updated",
             tenantService.updateTenantSetting(id, key, value)));
     }
+
+    @PutMapping("/{id}/branding")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN','ROLE_ADMIN')")
+    public ResponseEntity<ApiResponse<Tenant>> updateTenantBranding(
+            @PathVariable("id") String id,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String logoUrl,
+            @RequestParam(required = false) String primaryColor) {
+        return ResponseEntity.ok(ApiResponse.success(
+            "Branding updated successfully",
+            tenantService.updateTenantBranding(id, name, logoUrl, primaryColor)));
+    }
 }

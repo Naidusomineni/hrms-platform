@@ -24,6 +24,7 @@ public class PayrollService {
     private final EmployeeRepository employeeRepository;
     private final AttendanceRepository attendanceRepository;
     private final EmailService emailService;
+    private final com.hrms.modules.expense.service.ExpenseService expenseService;
 
     public PayrollSlip process(Long empId, int month, int year) {
         if (payrollSlipRepository.findByEmployeeIdAndMonthAndYear(empId, month, year).isPresent())
@@ -74,6 +75,16 @@ public class PayrollService {
             .build();
 
         slip = payrollSlipRepository.save(slip);
+
+        // Auto-sync approved pending expense claims into this payroll run
+        BigDecimal reimbursements = expenseService.disburseClaimsForPayroll(empId, slip);
+        if (reimbursements != null && reimbursements.compareTo(BigDecimal.ZERO) > 0) {
+            netSalary = netSalary.add(reimbursements);
+            slip.setReimbursements(reimbursements);
+            slip.setNetSalary(netSalary);
+            slip = payrollSlipRepository.save(slip);
+            log.info("Attached ₹{} reimbursements to payroll slip #{}", reimbursements, slip.getId());
+        }
 
         // Send email notification
         String[] monthNames = {"","January","February","March","April","May","June",

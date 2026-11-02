@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Users, Building2, Clock, CalendarDays,
   DollarSign, User, Settings, LogOut, ChevronLeft, ChevronRight,
   Briefcase, Shield, BarChart3, CheckSquare, FileText, Send,
-  Target, Laptop, AlertCircle, XCircle, UserMinus, LifeBuoy, Megaphone, CalendarClock, BrainCircuit
+  Target, Laptop, AlertCircle, XCircle, UserMinus, LifeBuoy, Megaphone, CalendarClock, BrainCircuit, Receipt
 } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -28,6 +28,7 @@ const NAV = [
   { path:'/employees',   label:'Employees',       icon:Users,           roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER'] },
   { path:'/departments', label:'Departments',     icon:Building2,       roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR'] },
   { path:'/payroll',     label:'Payroll',         icon:DollarSign,      roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },
+  { path:'/expenses',    label:'Expense Claims',  icon:Receipt,         roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },
   { path:'/performance', label:'Performance & OKR',icon:Target,        roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },
   { path:'/recruitment', label:'Recruitment / ATS',icon:Briefcase,     roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER'] },
   { path:'/assets',      label:'Assets & Hardware',icon:Laptop,        roles:['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'] },

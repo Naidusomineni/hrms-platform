@@ -52,6 +52,10 @@ public class PayrollSlip extends BaseTenantEntity {
     @Column(name = "total_deductions", precision = 12, scale = 2)
     private BigDecimal totalDeductions;
 
+    @Column(name = "reimbursements", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal reimbursements = BigDecimal.ZERO;
+
     @Column(name = "net_salary", precision = 12, scale = 2)
     private BigDecimal netSalary;
 

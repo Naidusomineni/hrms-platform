@@ -62,7 +62,17 @@ public class TenantContextFilter extends OncePerRequestFilter {
             return paramTenant.trim().toLowerCase();
         }
 
-        // 4. Fallback to default system tenant
+        // 4. Check subdomain from Host header (e.g. acme.hrms.com or acme.localhost:8080)
+        String host = request.getHeader("Host");
+        if (StringUtils.hasText(host)) {
+            String cleanHost = host.split(":")[0];
+            String[] parts = cleanHost.split("\\.");
+            if (parts.length >= 2 && !parts[0].equalsIgnoreCase("www") && !parts[0].equalsIgnoreCase("api") && !parts[0].equalsIgnoreCase("localhost")) {
+                return parts[0].trim().toLowerCase();
+            }
+        }
+
+        // 5. Fallback to default system tenant
         return TenantContext.DEFAULT_TENANT_ID;
     }
 }

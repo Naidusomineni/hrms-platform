@@ -12,6 +12,7 @@ import com.hrms.security.jwt.JwtUtils;
 import com.hrms.security.service.UserDetailsServiceImpl;
 import com.hrms.modules.auth.service.AuthService;
 import com.hrms.service.EmailService;
+import com.hrms.infrastructure.redis.DistributedTokenBlacklistService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +40,8 @@ class AuthServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private LoginHistoryRepository loginHistoryRepository;
+    @Mock private EmployeeRepository employeeRepository;
+    @Mock private DistributedTokenBlacklistService tokenBlacklistService;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private AuthenticationManager authenticationManager;
     @Mock private JwtUtils jwtUtils;
@@ -58,6 +61,9 @@ class AuthServiceTest {
         ReflectionTestUtils.setField(authService, "lockDurationMinutes", 30);
         ReflectionTestUtils.setField(authService, "otpExpiryMinutes", 15);
         ReflectionTestUtils.setField(authService, "frontendUrl", "http://localhost:5173");
+
+        org.mockito.Mockito.lenient().when(employeeRepository.findByUserId(any())).thenReturn(Optional.empty());
+        org.mockito.Mockito.lenient().when(employeeRepository.findByEmail(any())).thenReturn(Optional.empty());
 
         mockUser = User.builder()
             .id(1L).firstName("John").lastName("Doe")

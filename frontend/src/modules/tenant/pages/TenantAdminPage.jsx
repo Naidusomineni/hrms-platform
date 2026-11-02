@@ -1,8 +1,21 @@
 import React, { useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { Card, CardHeader, CardBody, Badge, Spinner, EmptyState, Button, Input, SearchInput, Pagination } from '../../../components/common/index.jsx'
-import { Shield, Users, Settings, Key, Activity, Search } from 'lucide-react'
+import { Shield, Users, Settings, Key, Activity, Search, Palette, Building2, Upload, Trash2, Check, RefreshCw, Eye } from 'lucide-react'
 import { tenantService } from '../services/tenantService'
+import { updateTenantBrandingThunk, uploadTenantLogoThunk } from '../../../store/slices/tenantSlice'
 import toast from 'react-hot-toast'
+
+const CORPORATE_PALETTES = [
+  { name: 'Enterprise Blue', hex: '#2563eb', desc: 'Standard Tech' },
+  { name: 'Classic Navy', hex: '#1e3a8a', desc: 'Banking & Legal' },
+  { name: 'Executive Emerald', hex: '#059669', desc: 'Sustainable Growth' },
+  { name: 'Modern Indigo', hex: '#4f46e5', desc: 'Modern SaaS' },
+  { name: 'Nordic Teal', hex: '#0f766e', desc: 'Healthcare & Tech' },
+  { name: 'Executive Slate', hex: '#334155', desc: 'Industrial & Discrete' },
+  { name: 'Deep Crimson', hex: '#dc2626', desc: 'Energy & Aviation' },
+  { name: 'Royal Purple', hex: '#7c3aed', desc: 'Consulting & Design' },
+]
 
 const TenantAdminPage = () => {
   const [activeTab, setActiveTab] = useState('users')
@@ -24,6 +37,90 @@ const TenantAdminPage = () => {
   const [configLoading, setConfigLoading] = useState(false)
   const [settingsUpdates, setSettingsUpdates] = useState({})
   const [savingSettings, setSavingSettings] = useState({})
+
+  const dispatch = useDispatch()
+  const { tenant } = useSelector(s => s.tenant)
+  const [brandForm, setBrandForm] = useState({
+    name: '',
+    domain: '',
+    primaryColor: '#2563eb',
+    logoUrl: ''
+  })
+  const [logoFile, setLogoFile] = useState(null)
+  const [logoPreview, setLogoPreview] = useState(null)
+  const [savingBrand, setSavingBrand] = useState(false)
+
+  useEffect(() => {
+    if (tenant) {
+      setBrandForm({
+        name: tenant.name || '',
+        domain: tenant.domain || '',
+        primaryColor: tenant.primaryColor || '#2563eb',
+        logoUrl: tenant.logoUrl || ''
+      })
+      setLogoPreview(tenant.logoUrl || null)
+    }
+  }, [tenant])
+
+  const handleLogoFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file (PNG, JPG, SVG, WebP)')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Logo image must be smaller than 5MB')
+      return
+    }
+    setLogoFile(file)
+    const reader = new FileReader()
+    reader.onload = () => setLogoPreview(reader.result)
+    reader.readAsDataURL(file)
+  }
+
+  const handleSaveBranding = async (e) => {
+    e?.preventDefault()
+    setSavingBrand(true)
+    try {
+      let currentLogo = brandForm.logoUrl
+      if (logoFile) {
+        const uploadRes = await tenantService.uploadLogo(logoFile)
+        currentLogo = uploadRes.data?.data?.logoUrl || currentLogo
+        setLogoFile(null)
+      }
+
+      await dispatch(updateTenantBrandingThunk({
+        name: brandForm.name,
+        domain: brandForm.domain,
+        primaryColor: brandForm.primaryColor,
+        logoUrl: currentLogo
+      })).unwrap()
+
+      toast.success('Corporate branding updated successfully')
+    } catch (err) {
+      toast.error(err?.message || 'Failed to update branding')
+    } finally {
+      setSavingBrand(false)
+    }
+  }
+
+  const handleClearLogo = async () => {
+    setLogoFile(null)
+    setLogoPreview(null)
+    setBrandForm(prev => ({ ...prev, logoUrl: '' }))
+    try {
+      await dispatch(updateTenantBrandingThunk({
+        name: brandForm.name,
+        domain: brandForm.domain,
+        primaryColor: brandForm.primaryColor,
+        logoUrl: ''
+      })).unwrap()
+      toast.success('Logo cleared successfully')
+    } catch {
+      toast.error('Failed to clear logo')
+    }
+  }
 
   useEffect(() => {
     if (activeTab === 'users') fetchUsers(0, userSearch)
@@ -157,6 +254,7 @@ const TenantAdminPage = () => {
 
   const tabs = [
     { key:'users', label:'User Management', icon:Users },
+    { key:'branding', label:'Company Branding', icon:Palette },
     { key:'audit', label:'Audit Logs', icon:Activity },
     { key:'config', label:'System Config', icon:Settings },
   ]
@@ -272,6 +370,298 @@ const TenantAdminPage = () => {
             )
           }
         </Card>
+      )}
+
+      {activeTab === 'branding' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Form: Configuration */}
+          <div className="lg:col-span-7 space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Building2 size={18} className="text-slate-700" />
+                  <h3 className="font-bold text-slate-800 text-base">Company Identity & Domain</h3>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">Define your legal company name and tenant portal routing</p>
+              </CardHeader>
+              <CardBody className="space-y-4">
+                <div>
+                  <label className="label">Company / Organization Legal Name</label>
+                  <Input
+                    value={brandForm.name}
+                    onChange={e => setBrandForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g. Acme Corporation Global"
+                    disabled={savingBrand}
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">Appears on the login portal, navigation headers, and payslips.</p>
+                </div>
+
+                <div>
+                  <label className="label">Custom Subdomain / Host Domain</label>
+                  <div className="flex items-center">
+                    <Input
+                      value={brandForm.domain}
+                      onChange={e => setBrandForm(prev => ({ ...prev, domain: e.target.value }))}
+                      placeholder="e.g. acme or acme.hrms.com"
+                      disabled={savingBrand}
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">Used to identify this tenant workspace automatically.</p>
+                </div>
+              </CardBody>
+            </Card>
+
+            {/* Corporate Logo Uploader */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Upload size={18} className="text-slate-700" />
+                  <h3 className="font-bold text-slate-800 text-base">Corporate Logo</h3>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">Upload official high-resolution logo for headers, emails, and login</p>
+              </CardHeader>
+              <CardBody className="space-y-4">
+                <div className="flex flex-col sm:flex-row items-center gap-5 p-4 bg-slate-50 border border-slate-200/80 rounded-xl">
+                  {/* Current/Preview Box */}
+                  <div className="w-40 h-20 bg-white border border-slate-200 rounded-lg flex items-center justify-center p-2 shadow-2xs overflow-hidden shrink-0">
+                    {logoPreview ? (
+                      <img
+                        src={logoPreview}
+                        alt="Company Logo Preview"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    ) : (
+                      <div className="text-center text-slate-400">
+                        <Building2 size={24} className="mx-auto text-slate-300" />
+                        <span className="text-[10px] block mt-1 font-medium">No custom logo</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-2 text-center sm:text-left">
+                    <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                      <label className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs cursor-pointer transition-colors">
+                        <Upload size={14} />
+                        <span>Choose Logo File</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                          onChange={handleLogoFileChange}
+                          className="hidden"
+                          disabled={savingBrand}
+                        />
+                      </label>
+
+                      {(logoPreview || brandForm.logoUrl) && (
+                        <button
+                          type="button"
+                          onClick={handleClearLogo}
+                          disabled={savingBrand}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 text-red-600 hover:bg-red-50 text-xs font-medium rounded-lg transition-colors border border-transparent hover:border-red-200">
+                          <Trash2 size={14} />
+                          <span>Remove Logo</span>
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Recommended: Transparent PNG or SVG (Max 5MB). Optimal height: 40-60px.
+                    </p>
+                    {logoFile && (
+                      <p className="text-xs text-emerald-600 font-medium">
+                        ✓ Selected file: {logoFile.name} (will be saved when clicking Save Corporate Branding)
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+
+            {/* Corporate Theme Palette */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Palette size={18} className="text-slate-700" />
+                  <h3 className="font-bold text-slate-800 text-base">Corporate Color Theme</h3>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">Select from standard enterprise color schemes or specify a custom corporate HEX</p>
+              </CardHeader>
+              <CardBody className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  {CORPORATE_PALETTES.map((pal) => {
+                    const isSelected = brandForm.primaryColor?.toLowerCase() === pal.hex.toLowerCase()
+                    return (
+                      <button
+                        key={pal.hex}
+                        type="button"
+                        onClick={() => setBrandForm(prev => ({ ...prev, primaryColor: pal.hex }))}
+                        className={`p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
+                          isSelected
+                            ? 'border-slate-900 ring-2 ring-slate-900/10 bg-slate-50/50 shadow-2xs'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span
+                            className="w-6 h-6 rounded-md shadow-2xs border border-black/10 shrink-0"
+                            style={{ backgroundColor: pal.hex }}
+                          />
+                          {isSelected && <Check size={14} className="text-slate-900" />}
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-slate-800 leading-tight">{pal.name}</div>
+                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">{pal.hex}</div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Custom HEX Picker */}
+                <div className="pt-3 border-t border-slate-100 flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={brandForm.primaryColor || '#2563eb'}
+                      onChange={e => setBrandForm(prev => ({ ...prev, primaryColor: e.target.value }))}
+                      className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white"
+                      disabled={savingBrand}
+                    />
+                    <div>
+                      <span className="text-xs font-semibold text-slate-700 block">Custom Brand HEX</span>
+                      <span className="text-[10px] text-slate-400">Match official corporate guidelines</span>
+                    </div>
+                  </div>
+                  <div className="w-36 ml-auto">
+                    <Input
+                      value={brandForm.primaryColor}
+                      onChange={e => setBrandForm(prev => ({ ...prev, primaryColor: e.target.value }))}
+                      placeholder="#2563eb"
+                      className="font-mono text-xs uppercase"
+                      disabled={savingBrand}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    loading={savingBrand}
+                    onClick={handleSaveBranding}
+                    className="w-full justify-center">
+                    Save Corporate Branding
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
+          </div>
+
+          {/* Right Column: Live Enterprise Preview */}
+          <div className="lg:col-span-5 space-y-6">
+            <Card className="sticky top-6">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Eye size={18} className="text-slate-700" />
+                    <h3 className="font-bold text-slate-800 text-base">Live Workplace Preview</h3>
+                  </div>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                    Real-Time
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">Preview how employees will see your corporate branding</p>
+              </CardHeader>
+              <CardBody className="space-y-5">
+                {/* Simulated App Header */}
+                <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50 shadow-2xs">
+                  <div className="bg-slate-900 px-4 py-3 flex items-center justify-between text-white border-b border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      {logoPreview ? (
+                        <img
+                          src={logoPreview}
+                          alt="Brand Logo"
+                          className="h-6 max-w-[90px] object-contain rounded bg-white/10 p-0.5"
+                        />
+                      ) : (
+                        <div
+                          className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs text-white shadow"
+                          style={{ backgroundColor: brandForm.primaryColor || '#2563eb' }}>
+                          {brandForm.name ? brandForm.name.charAt(0).toUpperCase() : 'A'}
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-bold text-xs leading-none truncate max-w-[120px]">
+                          {brandForm.name || 'HRMS Enterprise'}
+                        </div>
+                        <div className="text-[9px] text-slate-400 mt-0.5">
+                          {brandForm.domain || 'localhost'}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded font-mono text-slate-300">
+                      v2.0
+                    </span>
+                  </div>
+
+                  {/* Simulated Nav & Content */}
+                  <div className="p-4 bg-white space-y-4">
+                    {/* Active Navigation Item Mock */}
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                        Sidebar Navigation
+                      </span>
+                      <div
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-white shadow-2xs"
+                        style={{ backgroundColor: brandForm.primaryColor || '#2563eb' }}>
+                        <Shield size={14} />
+                        <span>Executive Dashboard</span>
+                      </div>
+                    </div>
+
+                    {/* Button & Badge Mock */}
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                        Buttons & Micro-Interactions
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          className="px-3.5 py-1.5 text-xs font-semibold text-white rounded-lg shadow-2xs transition-all"
+                          style={{ backgroundColor: brandForm.primaryColor || '#2563eb' }}>
+                          Primary Action
+                        </button>
+                        <span
+                          className="px-2.5 py-1 text-xs font-semibold rounded-full"
+                          style={{
+                            backgroundColor: `${brandForm.primaryColor || '#2563eb'}18`,
+                            color: brandForm.primaryColor || '#2563eb'
+                          }}>
+                          Corporate Tag
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Input Focus Mock */}
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                        Form Controls & Focus States
+                      </span>
+                      <div
+                        className="px-3 py-2 text-xs rounded-lg border bg-white text-slate-700"
+                        style={{ borderColor: brandForm.primaryColor || '#2563eb' }}>
+                        Active Employee Search...
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-[11px] text-slate-500 leading-relaxed">
+                  <strong className="text-slate-700 block font-semibold mb-0.5">Automated CSS Injection:</strong>
+                  Applying your brand theme updates buttons, navigation highlights, badges, and focus rings globally across all employee dashboards and login portals.
+                </div>
+              </CardBody>
+            </Card>
+          </div>
+        </div>
       )}
 
       {activeTab === 'audit' && (

@@ -44,6 +44,7 @@ const Sidebar = () => {
   const navigate = useNavigate()
   const { sidebarOpen } = useSelector(s => s.ui)
   const { user } = useSelector(s => s.auth)
+  const { tenant } = useSelector(s => s.tenant)
 
   const [logoutModalOpen, setLogoutModalOpen] = useState(false)
   const [activeShiftInfo, setActiveShiftInfo] = useState(null)
@@ -120,17 +121,45 @@ const Sidebar = () => {
       'fixed left-0 top-0 h-full bg-slate-900 text-white flex flex-col z-40 transition-all duration-300',
       sidebarOpen ? 'w-64' : 'w-16'
     )}>
-      {/* Logo */}
+      {/* Logo & Tenant Identity */}
       <div className="flex items-center justify-between h-16 px-4 border-b border-slate-800">
-        {sidebarOpen && (
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 gradient-primary rounded-lg flex items-center justify-center shadow-lg">
-              <Briefcase size={16} className="text-white" />
+        {sidebarOpen ? (
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            {tenant?.logoUrl ? (
+              <img
+                src={tenant.logoUrl}
+                alt={tenant.name || 'Company Logo'}
+                className="h-8 max-w-[120px] object-contain rounded bg-white/10 p-0.5"
+                onError={(e) => { e.currentTarget.style.display = 'none' }}
+              />
+            ) : (
+              <div className="w-8 h-8 gradient-primary rounded-lg flex items-center justify-center shadow-lg font-black text-white text-sm shrink-0">
+                {tenant?.name ? tenant.name.charAt(0).toUpperCase() : <Briefcase size={16} className="text-white" />}
+              </div>
+            )}
+            <div className="min-w-0">
+              <span className="font-bold text-white text-sm block truncate" title={tenant?.name || 'HRMS'}>
+                {tenant?.name || 'HRMS'}
+              </span>
+              <span className="text-[10px] text-slate-400 block -mt-0.5 font-medium truncate">
+                {tenant?.domain ? tenant.domain : 'Enterprise'}
+              </span>
             </div>
-            <div>
-              <span className="font-black text-white text-base">HRMS</span>
-              <span className="text-[10px] text-slate-400 block -mt-0.5 font-medium">Enterprise</span>
-            </div>
+          </div>
+        ) : (
+          <div className="mx-auto">
+            {tenant?.logoUrl ? (
+              <img
+                src={tenant.logoUrl}
+                alt="Logo"
+                className="w-7 h-7 object-contain rounded bg-white/10 p-0.5"
+                onError={(e) => { e.currentTarget.style.display = 'none' }}
+              />
+            ) : (
+              <div className="w-7 h-7 gradient-primary rounded-lg flex items-center justify-center shadow font-bold text-white text-xs">
+                {tenant?.name ? tenant.name.charAt(0).toUpperCase() : 'H'}
+              </div>
+            )}
           </div>
         )}
         <button onClick={() => dispatch(toggleSidebar())}

@@ -18,10 +18,11 @@ const Topbar = () => {
   const dispatch = useDispatch()
   const { user } = useSelector(s => s.auth)
   const { theme } = useSelector(s => s.ui)
+  const { tenant } = useSelector(s => s.tenant)
   const [unreadCount, setUnreadCount] = useState(0)
 
   const pageTitle = titles[location.pathname] ||
-    (location.pathname.includes('/employees/') ? 'Employee Details' : 'HRMS')
+    (location.pathname.includes('/employees/') ? 'Employee Details' : (tenant?.name || 'HRMS'))
 
   useEffect(() => {
     if (user?.userId) {

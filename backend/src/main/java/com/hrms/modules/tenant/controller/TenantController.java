@@ -4,14 +4,17 @@ import com.hrms.modules.tenant.service.TenantService;
 import com.hrms.dto.response.ApiResponse;
 import com.hrms.entity.Tenant;
 import com.hrms.entity.TenantSetting;
+import com.hrms.modules.tenant.dto.TenantBrandingRequest;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -65,15 +68,57 @@ public class TenantController {
             tenantService.updateTenantSetting(id, key, value)));
     }
 
+    @PutMapping("/current/branding")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN','ROLE_ADMIN')")
+    public ResponseEntity<ApiResponse<Tenant>> updateCurrentTenantBranding(
+            @RequestBody(required = false) TenantBrandingRequest request,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String logoUrl,
+            @RequestParam(required = false) String primaryColor,
+            @RequestParam(required = false) String domain) {
+        String finalName = request != null && request.getName() != null ? request.getName() : name;
+        String finalLogoUrl = request != null && request.getLogoUrl() != null ? request.getLogoUrl() : logoUrl;
+        String finalPrimaryColor = request != null && request.getPrimaryColor() != null ? request.getPrimaryColor() : primaryColor;
+        String finalDomain = request != null && request.getDomain() != null ? request.getDomain() : domain;
+        return ResponseEntity.ok(ApiResponse.success(
+            "Branding updated successfully",
+            tenantService.updateTenantBranding("current", finalName, finalLogoUrl, finalPrimaryColor, finalDomain)));
+    }
+
     @PutMapping("/{id}/branding")
     @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN','ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<Tenant>> updateTenantBranding(
             @PathVariable("id") String id,
+            @RequestBody(required = false) TenantBrandingRequest request,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String logoUrl,
-            @RequestParam(required = false) String primaryColor) {
+            @RequestParam(required = false) String primaryColor,
+            @RequestParam(required = false) String domain) {
+        String finalName = request != null && request.getName() != null ? request.getName() : name;
+        String finalLogoUrl = request != null && request.getLogoUrl() != null ? request.getLogoUrl() : logoUrl;
+        String finalPrimaryColor = request != null && request.getPrimaryColor() != null ? request.getPrimaryColor() : primaryColor;
+        String finalDomain = request != null && request.getDomain() != null ? request.getDomain() : domain;
         return ResponseEntity.ok(ApiResponse.success(
             "Branding updated successfully",
-            tenantService.updateTenantBranding(id, name, logoUrl, primaryColor)));
+            tenantService.updateTenantBranding(id, finalName, finalLogoUrl, finalPrimaryColor, finalDomain)));
+    }
+
+    @PostMapping(value = "/current/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN','ROLE_ADMIN')")
+    public ResponseEntity<ApiResponse<Tenant>> uploadCurrentTenantLogo(
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(ApiResponse.success(
+            "Logo uploaded successfully",
+            tenantService.uploadLogo("current", file)));
+    }
+
+    @PostMapping(value = "/{id}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN','ROLE_ADMIN')")
+    public ResponseEntity<ApiResponse<Tenant>> uploadTenantLogo(
+            @PathVariable("id") String id,
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(ApiResponse.success(
+            "Logo uploaded successfully",
+            tenantService.uploadLogo(id, file)));
     }
 }

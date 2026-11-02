@@ -30,6 +30,7 @@ const LoginPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { loading, error } = useSelector(s => s.auth)
+  const { tenant } = useSelector(s => s.tenant)
   const [showPassword, setShowPassword] = useState(false)
   const [selectedRole, setSelectedRole] = useState(null)
   const [workMode, setWorkMode] = useState('OFFICE') // 'OFFICE' | 'REMOTE_WFH'
@@ -79,22 +80,31 @@ const LoginPage = () => {
       {/* Top Corporate Header / Brand Navigation */}
       <header className="w-full max-w-md flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
-            <Building2 size={22} className="text-white" />
-          </div>
+          {tenant?.logoUrl ? (
+            <img
+              src={tenant.logoUrl}
+              alt={tenant.name || 'Company Logo'}
+              className="h-10 max-w-[130px] object-contain rounded bg-white p-1 border border-slate-200"
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-primary-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+              <Building2 size={22} className="text-white" />
+            </div>
+          )}
           <div>
             <span className="font-bold text-base text-slate-900 tracking-tight block leading-tight">
-              Enterprise HRMS
+              {tenant?.name || 'Enterprise HRMS'}
             </span>
             <span className="text-xs text-slate-500 font-medium block">
-              Workforce Operations Platform
+              {tenant?.domain ? `${tenant.domain} Portal` : 'Workforce Operations Platform'}
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-slate-200 text-xs text-slate-600 shadow-2xs">
           <span className="w-2 h-2 rounded-full bg-emerald-500" />
-          <span className="font-medium">Tenant: <strong className="text-slate-800 font-semibold">default</strong></span>
+          <span className="font-medium">Tenant: <strong className="text-slate-800 font-semibold">{tenant?.code || 'default'}</strong></span>
         </div>
       </header>
 

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { refreshAccessToken } from './store/slices/authSlice'
+import { fetchTenantBranding } from './store/slices/tenantSlice'
 import ProtectedRoute from './routes/ProtectedRoute'
 import MainLayout from './components/layout/MainLayout'
 
@@ -48,6 +49,7 @@ function App() {
   const { isAuthenticated, user } = useSelector(s => s.auth)
 
   useEffect(() => {
+    dispatch(fetchTenantBranding())
     const rt = localStorage.getItem('refreshToken')
     if (rt && !isAuthenticated) dispatch(refreshAccessToken())
   }, [])

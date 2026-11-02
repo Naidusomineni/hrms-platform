@@ -28,10 +28,11 @@ Thumbs.db
 logs/
 *.log
 
-# Storage & Uploads
-uploads/
-storage/
-backend/storage/
+# Storage & Uploads (anchored to avoid matching com.hrms.domain.storage or infrastructure.storage)
+/uploads/
+/storage/
+/backend/storage/
+/backend/uploads/
 
 # Build artifacts & temp compiler files
 backend/sources.txt

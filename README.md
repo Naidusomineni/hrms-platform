@@ -1,527 +1,360 @@
-# 🏢 HRMS Platform v2.0 — Enterprise Edition
+# 🏢 HRMS Enterprise Platform v2.0
 
-> A production-grade Human Resource Management System built with Spring Boot 3, React 18, MySQL 8, Redis, JWT with Refresh Token Rotation, WebSocket notifications, and full DevOps setup.
+> **Tier-1 Multi-Tenant Human Resource Management System & Workforce Intelligence Platform**  
+> Built with **Spring Boot 3.2.3 (Java 21)**, **React 18 & Vite (TailwindCSS)**, **PostgreSQL 18 & 16**, **Flyway**, **Redis 7.2**, **JWT with Silent Token Rotation**, **Docker Multi-Stage**, and **GitHub Actions CI/CD**.
 
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.3-brightgreen)](https://spring.io/projects/spring-boot)
-[![React](https://img.shields.io/badge/React-18.3-blue)](https://reactjs.org)
-[![MySQL](https://img.shields.io/badge/MySQL-8.0-orange)](https://mysql.com)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://docker.com)
-[![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-black)](https://github.com/features/actions)
+[![Java 21](https://img.shields.io/badge/Java-21-orange?logo=openjdk)](https://openjdk.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.3-brightgreen?logo=springboot)](https://spring.io/projects/spring-boot)
+[![React](https://img.shields.io/badge/React-18.3-blue?logo=react)](https://react.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18%20%7C%2016-336791?logo=postgresql)](https://www.postgresql.org/)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-38B2AC?logo=tailwindcss)](https://tailwindcss.com/)
+[![Docker](https://img.shields.io/badge/Docker-Production%20Ready-2496ED?logo=docker)](https://www.docker.com/)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=githubactions)](https://github.com/Naidusomineni/hrms-platform/actions)
+[![License](https://img.shields.io/badge/License-Proprietary-red)](#)
 
 ---
 
 ## 📋 Table of Contents
 
-1. [What's New in v2.0](#whats-new)
-2. [Tech Stack](#tech-stack)
-3. [Features](#features)
-4. [Architecture](#architecture)
-5. [Quick Start](#quick-start)
-6. [Manual Setup](#manual-setup)
-7. [Docker Deployment](#docker)
-8. [API Reference](#api)
-9. [Default Credentials](#credentials)
-10. [Environment Variables](#env)
-11. [CI/CD Pipeline](#cicd)
-12. [Project Structure](#structure)
+1. [Executive Overview & Architecture](#executive-overview)
+2. [Master Engineering Standard (SKILLS.md)](#engineering-standard)
+3. [Enterprise Module & Feature Matrix](#feature-matrix)
+   - [Phase 1: SaaS Multi-Tenancy & Core RBAC](#phase-1)
+   - [Phase 2: Core Operations, Attendance & Payroll](#phase-2)
+   - [Phase 3: Talent, ATS & Organizational Governance](#phase-3)
+   - [Phase 4: Enterprise Automation & Workforce Intelligence](#phase-4)
+     - [Milestone 1: MNC Email Delivery & Credential Lifecycle](#m1-email)
+     - [Milestone 2: Attendance 2.0 & Enterprise Payroll 2.0](#m2-attendance-payroll)
+     - [Milestone 3: Full & Final Settlement (F&F) & Offboarding](#m3-offboarding)
+     - [Milestone 4: Shift & Roster Management](#m4-shift-roster)
+     - [Milestone 5: Generative HR Assistant & Workforce Intelligence](#m5-ai-intelligence)
+   - [Phase 5: Production Cloud Hardening](#phase-5)
+4. [Technology Stack](#tech-stack)
+5. [Database Migrations (Flyway V1–V10)](#database-migrations)
+6. [Quick Start & Local Setup](#quick-start)
+7. [Production Docker Deployment](#docker-deployment)
+8. [Automated QA Regression Test Suites (100% Pass)](#qa-test-suites)
+9. [Default Credentials](#default-credentials)
+10. [API Reference & Swagger](#api-reference)
+11. [Repository Layout](#repository-layout)
 
 ---
 
-## 🆕 What's New in v2.0 <a name="whats-new"></a>
+## 🏛️ Executive Overview & Architecture <a name="executive-overview"></a>
 
-| Category | New Features |
-|----------|-------------|
-| **Security** | Account lockout, Forgot/Reset password OTP flow, Email verification, 2FA TOTP ready, Refresh token rotation, Rate limiting (Bucket4j), Login history tracking |
-| **Modules** | Payroll processing with salary breakdown, Performance reviews, Job postings & recruitment, Candidate pipeline tracking |
-| **Notifications** | WebSocket real-time push, Email templates (Thymeleaf), 13 notification event types |
-| **DevOps** | GitHub Actions CI/CD, Prometheus + Grafana monitoring, structured JSON logging, K8s readiness, Redis caching layer |
-| **API** | Versioned endpoints (/v1/), Request ID tracing, Rate limiting on auth endpoints |
-| **Frontend** | Skeleton loaders, Dark mode, Framer Motion animations, Error boundaries, Advanced pagination |
-| **DB** | 15 tables with proper indexes, Soft delete, JPA auditing, Full-text search ready |
+The HRMS Enterprise Platform is architected as an **Enterprise Package-by-Feature Modular Monolith** designed for high throughput, strict multi-tenancy data isolation, and corporate compliance (Darwinbox, Rippling, Workday tier).
 
----
+```mermaid
+flowchart TD
+    subgraph Client["Frontend Layer (React 18 + Vite + TailwindCSS)"]
+        UI["Tier-1 Corporate UI Canvas (#f8fafc)"]
+        RTK["Redux Toolkit Global State"]
+        Axios["Axios Interceptor (X-Tenant-ID & Silent Token Refresh)"]
+        PDF["Vector Document Engines (Payslip & Relieving Letter PDFs)"]
+    end
 
-## 🛠️ Tech Stack <a name="tech-stack"></a>
+    subgraph Gateway["Reverse Proxy & Edge Gateway"]
+        Nginx["Nginx Alpine (Reverse Proxy, SSL, Gzip, SPA Routing)"]
+    end
 
-### Backend
-| Technology | Version | Purpose |
-|-----------|---------|---------|
-| Spring Boot | 3.2.3 | Application framework |
-| Spring Security 6 | 3.2.3 | Auth, JWT filter chain, RBAC |
-| Spring Data JPA | 3.2.3 | ORM, repositories |
-| Spring WebSocket | 3.2.3 | Real-time notifications |
-| MySQL | 8.0 | Primary relational database |
-| JJWT | 0.11.5 | JWT generation & validation |
-| Bucket4j | 8.7.0 | Rate limiting |
-| Thymeleaf | 3.x | Email HTML templates |
-| Lombok | 1.18.30 | Boilerplate reduction |
-| SpringDoc OpenAPI | 2.3.0 | Swagger UI |
-| Micrometer Prometheus | Latest | Application metrics |
-| Maven | 3.9.6 | Build tool |
+    subgraph Backend["Spring Boot 3.2.3 Backend (Java 21)"]
+        TCF["TenantContextFilter (Resolves X-Tenant-ID into ThreadLocal)"]
+        Security["Spring Security 6 (Stateless JWT 0.11.5 + RBAC)"]
+        Modules["21 Package-by-Feature Modules<br/>(attendance, payroll, offboarding, shift, intelligence, helpdesk, etc.)"]
+        Services["Core Domain Services & RAG Policy NLP Engine"]
+    end
 
-### Frontend
-| Technology | Version | Purpose |
-|-----------|---------|---------|
-| React | 18.3.1 | UI library |
-| Vite | 5.2 | Build tool, HMR |
-| Redux Toolkit | 2.2.3 | Global state management |
-| React Router | 6.22 | Client-side routing |
-| Axios | 1.6.8 | HTTP client + interceptors |
-| React Hook Form | 7.51 | Form handling |
-| Yup | 1.4.0 | Schema validation |
-| Recharts | 2.12 | Dashboard charts |
-| Tailwind CSS | 3.4.3 | Utility-first styling |
-| @stomp/stompjs | 7.0 | WebSocket client |
-| Framer Motion | 11.1 | Animations |
-| date-fns | 3.6 | Date utilities |
+    subgraph Data["Persistence & Caching"]
+        PG["PostgreSQL 18 / 16 (Tenant-Isolated Tables & Composite Indexes)"]
+        Flyway["Flyway Migration Engine (V1 - V10)"]
+        Redis["Redis 7.2 (Distributed Token Blacklist & Session Store)"]
+    end
 
----
-
-## ✨ Features <a name="features"></a>
-
-### 🔐 Authentication & Security
-- [x] JWT Access Token (15 min) + Refresh Token Rotation (7 days)
-- [x] BCrypt password hashing (cost factor 12)
-- [x] Account lockout after 5 failed attempts (30 min lock)
-- [x] Forgot password with 6-digit OTP (BCrypt-hashed in DB)
-- [x] Email verification on registration
-- [x] Rate limiting: 10 login attempts/minute/IP
-- [x] Login history with IP, browser, OS tracking
-- [x] Role-based access control: SUPER_ADMIN, ADMIN, HR, MANAGER, EMPLOYEE
-- [x] Silent token refresh (Axios interceptor)
-- [x] Session invalidation after password change
-
-### 👥 Employee Management
-- [x] Full CRUD with soft delete
-- [x] Employee number auto-generation (EMP-YYYY-NNNN)
-- [x] Server-side search, filter, pagination, sorting
-- [x] Multi-shift support (Morning, Afternoon, Night, Flexible)
-- [x] Leave balance tracking (Annual, Sick, Casual)
-- [x] Profile picture & resume upload (ready)
-- [x] Emergency contact management
-- [x] Bank & tax details (PAN, PF, IFSC)
-
-### 🏢 Department Management
-- [x] Department creation with budget tracking
-- [x] Manager assignment
-- [x] Location tracking
-- [x] Employee count per department
-- [x] Soft delete
-
-### 📅 Attendance Management
-- [x] Mark attendance with check-in/check-out times
-- [x] Auto working hours calculation
-- [x] Monthly calendar view
-- [x] Status tracking: Present, Absent, Half Day, WFH, On Leave, Holiday, Late
-- [x] Duplicate prevention (unique constraint: employee + date)
-- [x] Today's attendance list for HR
-
-### 🏖️ Leave Management
-- [x] 9 leave types: Annual, Sick, Casual, Maternity, Paternity, Unpaid, Compensatory, Emergency, Bereavement
-- [x] Apply, approve, reject, cancel workflow
-- [x] Leave balance auto-deduction on approval
-- [x] Overlap detection
-- [x] Working days calculation (excludes weekends)
-- [x] Email notification on approval/rejection
-
-### 💰 Payroll Module
-- [x] Monthly payroll processing
-- [x] Salary components: Basic (50%), HRA (20%), Special Allowance
-- [x] Statutory deductions: PF (12%), Professional Tax, TDS
-- [x] Pro-rata calculation based on attendance
-- [x] Email notification with net salary
-- [x] Payslip history view
-
-### 📊 Dashboard & Analytics
-- [x] KPI cards: Total employees, Departments, Present today, Pending leaves
-- [x] Bar chart: Employees by department
-- [x] Pie chart: Today's attendance breakdown
-- [x] Recent hires table
-- [x] Upcoming birthdays (next 7 days)
-- [x] Role-based dashboard content
-
-### 🔔 Notifications
-- [x] Real-time WebSocket notifications (STOMP over SockJS)
-- [x] In-app notification center with unread count
-- [x] Email notifications for 8+ events
-- [x] Mark as read / mark all read
-
-### 🚀 DevOps
-- [x] Docker + Docker Compose (MySQL, Redis, Backend, Frontend, Prometheus, Grafana)
-- [x] GitHub Actions CI/CD (test, build, push, deploy)
-- [x] Nginx reverse proxy with WebSocket support
-- [x] Prometheus metrics endpoint
-- [x] Grafana dashboards
-- [x] Structured JSON logging (Logstash encoder)
-- [x] Request ID tracing (MDC)
-- [x] Health check endpoints (liveness, readiness)
-- [x] Graceful shutdown
-
----
-
-## 🏛️ Architecture <a name="architecture"></a>
-
-```
-Client (React SPA)
-      │
-      ▼
-Nginx (port 80)
-      │
-      ├── /api/** ──── Spring Boot (port 8080)
-      │                      │
-      │               ┌──────┴──────────────┐
-      │               │   Filter Chain        │
-      │               │   ├─ RequestIdFilter  │
-      │               │   ├─ RateLimitFilter  │
-      │               │   └─ JwtAuthFilter    │
-      │               │                       │
-      │               │   @RestControllers    │
-      │               │   └─ /v1/auth         │
-      │               │   └─ /v1/employees    │
-      │               │   └─ /v1/departments  │
-      │               │   └─ /v1/attendance   │
-      │               │   └─ /v1/leaves       │
-      │               │   └─ /v1/payroll      │
-      │               │   └─ /v1/dashboard    │
-      │               │   └─ /v1/admin        │
-      │               │                       │
-      │               │   Services            │
-      │               │   └─ Business Logic   │
-      │               │   └─ @Transactional   │
-      │               │                       │
-      │               │   Repositories        │
-      │               │   └─ Spring Data JPA  │
-      │               └──────────────────────┘
-      │                        │
-      │              ┌─────────┼──────────┐
-      │              ▼         ▼          ▼
-      │           MySQL 8    Redis    MinIO/S3
-      │
-      └── /ws ────── WebSocket (STOMP)
-                          │
-                     Real-time push
-                     to connected clients
+    Client --> Gateway
+    Gateway --> Backend
+    TCF --> Security --> Modules --> Services
+    Services --> PG
+    Services --> Redis
+    Flyway --> PG
 ```
 
 ---
 
-## ⚡ Quick Start (Docker) <a name="quick-start"></a>
+## 📐 Master Engineering Standard (SKILLS.md) <a name="engineering-standard"></a>
 
-```bash
-# 1. Clone
-git clone https://github.com/yourorg/hrms-platform.git
-cd hrms-platform
+Every module adheres strictly to the architectural standards codified in [`SKILLS.md`](SKILLS.md) and [`.gemini/skills/hrms-enterprise-engineering/SKILL.md`](.gemini/skills/hrms-enterprise-engineering/SKILL.md):
 
-# 2. Configure environment
-cp .env.example .env
-# Edit .env — set DB passwords, JWT secret, mail credentials
-
-# 3. Start everything
-docker compose up --build
-
-# 4. Access
-open http://localhost           # Frontend
-open http://localhost:8080/api/swagger-ui.html  # API docs
-open http://localhost:3000      # Grafana monitoring
-```
-
-**First run takes 3-5 minutes** (downloading images + Maven build).
+1. **Zero Unbounded `findAll()` Hazard**:
+   - Calling `repository.findAll()` without `tenant_id` breaks multi-tenant data boundaries and induces JVM Out-Of-Memory (`java.lang.OutOfMemoryError`).
+   - Every database query strictly filters by `tenant_id` and enforces pagination via `Pageable`.
+2. **Multi-Tenant Defense-in-Depth**:
+   - All domain entities extend `BaseTenantEntity` which auto-binds `tenant_id` via `TenantContext.getTenantId()`.
+   - `TenantContextFilter` cleans up `TenantContext.clear()` in a strict `finally` block to prevent thread pool contamination in Tomcat.
+3. **Tier-1 Executive Design Standard**:
+   - Strictly banned: Toy demo emojis (`🏢`, `🏠`, `☕`), neon glowing arcade gradients, broken character encodings (`â€”`), and unstyled Chrome cyan autofill shadows.
+   - Adopted: Neutral `#f8fafc` canvas, crisp white cards with subtle borders (`border-slate-200`), vector Lucide icons, responsive tables, and accessible contrast.
 
 ---
 
-## 🔧 Manual Setup <a name="manual-setup"></a>
+## 🚀 Enterprise Module & Feature Matrix <a name="feature-matrix"></a>
+
+### Phase 1: SaaS Multi-Tenancy & Core RBAC <a name="phase-1"></a>
+- **Multi-Tenant Routing**: Seamless organization tenant resolution via `X-Tenant-ID` header, subdomains, and route tokens.
+- **Tenant Isolation**: Separate tenant configurations, subscriptions, themes, logos, and custom department trees.
+- **5-Tier Role Hierarchy**: `ROLE_SUPER_ADMIN` > `ROLE_ADMIN` > `ROLE_HR` > `ROLE_MANAGER` > `ROLE_EMPLOYEE`.
+- **JWT Security 2.0**: 15-minute access token + 7-day refresh token rotation with distributed token blacklisting.
+- **Account Lockout**: Automated 30-minute lockout after 5 consecutive failed login attempts.
+
+### Phase 2: Core Operations, Attendance & Payroll <a name="phase-2"></a>
+- **Employee Directory**: Enterprise staff directory with multi-field search, department filters, pagination, and soft delete.
+- **Dynamic Attendance**: Check-in, check-out, working hours calculation, regularization workflows, and monthly attendance matrix.
+- **Leave Management**: 9 statutory leave types, accrual balances, manager approval workflows, and calendar overlap protection.
+- **Document Vault**: Encrypted employee document repository with categorization (Identity, Tax, Education, Certificates).
+
+### Phase 3: Talent, ATS & Organizational Governance <a name="phase-3"></a>
+- **Recruitment / ATS**: Job postings, candidate applicant tracking pipeline (Applied → Screening → Interview → Offer → Hired), and interview scorecards.
+- **Performance & OKR**: Company objectives, key results, appraisal review cycles, self-ratings, and manager feedback.
+- **Asset Management**: Enterprise hardware and IT asset inventory tracking, asset assignment history, and serial number indexing.
+
+### Phase 4: Enterprise Automation & Workforce Intelligence <a name="phase-4"></a>
+
+#### Milestone 1: MNC Email Delivery & Credential Security <a name="m1-email"></a>
+- **Branded Welcome Emails**: Automated dispatch of official welcome emails containing Employee ID, portal URL, and auto-generated temporary credentials.
+- **First-Login Password Enforcement**: `mustChangePassword` flag redirects first-time users to `/first-login-change-password` before granting application access.
+- **6-Digit OTP Password Reset**: High-security OTP reset with BCrypt hashing in DB, 15-minute expiry, and 60-second resend countdown timer.
+- **Dual-Mode Delivery**: Production SMTP with automatic development logger box fallback.
+
+#### Milestone 2: Attendance 2.0 & Enterprise Payroll 2.0 <a name="m2-attendance-payroll"></a>
+- **Live Shift Hub**: Real-time digital stopwatch (`04h 12m 30s`), 8h progress bar, and break management (`Take Break` / `Resume Work`).
+- **Biometric Fleet**: Direct biometric turnstile REST webhook sync and bulk CSV punch file upload.
+- **1-Click Vector PDF Payslips**: High-resolution vector PDF generator with embedded QR code verification, Indian rupee words converter, and digital corporate seal.
+- **Bank NEFT/RTGS Batch Payouts**: 1-click batch payroll execution and standard banking disbursement CSV export.
+
+#### Milestone 3: Full & Final Settlement (F&F) & Offboarding Lifecycle <a name="m3-offboarding"></a>
+- **Separation Workflow**: Resignation submission, last working day (LWD) negotiation, and separation approval status tracking.
+- **4-Department Clearance NOC**: Departmental asset recovery checkpoints (IT Assets, Finance, HR Admin, Reporting Manager).
+- **Statutory Computation Engine**:
+  - **Gratuity Formula**: `(15 * Basic Salary * Tenure Years) / 26` (tenure >= 5 years under Payment of Gratuity Act, 1972).
+  - **Leave Encashment Formula**: `(Accumulated Leaves * Basic Salary) / 30`.
+- **Official Documentation**: Automated vector PDF generation for **Relieving Letters**, **Experience Certificates**, and **F&F Statements**.
+
+#### Milestone 4: Shift & Roster Management <a name="m4-shift-roster"></a>
+- **Enterprise Shift Definitions**: Morning, Afternoon, General, Overnight Night shifts with grace periods and automated night differential allowances.
+- **Weekly Team Roster Calendar**: Dynamic scheduling matrix by department and date range.
+- **2-Tier Shift Swap State Machine**: Mutual peer consent (`PEER_ACCEPTED`) followed by manager approval, with dynamic atomic foreign key swap of schedules in PostgreSQL.
+
+#### Milestone 5: Generative HR Assistant & Workforce Intelligence <a name="m5-ai-intelligence"></a>
+- **AI HR Knowledge Copilot**: Natural language corporate policy RAG assistant answering employee questions regarding leave rollovers, medical cover, tax regimes, and shift rules with instant action shortcuts.
+- **Workforce Attrition Radar**: Predictive flight risk analysis calculating multi-signal risk scores (Attendance Volatility, Compensation Stagnation, Tenure Cliff, Performance Disengagement) and manager retention interventions.
+- **Smart ATS Candidate Match**: Evaluates candidate resumes against job posting requirements with skill gap radars, matched competencies, and hiring verdicts (`STRONG_HIRE`, `HIRE`, `CONSIDER`, `REJECT`).
+
+#### IT Service Desk & Company Communication
+- **Service Desk**: Internal IT and HR support ticketing with SLA deadline tracking, priority escalation, and diagnostic comment threads.
+- **Announcements Feed**: Global and department-targeted broadcast notices with mandatory read-acknowledgement tracking.
+
+### Phase 5: Production Cloud Hardening <a name="phase-5"></a>
+- **Multi-Stage Dockerfiles**: Java 21 Temurin Alpine container with container-aware G1GC tuning (`-XX:MaxRAMPercentage=75.0`) and Node 20 / Nginx Alpine container with SPA fallback.
+- **Production Docker Compose**: PostgreSQL 16 Alpine, Redis 7.2 Alpine, Spring Boot Backend, React Nginx Frontend, Prometheus, and Grafana.
+- **GitHub Actions CI/CD**: Automated pipeline validating Java 21 compilation, unit tests, Vite bundle build, and Docker image packaging on every push.
+
+---
+
+## 🛠️ Technology Stack <a name="tech-stack"></a>
+
+| Domain | Technology | Version | Description |
+|:---|:---|:---|:---|
+| **Backend Framework** | Spring Boot | 3.2.3 | Modular Monolith Enterprise Architecture |
+| **Language** | Java | 21 (LTS) | Modern Java runtime with virtual thread capability |
+| **Primary Database** | PostgreSQL | 18 / 16 | Relational store with composite multi-tenant indexes |
+| **DB Migrations** | Flyway | 10.5.0 | Versioned, idempotent SQL migration pipeline |
+| **Security & Auth** | Spring Security 6 / JJWT | 0.11.5 | Stateless JWT access + rotating refresh tokens |
+| **Cache & Sessions** | Redis | 7.2 | Distributed token blacklisting and rate limiting |
+| **Rate Limiting** | Bucket4j | 8.10.1 | Token-bucket rate limiter per IP / user |
+| **Frontend Framework** | React | 18.3.1 | Declarative component architecture |
+| **Build Tool** | Vite | 5.4 | Next-generation frontend tooling and HMR |
+| **Styling** | TailwindCSS | 3.4 | Modern corporate utility design system |
+| **Icons** | Lucide React | 0.344 | Crisp SVG vector iconography |
+| **PDF Generation** | jsPDF / autoTable | 2.5 | High-resolution client-side vector document rendering |
+| **State Management** | Redux Toolkit | 2.2 | Predictable global application state |
+| **Containerization** | Docker | Latest | Multi-stage production container images |
+| **CI/CD** | GitHub Actions | v4 | Automated testing, linting, and image builds |
+
+---
+
+## 🗄️ Database Migrations (Flyway V1–V10) <a name="database-migrations"></a>
+
+The database schema is managed via 10 versioned, idempotent Flyway migrations in [`backend/src/main/resources/db/migration`](backend/src/main/resources/db/migration):
+
+| Migration | Title | Highlights |
+|:---|:---|:---|
+| `V1` | `V1__fix_payroll_columns.sql` | Fixed payroll calculation precision and column mappings. |
+| `V2` | `V2__saas_multi_tenancy_and_rbac.sql` | Multi-tenant schema, tenants table, roles, permissions, audit tables. |
+| `V3` | `V3__core_operations_and_workflows.sql` | Employees, departments, attendance regularizations, leave policies, documents. |
+| `V4` | `V4__phase3_talent_and_governance.sql` | Job openings, candidate applicant pipeline, performance goals, appraisals, assets. |
+| `V5` | `V5__phase4_enterprise_automation.sql` | Added `must_change_password` flag and first-login credential tracking to `users`. |
+| `V6` | `V6__phase4_milestone2_attendance_payroll.sql` | Biometric turnstile device fleet, punch sources, break tracking, NEFT batch fields. |
+| `V7` | `V7__phase4_milestone3_offboarding_settlement.sql` | Resignations, 4-department clearance checkpoints, statutory F&F settlement records. |
+| `V8` | `V8__it_service_desk_and_communication.sql` | Support tickets with SLA countdowns, ticket comments, company announcements. |
+| `V9` | `V9__shift_and_roster_management.sql` | Shifts, night differential allowances, roster calendar, 2-tier shift swap requests. |
+| `V10` | `V10__workforce_intelligence_and_ai.sql` | Corporate HR policy knowledge base, predictive flight risk evaluations, AI seeds. |
+
+---
+
+## ⚡ Quick Start & Local Setup <a name="quick-start"></a>
 
 ### Prerequisites
-| Tool | Version |
-|------|---------|
-| JDK | 17+ |
-| Maven | 3.8+ |
-| Node.js | 18+ |
-| MySQL | 8.0+ |
-| Redis | 7+ (optional for dev) |
+- **JDK 21** (Eclipse Temurin or OpenJDK)
+- **Node.js 20+** and **npm**
+- **PostgreSQL 18 or 16** running locally
 
-### 1. MySQL Setup
+### 1. Database Setup
+Create database `hrms_db` in PostgreSQL:
 ```sql
-mysql -u root -p
-
-CREATE DATABASE hrms_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'hrmsuser'@'localhost' IDENTIFIED BY 'HrmsPass@2024';
-GRANT ALL PRIVILEGES ON hrms_db.* TO 'hrmsuser'@'localhost';
-FLUSH PRIVILEGES;
-EXIT;
-
--- Load schema and seed data
-mysql -u hrmsuser -p hrms_db < docs/schema.sql
+CREATE DATABASE hrms_db;
 ```
 
-### 2. Configure Backend
-```bash
-# Set environment variables (or edit application.properties)
-export DB_USERNAME=hrmsuser
-export DB_PASSWORD=HrmsPass@2024
-export JWT_SECRET=$(openssl rand -hex 32)
-export MAIL_USERNAME=noreply@yourcompany.com
-export MAIL_PASSWORD=your-app-password
-```
-
-### 3. Start Backend
-```bash
+### 2. Backend Setup
+```powershell
 cd backend
-mvn clean install -DskipTests
-mvn spring-boot:run
 
-# Verify: http://localhost:8080/api/actuator/health
-# Swagger: http://localhost:8080/api/swagger-ui.html
+# Option A: Maven
+mvn clean package -DskipTests
+java -jar target/hrms-platform-2.0.0.jar
+
+# Option B: Direct Java Execution (Pre-compiled classpath)
+java "@eclipse_runtime_cp.txt"
 ```
+*Backend runs on `http://localhost:8080/api`.*
 
-### 4. Start Frontend
-```bash
+### 3. Frontend Setup
+```powershell
 cd frontend
 npm install
-npm run dev
-
-# App: http://localhost:5173
+npm run dev -- --host
 ```
+*Frontend runs on `http://localhost:5173`.*
 
 ---
 
-## 🐳 Docker Deployment <a name="docker"></a>
+## 🐳 Production Docker Deployment <a name="docker-deployment"></a>
+
+Launch the complete enterprise stack (PostgreSQL 16, Redis 7.2, Spring Boot Java 21 Backend, React Nginx Frontend, Prometheus, Grafana) with a single command:
 
 ```bash
-# Production build
 docker compose up -d --build
-
-# View logs
-docker compose logs -f backend
-docker compose logs -f frontend
-
-# Scale backend (load balancing)
-docker compose up -d --scale backend=2
-
-# Stop
-docker compose down
-
-# Stop + delete data (WARNING!)
-docker compose down -v
 ```
 
-### Service URLs (Docker)
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost |
-| Backend API | http://localhost:8080/api |
-| Swagger UI | http://localhost:8080/api/swagger-ui.html |
-| Prometheus | http://localhost:9090 |
-| Grafana | http://localhost:3000 |
-| MySQL | localhost:3306 |
+### Port Mapping
+| Service | Internal Port | Host Port | URL |
+|:---|:---:|:---:|:---|
+| **Frontend (Nginx)** | `80` | `80` | `http://localhost` |
+| **Backend API** | `8080` | `8080` | `http://localhost:8080/api` |
+| **PostgreSQL Database** | `5432` | `5433` | `localhost:5433` |
+| **Redis Cache** | `6379` | `6379` | `localhost:6379` |
+| **Prometheus Metrics** | `9090` | `9090` | `http://localhost:9090` |
+| **Grafana Dashboards** | `3000` | `3000` | `http://localhost:3000` |
 
 ---
 
-## 📡 API Reference <a name="api"></a>
+## 🧪 Automated QA Regression Test Suites (100% Pass) <a name="qa-test-suites"></a>
 
-All endpoints are prefixed with `/api/v1/`
+The platform includes 6 comprehensive automated integration test suites validating end-to-end functionality against a live backend:
 
-### Authentication
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/auth/register` | Public | Register + auto-login |
-| POST | `/auth/login` | Public | Login, get tokens |
-| POST | `/auth/refresh` | Public | Refresh access token (rotation) |
-| POST | `/auth/logout` | Public | Revoke refresh token |
-| POST | `/auth/logout-all` | Bearer | Revoke all sessions |
-| POST | `/auth/forgot-password` | Public | Send OTP to email |
-| POST | `/auth/reset-password` | Public | Reset with OTP |
-| POST | `/auth/verify-email` | Public | Verify email token |
-| POST | `/auth/change-password` | Bearer | Change password |
-| GET | `/auth/login-history` | Bearer | Get login history |
+```powershell
+# 1. MNC Email Delivery & Credential Lifecycle
+powershell -ExecutionPolicy Bypass -File .\test_phase4_milestone1_email_and_auth.ps1
 
-### Employees
-| Method | Endpoint | Roles | Description |
-|--------|----------|-------|-------------|
-| GET | `/employees?search=&page=0&size=10&sortBy=createdAt&sortDir=desc` | All | Paginated list |
-| GET | `/employees/{id}` | All | Single employee |
-| POST | `/employees` | ADMIN, HR | Create employee |
-| PUT | `/employees/{id}` | ADMIN, HR | Update employee |
-| DELETE | `/employees/{id}` | ADMIN | Soft delete |
-| GET | `/employees/department/{id}` | All | By department |
+# 2. Attendance 2.0 & Enterprise Payroll 2.0
+powershell -ExecutionPolicy Bypass -File .\test_phase4_milestone2_attendance_payroll.ps1
 
-### Leave
-| Method | Endpoint | Roles | Description |
-|--------|----------|-------|-------------|
-| POST | `/leaves/apply/{empId}` | All | Apply for leave |
-| PUT | `/leaves/{id}/review` | ADMIN, HR, MANAGER | Approve/Reject |
-| PUT | `/leaves/{id}/cancel/{empId}` | All | Cancel leave |
-| GET | `/leaves/pending` | ADMIN, HR, MANAGER | Pending queue |
-| GET | `/leaves/employee/{id}` | All | Employee history |
+# 3. Full & Final Settlement (F&F) & Offboarding Lifecycle
+powershell -ExecutionPolicy Bypass -File .\test_phase4_milestone3_offboarding_settlement.ps1
 
-### Payroll
-| Method | Endpoint | Roles | Description |
-|--------|----------|-------|-------------|
-| POST | `/payroll/process?employeeId=&month=&year=` | ADMIN, HR | Process payroll |
-| GET | `/payroll/employee/{id}` | All | Payslip list |
-| GET | `/payroll/employee/{id}/slip?month=&year=` | All | Specific slip |
+# 4. IT Service Desk & Company Communication
+powershell -ExecutionPolicy Bypass -File .\test_it_service_desk_and_communication.ps1
 
----
+# 5. Shift & Roster Management
+powershell -ExecutionPolicy Bypass -File .\test_phase4_milestone4_shift_roster.ps1
 
-## 🔑 Default Credentials <a name="credentials"></a>
-
-> ⚠️ **Change all passwords immediately in production!**
-
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@hrms.com | Admin@123 |
-| HR | hr@hrms.com | Hr@123 |
-| Manager | manager@hrms.com | Manager@123 |
-| Employee | emp@hrms.com | Emp@123 |
-
----
-
-## 🌍 Environment Variables <a name="env"></a>
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `DB_HOST` | Yes | localhost | MySQL host |
-| `DB_USERNAME` | Yes | root | MySQL username |
-| `DB_PASSWORD` | Yes | — | MySQL password |
-| `JWT_SECRET` | Yes | — | Min 32-char secret |
-| `JWT_ACCESS_EXPIRY` | No | 900000 | Access token TTL (ms) |
-| `JWT_REFRESH_EXPIRY` | No | 604800000 | Refresh token TTL (ms) |
-| `MAIL_USERNAME` | Yes | — | SMTP username |
-| `MAIL_PASSWORD` | Yes | — | SMTP password |
-| `REDIS_PASSWORD` | No | — | Redis auth password |
-| `FRONTEND_URL` | No | http://localhost:5173 | For email links |
-| `CORS_ORIGINS` | No | http://localhost:5173 | Allowed origins |
-
----
-
-## 🔄 CI/CD Pipeline <a name="cicd"></a>
-
-GitHub Actions workflow triggers on push to `main` or `develop`:
-
-```
-Push to main
-    │
-    ├── backend-ci
-    │     ├── Setup JDK 17
-    │     ├── Maven: run tests (with MySQL service)
-    │     ├── Maven: build JAR
-    │     └── Docker: build & push to GHCR
-    │
-    ├── frontend-ci
-    │     ├── Setup Node 20
-    │     ├── npm ci + lint
-    │     ├── npm run build
-    │     └── Docker: build & push to GHCR
-    │
-    └── deploy (requires both jobs)
-          ├── SSH into production server
-          ├── docker compose pull
-          ├── Rolling restart backend + frontend
-          └── docker image prune
-```
-
-### Required GitHub Secrets
-```
-PROD_HOST         # Production server IP
-PROD_USER         # SSH username
-PROD_SSH_KEY      # SSH private key
-SLACK_WEBHOOK_URL # (optional) Slack notifications
+# 6. Generative HR Assistant & Workforce Intelligence
+powershell -ExecutionPolicy Bypass -File .\test_phase4_milestone5_workforce_intelligence.ps1
 ```
 
 ---
 
-## 📁 Project Structure <a name="structure"></a>
+## 🔑 Default Credentials <a name="default-credentials"></a>
+
+The application initializes with standard corporate demo accounts across all role tiers:
+
+| Role | Email | Password | Access Level |
+|:---|:---|:---|:---|
+| **Super Admin** | `superadmin@hrms.com` | `SuperAdmin@123` | Full multi-tenant governance & billing |
+| **Admin** | `admin@hrms.com` | `Admin@123` | Full enterprise organization administration |
+| **HR Manager** | `hr@hrms.com` | `Hr@123` | Employee, payroll, leave, recruitment, shifts |
+| **Department Manager** | `manager@hrms.com` | `Manager@123` | Approvals, team rosters, shift swap sign-offs |
+| **Employee** | `employee@hrms.com` | `Employee@123` | Self-service, attendance, shift swaps, leave |
+
+*Default Tenant Identifier: `default` (pass via `X-Tenant-ID: default` header or select on login portal).*
+
+---
+
+## 📖 API Reference & Documentation <a name="api-reference"></a>
+
+When the backend is running, live interactive OpenAPI / Swagger UI documentation is available at:
+- **Swagger UI**: `http://localhost:8080/api/swagger-ui/index.html`
+- **OpenAPI v3 JSON**: `http://localhost:8080/api/v3/api-docs`
+- **Actuator Health**: `http://localhost:8080/api/actuator/health`
+- **Prometheus Metrics**: `http://localhost:8080/api/actuator/prometheus`
+
+---
+
+## 📁 Repository Layout <a name="repository-layout"></a>
 
 ```
 hrms-platform/
-├── backend/
-│   ├── src/main/java/com/hrms/
-│   │   ├── HrmsPlatformApplication.java
-│   │   ├── config/          # Security, CORS, WebSocket, Rate Limiting
-│   │   ├── controller/v1/   # REST endpoints (versioned)
-│   │   ├── dto/             # Request / Response DTOs
-│   │   ├── entity/          # JPA entities (15 tables)
-│   │   ├── enums/           # All enum types
-│   │   ├── exception/       # Custom exceptions + GlobalExceptionHandler
-│   │   ├── repository/      # Spring Data JPA interfaces
-│   │   ├── security/        # JWT, UserDetailsService, Filters
-│   │   ├── service/impl/    # Business logic services
-│   │   ├── scheduler/       # Scheduled tasks (token cleanup)
-│   │   ├── audit/           # AuditorAwareImpl
-│   │   └── util/            # OtpUtils, etc.
-│   ├── src/main/resources/
-│   │   ├── application.properties
-│   │   └── templates/email/ # Thymeleaf email templates
-│   ├── src/test/            # Unit + integration tests
-│   └── Dockerfile           # Multi-stage build
+├── .github/workflows/ci-cd.yml      # Hardened GitHub Actions CI/CD Pipeline
+├── .gemini/skills/                  # Antigravity Assistant Engineering Standard
+├── SKILLS.md                        # Master Senior Developer & Architecture Standard
+├── docker-compose.yml               # Production Orchestration (Postgres 16, Redis, Backend, Frontend)
+├── setup-postgres.bat               # Automated PostgreSQL local configuration script
 │
-├── frontend/
-│   ├── src/
-│   │   ├── api/             # Axios API modules
-│   │   ├── components/      # Reusable UI components
-│   │   ├── features/        # Feature-based pages
-│   │   ├── store/           # Redux Toolkit slices
-│   │   ├── routes/          # ProtectedRoute
-│   │   ├── pages/           # Dashboard, Profile
-│   │   ├── hooks/           # Custom hooks
-│   │   ├── utils/           # Utilities
-│   │   └── styles/          # Global CSS (Tailwind)
-│   ├── Dockerfile           # Multi-stage build
-│   └── nginx.conf           # (used inside container)
+├── backend/                         # Spring Boot 3.2.3 (Java 21)
+│   ├── Dockerfile                   # Multi-stage Temurin JDK 21 & Alpine JRE
+│   ├── pom.xml                      # Maven dependencies and build plugins
+│   └── src/main/
+│       ├── java/com/hrms/
+│       │   ├── config/              # SecurityConfig, DataInitializer, SwaggerConfig
+│       │   ├── entity/              # BaseTenantEntity, Employee, User, Attendance, etc.
+│       │   ├── domain/storage/      # StorageService abstraction port
+│       │   ├── infrastructure/      # Multi-tenancy context/filters & LocalStorageService
+│       │   └── modules/             # 21 Package-by-feature business modules
+│       │       ├── attendance/      # Biometric turnstiles, break timer, daily punches
+│       │       ├── auth/            # JWT authentication, 6-digit OTP, first-login
+│       │       ├── communication/   # Company announcements & acknowledgment tracking
+│       │       ├── helpdesk/        # IT Service Desk, SLA tracking, ticket comments
+│       │       ├── intelligence/    # Generative AI HR Copilot, Attrition Radar, ATS Matcher
+│       │       ├── offboarding/     # Resignation, 4-dept NOC clearance, statutory F&F
+│       │       ├── payroll/         # Payslips, statutory deductions, bank batch exports
+│       │       ├── recruitment/     # Job postings, candidate pipeline, scorecards
+│       │       └── shift/           # Rotational shifts, roster matrix, shift swaps
+│       └── resources/
+│           ├── application.properties # Main configuration (PostgreSQL, Hikari, Mail, JWT)
+│           ├── db/migration/        # Flyway versioned migrations (V1 through V10)
+│           └── templates/email/     # Branded Thymeleaf HTML email templates
 │
-├── infra/
-│   ├── nginx/nginx.conf     # Reverse proxy config
-│   └── monitoring/          # Prometheus + Grafana configs
+├── frontend/                        # React 18 + Vite + TailwindCSS
+│   ├── Dockerfile                   # Multi-stage Node 20 & Nginx Alpine container
+│   ├── nginx.conf                   # Production Nginx reverse proxy & security headers
+│   ├── package.json & vite.config.js
+│   └── src/
+│       ├── api/                     # Unified API clients (shiftAPI, intelligenceAPI, etc.)
+│       ├── components/              # Layout, Sidebar, Navbar, Modal, common controls
+│       ├── modules/                 # 21 Symmetrical feature modules
+│       │   ├── intelligence/        # Workforce Intelligence & AI Copilot Page
+│       │   ├── shift/               # Shift & Roster Calendar Matrix Page
+│       │   ├── offboarding/         # Offboarding, Clearance NOC & F&F Portal
+│       │   └── auth/                # Corporate Login, OTP Reset, First-Login Change
+│       └── utils/                   # Payslip & Relieving Letter Vector PDF Generators
 │
-├── docs/
-│   └── schema.sql           # Full DB schema + seed data
-│
-├── .github/workflows/       # GitHub Actions CI/CD
-├── docker-compose.yml       # Full production stack
-├── .env.example             # Environment template
-└── README.md
+└── test_*.ps1                       # 6 Automated Integration Test Suites (100% Pass)
 ```
-
----
-
-## 🧪 Testing
-
-```bash
-# Backend unit tests
-cd backend && mvn test
-
-# Specific test class
-mvn test -Dtest=AuthServiceTest
-
-# Coverage report
-mvn test jacoco:report
-# → open target/site/jacoco/index.html
-
-# Frontend build verification
-cd frontend && npm run build
-```
-
----
-
-## 🔒 Security Checklist (Production)
-
-- [ ] Change all default passwords in `.env`
-- [ ] Generate a strong JWT secret: `openssl rand -hex 32`
-- [ ] Enable HTTPS with Let's Encrypt
-- [ ] Set `JPA_DDL=validate` (not `update`)
-- [ ] Disable Swagger in prod: `springdoc.swagger-ui.enabled=false`
-- [ ] Restrict CORS to your actual domain
-- [ ] Set up firewall rules (only ports 80/443 public)
-- [ ] Enable Redis password authentication
-- [ ] Configure proper SMTP credentials
-- [ ] Review and tighten RBAC permissions
-
----
-
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE) for details.
-
----
-
-*Built with ❤️ — HRMS Platform v2.0 Enterprise Edition*

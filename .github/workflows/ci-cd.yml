@@ -49,7 +49,7 @@ jobs:
 
       - name: Compile and Test
         working-directory: ./backend
-        run: mvn test -B
+        run: mvn test -B -Dspring.profiles.active=test
         env:
           DB_HOST: localhost
           DB_PORT: 5432

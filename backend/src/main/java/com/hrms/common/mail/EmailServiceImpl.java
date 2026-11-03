@@ -175,6 +175,29 @@ public class EmailServiceImpl implements EmailService {
         }
     }
 
+    @Async("emailExecutor")
+    @Override
+    public void sendInterviewInvitationEmail(String to, String candidateName, String jobTitle, String roundName, String scheduledTime, String guestLink) {
+        logMncConsoleBanner("INTERVIEW INVITATION DISPATCH", to,
+            "Candidate: " + candidateName + " (" + to + ")" +
+            "\n  Role: " + jobTitle +
+            "\n  Round: " + roundName +
+            "\n  Scheduled Time: " + scheduledTime +
+            "\n  Direct Video Room Link: " + guestLink);
+        try {
+            Context ctx = new Context();
+            ctx.setVariable("candidateName", candidateName);
+            ctx.setVariable("jobTitle", jobTitle);
+            ctx.setVariable("roundName", roundName);
+            ctx.setVariable("scheduledTime", scheduledTime);
+            ctx.setVariable("guestLink", guestLink);
+            ctx.setVariable("appName", "HRMS Platform");
+            sendHtmlEmail(to, "Interview Invitation: " + roundName + " for " + jobTitle, "email/interview-invite", ctx);
+        } catch (Exception e) {
+            log.error("Failed to send interview invitation email to {}: {}", to, e.getMessage());
+        }
+    }
+
     private void sendHtmlEmail(String to, String subject, String template, Context ctx) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

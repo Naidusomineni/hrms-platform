@@ -44,6 +44,10 @@ import OffboardingPage from './modules/offboarding/pages/OffboardingPage'
 import WorkforceIntelligencePage from './modules/intelligence/pages/WorkforceIntelligencePage'
 import ExpenseClaimsPage from './modules/expense/pages/ExpenseClaimsPage'
 
+// Phase 7 Modules (Native Live Video Interviews)
+import CandidateLobbyPage from './modules/recruitment/pages/CandidateLobbyPage'
+import LiveInterviewRoomPage from './modules/recruitment/pages/LiveInterviewRoomPage'
+
 function App() {
   const dispatch = useDispatch()
   const { isAuthenticated, user } = useSelector(s => s.auth)
@@ -67,6 +71,17 @@ function App() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/first-login-change-password" element={isAuthenticated ? <FirstLoginChangePasswordPage /> : <Navigate to="/login" replace />} />
+
+      {/* Candidate Public Guest Interview Routes */}
+      <Route path="/interview/guest/:guestToken" element={<CandidateLobbyPage />} />
+      <Route path="/interview/guest/:guestToken/room" element={<LiveInterviewRoomPage isGuest={true} />} />
+
+      {/* Full-Screen In-App Interview Workspace for Evaluator */}
+      <Route path="/recruitment/interview/:sessionId" element={
+        <ProtectedRoute>
+          <LiveInterviewRoomPage isGuest={false} />
+        </ProtectedRoute>
+      } />
 
       {/* Protected Routes */}
       <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>

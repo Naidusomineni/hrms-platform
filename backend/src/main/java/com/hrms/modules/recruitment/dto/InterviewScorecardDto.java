@@ -24,5 +24,8 @@ public class InterviewScorecardDto {
     private Integer cultureFitRating;
     private String recommendation;
     private String feedback;
+    private Long interviewSessionId;
+    private Integer integrityScore;
+    private String integritySummary;
     private LocalDateTime createdAt;
 }

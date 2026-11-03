@@ -43,4 +43,14 @@ public class InterviewScorecard extends BaseTenantEntity {
 
     @Column(columnDefinition = "TEXT")
     private String feedback;
+
+    @Column(name = "interview_session_id")
+    private Long interviewSessionId;
+
+    @Column(name = "integrity_score")
+    @Builder.Default
+    private Integer integrityScore = 100;
+
+    @Column(name = "integrity_summary", columnDefinition = "TEXT")
+    private String integritySummary;
 }

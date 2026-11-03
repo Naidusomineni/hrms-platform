@@ -39,4 +39,13 @@ public interface EmailService {
             String year,
             String netSalary
     );
+
+    void sendInterviewInvitationEmail(
+            String to,
+            String candidateName,
+            String jobTitle,
+            String roundName,
+            String scheduledTime,
+            String guestLink
+    );
 }

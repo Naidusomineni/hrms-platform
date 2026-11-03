@@ -190,13 +190,13 @@ const CandidateLobbyPage = () => {
           </div>
           <div>
             <h1 className="font-bold text-white text-base">HRMS Video Interview Room</h1>
-            <p className="text-xs text-slate-400">Integrated WebRTC Candidate Evaluation</p>
+            <p className="text-xs text-slate-400">Online Candidate Interview Room</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
           <ShieldCheck size={14} />
-          <span>Encrypted WebRTC Session</span>
+          <span>Encrypted Video Session</span>
         </div>
       </div>
 
@@ -335,7 +335,7 @@ const CandidateLobbyPage = () => {
 
       {/* ── Footer ────────────────────────────────────────────────── */}
       <div className="max-w-6xl w-full mx-auto text-center text-xs text-slate-600 pt-4 border-t border-slate-900">
-        HRMS Platform Enterprise • Native WebRTC Media Cluster
+        HRMS Platform Enterprise • Secure Online Video Meeting
       </div>
     </div>
   )

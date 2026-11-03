@@ -103,7 +103,7 @@ const RecruitmentPage = () => {
     scheduledDate: format(new Date(), 'yyyy-MM-dd'),
     scheduledTime: '14:00',
     durationMinutes: 45,
-    notes: 'In-app native WebRTC evaluation. System design & coding.'
+    notes: 'Technical evaluation. System design & problem solving.'
   })
 
   const loadData = async () => {
@@ -276,7 +276,7 @@ const RecruitmentPage = () => {
             Recruitment & Applicant Tracking (ATS)
           </h2>
           <p className="text-slate-500 text-xs mt-0.5">
-            End-to-end hiring: requisitions, candidate pipeline, native video evaluations, and 1-click onboarding
+            End-to-end hiring: requisitions, candidate pipeline, video interviews, and 1-click onboarding
           </p>
         </div>
 
@@ -370,7 +370,7 @@ const RecruitmentPage = () => {
             <div className="bg-slate-800/70 border border-slate-700/60 p-3 rounded-xl space-y-1">
               <div className="flex items-center gap-2 text-indigo-300 font-extrabold">
                 <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">3</span>
-                <span>Test WebRTC Call</span>
+                <span>Test Video Call</span>
               </div>
               <p className="text-[11px] text-slate-300 leading-relaxed">
                 Click <strong>Copy Link</strong> to test as Candidate in incognito (zero login required). Click <strong>Join Call</strong> to enter evaluator 60/40 Split-Screen room!
@@ -810,10 +810,10 @@ const RecruitmentPage = () => {
                 <div>
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                     <Video size={16} className="text-indigo-600" />
-                    Native Candidate Video Interviews Directory
+                    Candidate Video Interviews Directory
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Live WebRTC video rooms, anti-proxy telemetry inspection, and synchronized evaluation scorecards
+                    Online video rooms, integrity monitoring, and synchronized evaluation scorecards
                   </p>
                 </div>
                 <Button variant="secondary" size="sm" onClick={loadData}>
@@ -949,7 +949,7 @@ const RecruitmentPage = () => {
       <Modal
         isOpen={scheduleModalOpen}
         onClose={() => setScheduleModalOpen(false)}
-        title="Schedule Native Video Interview"
+        title="Schedule Video Interview"
         size="md"
       >
         <form onSubmit={handleScheduleInterview} className="space-y-4 text-xs">

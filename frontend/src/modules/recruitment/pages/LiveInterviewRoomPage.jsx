@@ -313,7 +313,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
         <Spinner size="lg" className="text-indigo-400" />
-        <p className="text-slate-400 text-xs mt-3 font-semibold">Connecting to encrypted WebRTC media room...</p>
+        <p className="text-slate-400 text-xs mt-3 font-semibold">Connecting to secure video room...</p>
       </div>
     )
   }
@@ -345,7 +345,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-bold text-emerald-400">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Live • HD WebRTC</span>
+            <span>Live • HD Video</span>
           </div>
 
           {!isGuest && (

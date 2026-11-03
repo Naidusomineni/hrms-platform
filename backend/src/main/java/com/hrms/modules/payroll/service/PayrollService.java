@@ -3,6 +3,8 @@ package com.hrms.modules.payroll.service;
 import com.hrms.entity.*;
 import com.hrms.enums.PayrollStatus;
 import com.hrms.exception.*;
+import com.hrms.modules.payroll.dto.BankDisbursementDto;
+import com.hrms.modules.payroll.dto.PayrollAdjustmentRequest;
 import com.hrms.repository.*;
 import com.hrms.infrastructure.multitenancy.context.TenantContext;
 import com.hrms.service.EmailService;
@@ -12,12 +14,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.math.*;
 import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Service @Slf4j @RequiredArgsConstructor @Transactional
+@Service
+@Slf4j
+@RequiredArgsConstructor
+@Transactional
 public class PayrollService {
 
     private final PayrollSlipRepository payrollSlipRepository;
@@ -28,10 +34,10 @@ public class PayrollService {
 
     public PayrollSlip process(Long empId, int month, int year) {
         if (payrollSlipRepository.findByEmployeeIdAndMonthAndYear(empId, month, year).isPresent())
-            throw new DuplicateResourceException("Payroll already processed for this employee and period");
+            throw new DuplicateResourceException("Payroll already calculated for this employee and period");
 
         Employee emp = employeeRepository.findById(empId)
-            .orElseThrow(() -> new ResourceNotFoundException("Employee","id",empId));
+            .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", empId));
         if (emp.getSalary() == null)
             throw new BadRequestException("Employee salary not configured");
 
@@ -65,13 +71,15 @@ public class PayrollService {
         BigDecimal totalDeductions = pf.add(pt).add(tds);
         BigDecimal netSalary = earned.subtract(totalDeductions);
 
+        // Initial creation in DRAFT state for HR review
         PayrollSlip slip = PayrollSlip.builder()
             .employee(emp).month(month).year(year)
             .basicSalary(basic).hra(hra).specialAllowance(special)
             .grossSalary(earned).pfDeduction(pf).professionalTax(pt)
             .incomeTax(tds).totalDeductions(totalDeductions).netSalary(netSalary)
             .workingDays(workingDays).presentDays(effectivePresentDays).leaveDays(workingDays - effectivePresentDays)
-            .status(PayrollStatus.PROCESSED).processedAt(LocalDateTime.now())
+            .bonus(BigDecimal.ZERO).overtimeAmount(BigDecimal.ZERO).deductionsAdjustment(BigDecimal.ZERO)
+            .status(PayrollStatus.DRAFT).processedAt(LocalDateTime.now())
             .build();
 
         slip = payrollSlipRepository.save(slip);
@@ -83,29 +91,11 @@ public class PayrollService {
             slip.setReimbursements(reimbursements);
             slip.setNetSalary(netSalary);
             slip = payrollSlipRepository.save(slip);
-            log.info("Attached ₹{} reimbursements to payroll slip #{}", reimbursements, slip.getId());
+            log.info("Attached ₹{} reimbursements to draft payroll slip #{}", reimbursements, slip.getId());
         }
 
-        // Send email notification
-        String[] monthNames = {"","January","February","March","April","May","June",
-                               "July","August","September","October","November","December"};
-        emailService.sendPayrollProcessedEmail(
-            emp.getEmail(), emp.getFirstName(), monthNames[month], String.valueOf(year),
-            "₹ " + netSalary.toPlainString()
-        );
-
-        log.info("Payroll processed: empId={}, month={}/{}, net={}", empId, month, year, netSalary);
+        log.info("Draft payroll calculated: empId={}, month={}/{}, net={}", empId, month, year, netSalary);
         return slip;
-    }
-
-    @Transactional(readOnly = true)
-    public Page<PayrollSlip> getSlipsForEmployee(Long empId, Pageable pageable) {
-        return payrollSlipRepository.findByEmployeeIdOrderByYearDescMonthDesc(empId, pageable);
-    }
-
-    @Transactional(readOnly = true)
-    public Optional<PayrollSlip> getSlip(Long empId, int month, int year) {
-        return payrollSlipRepository.findByEmployeeIdAndMonthAndYear(empId, month, year);
     }
 
     public Map<String, Object> processAll(int month, int year) {
@@ -118,18 +108,22 @@ public class PayrollService {
         int skipped = 0;
         for (Employee emp : activeEmployees) {
             try {
-                // If slip exists, delete and reprocess to ensure up-to-date calculation
+                // If slip exists in DRAFT, delete and reprocess to ensure up-to-date calculation
                 payrollSlipRepository.findByEmployeeIdAndMonthAndYear(emp.getId(), month, year)
-                    .ifPresent(payrollSlipRepository::delete);
+                    .ifPresent(existing -> {
+                        if (existing.getStatus() == PayrollStatus.DRAFT || existing.getStatus() == PayrollStatus.PROCESSED) {
+                            payrollSlipRepository.delete(existing);
+                        }
+                    });
                 process(emp.getId(), month, year);
                 processed++;
             } catch (Exception e) {
-                log.warn("Failed to process payroll for employee {}: {}", emp.getId(), e.getMessage());
+                log.warn("Failed to process draft payroll for employee {}: {}", emp.getId(), e.getMessage());
                 skipped++;
             }
         }
 
-        BigDecimal totalNetDisbursed = payrollSlipRepository.findByTenantIdAndMonthAndYear(tenantId, month, year).stream()
+        BigDecimal totalDraftNet = payrollSlipRepository.findByTenantIdAndMonthAndYear(tenantId, month, year).stream()
             .map(PayrollSlip::getNetSalary)
             .filter(Objects::nonNull)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -139,20 +133,249 @@ public class PayrollService {
         result.put("processed", processed);
         result.put("processedCount", processed);
         result.put("skipped", skipped);
-        result.put("totalNetDisbursed", totalNetDisbursed);
+        result.put("totalNetDisbursed", totalDraftNet);
         result.put("month", month);
         result.put("year", year);
-        log.info("Batch payroll completed: {} processed, {} skipped, totalNet={} for month={}/{}",
-            processed, skipped, totalNetDisbursed, month, year);
+        log.info("Batch draft payroll calculated: {} processed, {} skipped, totalDraftNet={} for month={}/{}",
+            processed, skipped, totalDraftNet, month, year);
         return result;
     }
 
-    @Transactional(readOnly = true)
-    public List<com.hrms.modules.payroll.dto.BankDisbursementDto> getBankBatchDisbursements(int month, int year) {
+    public PayrollSlip adjust(Long slipId, PayrollAdjustmentRequest request, String hrEmail) {
+        PayrollSlip slip = payrollSlipRepository.findById(slipId)
+            .orElseThrow(() -> new ResourceNotFoundException("PayrollSlip", "id", slipId));
+
+        if (slip.getStatus() == PayrollStatus.PAID) {
+            throw new BadRequestException("Cannot adjust a payroll slip that has already been paid/disbursed");
+        }
+
+        if (request.getPresentDays() != null) {
+            int workingDays = slip.getWorkingDays() != null ? slip.getWorkingDays() : 22;
+            int present = Math.max(0, Math.min(workingDays, request.getPresentDays()));
+            slip.setPresentDays(present);
+            slip.setLeaveDays(workingDays - present);
+        }
+
+        if (request.getBonus() != null) {
+            slip.setBonus(request.getBonus().max(BigDecimal.ZERO));
+        }
+        if (request.getOvertimeAmount() != null) {
+            slip.setOvertimeAmount(request.getOvertimeAmount().max(BigDecimal.ZERO));
+        }
+        if (request.getDeductionsAdjustment() != null) {
+            slip.setDeductionsAdjustment(request.getDeductionsAdjustment().max(BigDecimal.ZERO));
+        }
+        if (request.getBasicSalary() != null) {
+            slip.setBasicSalary(request.getBasicSalary().max(BigDecimal.ZERO));
+        }
+        if (request.getHra() != null) {
+            slip.setHra(request.getHra().max(BigDecimal.ZERO));
+        }
+        if (request.getSpecialAllowance() != null) {
+            slip.setSpecialAllowance(request.getSpecialAllowance().max(BigDecimal.ZERO));
+        }
+        if (request.getPfDeduction() != null) {
+            slip.setPfDeduction(request.getPfDeduction().max(BigDecimal.ZERO));
+        }
+        if (request.getIncomeTax() != null) {
+            slip.setIncomeTax(request.getIncomeTax().max(BigDecimal.ZERO));
+        }
+        if (request.getHrRemarks() != null && !request.getHrRemarks().isBlank()) {
+            slip.setHrRemarks(request.getHrRemarks().trim());
+        }
+
+        slip.setAdjustedBy(hrEmail);
+        slip.setAdjustedAt(LocalDateTime.now());
+
+        // Recalculate Gross Salary
+        BigDecimal basic = slip.getBasicSalary() != null ? slip.getBasicSalary() : BigDecimal.ZERO;
+        BigDecimal hra = slip.getHra() != null ? slip.getHra() : BigDecimal.ZERO;
+        BigDecimal special = slip.getSpecialAllowance() != null ? slip.getSpecialAllowance() : BigDecimal.ZERO;
+        BigDecimal otherAllowances = slip.getOtherAllowances() != null ? slip.getOtherAllowances() : BigDecimal.ZERO;
+        BigDecimal bonus = slip.getBonus() != null ? slip.getBonus() : BigDecimal.ZERO;
+        BigDecimal overtime = slip.getOvertimeAmount() != null ? slip.getOvertimeAmount() : BigDecimal.ZERO;
+
+        BigDecimal gross = basic.add(hra).add(special).add(otherAllowances).add(bonus).add(overtime);
+        slip.setGrossSalary(gross);
+
+        // Recalculate Total Deductions
+        BigDecimal pf = slip.getPfDeduction() != null ? slip.getPfDeduction() : BigDecimal.ZERO;
+        BigDecimal pt = slip.getProfessionalTax() != null ? slip.getProfessionalTax() : BigDecimal.ZERO;
+        BigDecimal it = slip.getIncomeTax() != null ? slip.getIncomeTax() : BigDecimal.ZERO;
+        BigDecimal otherDed = slip.getOtherDeductions() != null ? slip.getOtherDeductions() : BigDecimal.ZERO;
+        BigDecimal dedAdj = slip.getDeductionsAdjustment() != null ? slip.getDeductionsAdjustment() : BigDecimal.ZERO;
+
+        BigDecimal totalDed = pf.add(pt).add(it).add(otherDed).add(dedAdj);
+        slip.setTotalDeductions(totalDed);
+
+        // Recalculate Net Salary
+        BigDecimal reimbursements = slip.getReimbursements() != null ? slip.getReimbursements() : BigDecimal.ZERO;
+        BigDecimal net = gross.subtract(totalDed).add(reimbursements);
+        slip.setNetSalary(net.max(BigDecimal.ZERO));
+
+        if (Boolean.TRUE.equals(request.getApproveImmediately())) {
+            slip.setStatus(PayrollStatus.APPROVED);
+            slip = payrollSlipRepository.save(slip);
+            sendPayrollEmail(slip);
+        } else {
+            if (slip.getStatus() != PayrollStatus.APPROVED) {
+                slip.setStatus(PayrollStatus.DRAFT);
+            }
+            slip = payrollSlipRepository.save(slip);
+        }
+
+        log.info("Payroll slip #{} adjusted by {}: netSalary={}, remarks={}",
+            slip.getId(), hrEmail, slip.getNetSalary(), slip.getHrRemarks());
+        return slip;
+    }
+
+    public PayrollSlip approve(Long slipId, String approverEmail) {
+        PayrollSlip slip = payrollSlipRepository.findById(slipId)
+            .orElseThrow(() -> new ResourceNotFoundException("PayrollSlip", "id", slipId));
+        if (slip.getStatus() == PayrollStatus.PAID) {
+            return slip;
+        }
+        slip.setStatus(PayrollStatus.APPROVED);
+        slip = payrollSlipRepository.save(slip);
+        sendPayrollEmail(slip);
+        log.info("Payroll slip #{} approved by {}", slipId, approverEmail);
+        return slip;
+    }
+
+    public Map<String, Object> approveAll(int month, int year, String approverEmail) {
         String tenantId = TenantContext.getTenantId();
         List<PayrollSlip> slips = payrollSlipRepository.findByTenantIdAndMonthAndYear(tenantId, month, year);
-        List<com.hrms.modules.payroll.dto.BankDisbursementDto> list = new ArrayList<>();
+        int approvedCount = 0;
+        BigDecimal totalNet = BigDecimal.ZERO;
+
         for (PayrollSlip slip : slips) {
+            if (slip.getStatus() == PayrollStatus.DRAFT || slip.getStatus() == PayrollStatus.PROCESSED) {
+                slip.setStatus(PayrollStatus.APPROVED);
+                payrollSlipRepository.save(slip);
+                sendPayrollEmail(slip);
+                approvedCount++;
+            }
+            if (slip.getNetSalary() != null) {
+                totalNet = totalNet.add(slip.getNetSalary());
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("approvedCount", approvedCount);
+        result.put("totalNetDisbursed", totalNet);
+        result.put("month", month);
+        result.put("year", year);
+        log.info("Batch payroll approved: {} slips finalized for month={}/{} by {}", approvedCount, month, year, approverEmail);
+        return result;
+    }
+
+    public Map<String, Object> markBatchPaid(int month, int year, String paymentRef) {
+        String tenantId = TenantContext.getTenantId();
+        List<PayrollSlip> slips = payrollSlipRepository.findByTenantIdAndMonthAndYear(tenantId, month, year);
+        int marked = 0;
+        for (PayrollSlip slip : slips) {
+            if (slip.getStatus() == PayrollStatus.APPROVED) {
+                slip.setStatus(PayrollStatus.PAID);
+                slip.setPaidAt(LocalDateTime.now());
+                if (paymentRef != null && !paymentRef.isBlank()) {
+                    slip.setPaymentReference(paymentRef);
+                }
+                payrollSlipRepository.save(slip);
+                marked++;
+            }
+        }
+        Map<String, Object> res = new HashMap<>();
+        res.put("markedPaidCount", marked);
+        res.put("month", month);
+        res.put("year", year);
+        return res;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PayrollSlip> getPayrollRegister(int month, int year, PayrollStatus status, String search, Pageable pageable) {
+        String tenantId = TenantContext.getTenantId();
+        boolean hasSearch = (search != null && !search.trim().isEmpty());
+        String q = hasSearch ? search.trim().toLowerCase() : "";
+
+        if (status != null && hasSearch) {
+            return payrollSlipRepository.findByTenantPeriodStatusAndSearch(tenantId, month, year, status, q, pageable);
+        } else if (status != null) {
+            return payrollSlipRepository.findByTenantIdAndMonthAndYearAndStatus(tenantId, month, year, status, pageable);
+        } else if (hasSearch) {
+            return payrollSlipRepository.findByTenantPeriodAndSearch(tenantId, month, year, q, pageable);
+        } else {
+            return payrollSlipRepository.findByTenantIdAndMonthAndYear(tenantId, month, year, pageable);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getSummary(int month, int year) {
+        String tenantId = TenantContext.getTenantId();
+        List<PayrollSlip> slips = payrollSlipRepository.findByTenantIdAndMonthAndYear(tenantId, month, year);
+
+        int totalCount = slips.size();
+        int draftCount = 0;
+        BigDecimal draftNet = BigDecimal.ZERO;
+        int approvedCount = 0;
+        BigDecimal approvedNet = BigDecimal.ZERO;
+        int paidCount = 0;
+        BigDecimal paidNet = BigDecimal.ZERO;
+        BigDecimal totalNet = BigDecimal.ZERO;
+
+        for (PayrollSlip slip : slips) {
+            BigDecimal net = slip.getNetSalary() != null ? slip.getNetSalary() : BigDecimal.ZERO;
+            totalNet = totalNet.add(net);
+            if (slip.getStatus() == PayrollStatus.DRAFT || slip.getStatus() == PayrollStatus.PROCESSED) {
+                draftCount++;
+                draftNet = draftNet.add(net);
+            } else if (slip.getStatus() == PayrollStatus.APPROVED) {
+                approvedCount++;
+                approvedNet = approvedNet.add(net);
+            } else if (slip.getStatus() == PayrollStatus.PAID) {
+                paidCount++;
+                paidNet = paidNet.add(net);
+            }
+        }
+
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("month", month);
+        summary.put("year", year);
+        summary.put("totalCount", totalCount);
+        summary.put("draftCount", draftCount);
+        summary.put("draftNet", draftNet);
+        summary.put("approvedCount", approvedCount);
+        summary.put("approvedNet", approvedNet);
+        summary.put("paidCount", paidCount);
+        summary.put("paidNet", paidNet);
+        summary.put("totalNet", totalNet);
+        return summary;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PayrollSlip> getSlipsForEmployee(Long empId, Pageable pageable, boolean isHrOrAdmin) {
+        if (isHrOrAdmin) {
+            return payrollSlipRepository.findByEmployeeIdOrderByYearDescMonthDesc(empId, pageable);
+        } else {
+            return payrollSlipRepository.findByEmployeeIdAndStatusInOrderByYearDescMonthDesc(
+                empId, List.of(PayrollStatus.APPROVED, PayrollStatus.PAID), pageable);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<PayrollSlip> getSlip(Long empId, int month, int year) {
+        return payrollSlipRepository.findByEmployeeIdAndMonthAndYear(empId, month, year);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BankDisbursementDto> getBankBatchDisbursements(int month, int year) {
+        String tenantId = TenantContext.getTenantId();
+        List<PayrollSlip> slips = payrollSlipRepository.findByTenantIdAndMonthAndYear(tenantId, month, year);
+        List<BankDisbursementDto> list = new ArrayList<>();
+        for (PayrollSlip slip : slips) {
+            // Include approved or paid slips for disbursement
+            if (slip.getStatus() != PayrollStatus.APPROVED && slip.getStatus() != PayrollStatus.PAID) {
+                continue;
+            }
             Employee emp = slip.getEmployee();
             String accNo = emp.getBankAccountNumber() != null && !emp.getBankAccountNumber().isBlank()
                 ? emp.getBankAccountNumber()
@@ -166,7 +389,7 @@ public class PayrollService {
             String pType = (slip.getNetSalary() != null && slip.getNetSalary().compareTo(new BigDecimal("200000")) >= 0)
                 ? "RTGS" : "NEFT";
 
-            list.add(com.hrms.modules.payroll.dto.BankDisbursementDto.builder()
+            list.add(BankDisbursementDto.builder()
                 .employeeNumber(emp.getEmployeeNumber())
                 .employeeName(emp.getFullName())
                 .bankAccountNumber(accNo)
@@ -184,11 +407,11 @@ public class PayrollService {
 
     @Transactional(readOnly = true)
     public String generateBankBatchCsv(int month, int year) {
-        List<com.hrms.modules.payroll.dto.BankDisbursementDto> items = getBankBatchDisbursements(month, year);
+        List<BankDisbursementDto> items = getBankBatchDisbursements(month, year);
         StringBuilder sb = new StringBuilder();
         sb.append("SrNo,EmployeeNumber,BeneficiaryName,AccountNumber,IFSCCode,BankName,Amount,PaymentType,Narration\n");
         int count = 1;
-        for (com.hrms.modules.payroll.dto.BankDisbursementDto item : items) {
+        for (BankDisbursementDto item : items) {
             sb.append(count++).append(",")
               .append("\"").append(item.getEmployeeNumber()).append("\",")
               .append("\"").append(item.getEmployeeName()).append("\",")
@@ -202,6 +425,24 @@ public class PayrollService {
         return sb.toString();
     }
 
+    private void sendPayrollEmail(PayrollSlip slip) {
+        try {
+            Employee emp = slip.getEmployee();
+            if (emp != null && emp.getEmail() != null) {
+                String[] monthNames = {"","January","February","March","April","May","June",
+                                       "July","August","September","October","November","December"};
+                int m = (slip.getMonth() != null && slip.getMonth() >= 1 && slip.getMonth() <= 12) ? slip.getMonth() : 1;
+                String netStr = (slip.getNetSalary() != null) ? "₹ " + slip.getNetSalary().toPlainString() : "₹ 0.00";
+                emailService.sendPayrollProcessedEmail(
+                    emp.getEmail(), emp.getFirstName(), monthNames[m], String.valueOf(slip.getYear()),
+                    netStr
+                );
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send payroll notification email for slip #{}: {}", slip.getId(), e.getMessage());
+        }
+    }
+
     private int getWorkingDays(int year, int month) {
         YearMonth ym = YearMonth.of(year, month);
         int count = 0;
@@ -213,7 +454,6 @@ public class PayrollService {
     }
 
     private BigDecimal getProfessionalTax(BigDecimal monthlySalary) {
-        // Simplified PT slab (varies by state)
         if (monthlySalary.compareTo(new BigDecimal("15000")) < 0) return BigDecimal.ZERO;
         if (monthlySalary.compareTo(new BigDecimal("20000")) < 0) return new BigDecimal("150");
         return new BigDecimal("200");

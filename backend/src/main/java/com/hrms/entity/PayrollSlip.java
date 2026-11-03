@@ -56,6 +56,27 @@ public class PayrollSlip extends BaseTenantEntity {
     @Builder.Default
     private BigDecimal reimbursements = BigDecimal.ZERO;
 
+    @Column(name = "bonus", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal bonus = BigDecimal.ZERO;
+
+    @Column(name = "overtime_amount", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal overtimeAmount = BigDecimal.ZERO;
+
+    @Column(name = "deductions_adjustment", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal deductionsAdjustment = BigDecimal.ZERO;
+
+    @Column(name = "hr_remarks", length = 500)
+    private String hrRemarks;
+
+    @Column(name = "adjusted_by", length = 100)
+    private String adjustedBy;
+
+    @Column(name = "adjusted_at")
+    private LocalDateTime adjustedAt;
+
     @Column(name = "net_salary", precision = 12, scale = 2)
     private BigDecimal netSalary;
 
@@ -89,4 +110,49 @@ public class PayrollSlip extends BaseTenantEntity {
     @JoinColumn(name = "employee_id", nullable = false)
     @com.fasterxml.jackson.annotation.JsonIgnore
     private Employee employee;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("employeeId")
+    public Long getEmployeeId() {
+        try {
+            return employee != null ? employee.getId() : null;
+        } catch (Exception e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("employeeName")
+    public String getEmployeeName() {
+        try {
+            return (employee != null && org.hibernate.Hibernate.isInitialized(employee)) ? employee.getFullName() : null;
+        } catch (Exception e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("employeeNumber")
+    public String getEmployeeNumber() {
+        try {
+            return (employee != null && org.hibernate.Hibernate.isInitialized(employee)) ? employee.getEmployeeNumber() : null;
+        } catch (Exception e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("departmentName")
+    public String getDepartmentName() {
+        try {
+            if (employee != null && org.hibernate.Hibernate.isInitialized(employee) && employee.getDepartment() != null && org.hibernate.Hibernate.isInitialized(employee.getDepartment())) {
+                return employee.getDepartment().getName();
+            }
+            return null;
+        } catch (Exception e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("designation")
+    public String getDesignation() {
+        try {
+            return (employee != null && org.hibernate.Hibernate.isInitialized(employee)) ? employee.getDesignation() : null;
+        } catch (Exception e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("contractualSalary")
+    public BigDecimal getContractualSalary() {
+        try {
+            return (employee != null && org.hibernate.Hibernate.isInitialized(employee)) ? employee.getSalary() : null;
+        } catch (Exception e) { return null; }
+    }
 }

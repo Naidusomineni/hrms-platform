@@ -153,18 +153,38 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
 
   const connectWebRTC = async (data) => {
     try {
-      // 1. Acquire local camera and mic stream for smooth instant preview
-      const localStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: true
-      })
-      localStreamRef.current = localStream
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = localStream
+      let localStream = null
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: true
+        })
+      } catch (mediaErr) {
+        // Fallback: try audio only or video only
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        } catch (e2) {
+          try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+          } catch (e3) {
+            console.warn('Camera/Microphone access not granted yet:', e3)
+          }
+        }
       }
 
-      // 2. Connect to LiveKit Room if valid WebSocket URL provided
+      if (localStream) {
+        localStreamRef.current = localStream
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = localStream
+        }
+        setCameraActive(localStream.getVideoTracks().length > 0)
+        setMicActive(localStream.getAudioTracks().length > 0)
+      } else {
+        setCameraActive(false)
+        setMicActive(false)
+      }
+
+      // Connect to LiveKit Room if valid WebSocket URL provided
       if (data?.serverUrl && data.serverUrl.startsWith('ws') && data?.token) {
         const room = new Room({
           adaptiveStream: true,
@@ -193,20 +213,33 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
           }
         })
 
-        // Connect asynchronously with 5s timeout to not block fallback preview
         try {
           await room.connect(data.serverUrl, data.token)
           await room.localParticipant.enableCameraAndMicrophone()
         } catch (webrtcErr) {
-          console.info('LiveKit cloud signaling bypassed, operating in native local WebRTC preview mode:', webrtcErr.message)
+          console.info('Operating in local direct mode:', webrtcErr.message)
           setRoomConnected(true)
         }
       } else {
         setRoomConnected(true)
       }
     } catch (err) {
-      console.warn('Could not initialize local video stream:', err)
-      toast.error('Camera/Microphone permission denied.')
+      console.warn('Media setup notice:', err)
+    }
+  }
+
+  const requestMediaPermissions = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      localStreamRef.current = stream
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream
+      }
+      setCameraActive(true)
+      setMicActive(true)
+      toast.success('Camera and microphone enabled!')
+    } catch (e) {
+      toast.error('Permission blocked. Click the icon next to the address bar to allow Camera and Microphone.')
     }
   }
 
@@ -418,9 +451,14 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                   className="w-full h-full object-cover transform -scale-x-100"
                 />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500 text-[10px]">
-                  <VideoOff size={16} />
-                  <span>Camera Off</span>
+                <div
+                  onClick={requestMediaPermissions}
+                  className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer text-[10px] p-2 text-center"
+                  title="Click to enable Camera & Microphone access"
+                >
+                  <VideoOff size={18} className="text-amber-400 mb-1" />
+                  <span className="font-bold text-white">Camera Off</span>
+                  <span className="text-[9px] text-indigo-400 underline mt-0.5">Click to Allow</span>
                 </div>
               )}
               <div className="absolute bottom-1.5 left-2 bg-slate-950/80 px-2 py-0.5 rounded text-[9px] font-bold text-white">

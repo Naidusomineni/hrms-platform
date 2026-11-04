@@ -63,6 +63,10 @@ public class InterviewSignalingService {
     }
 
     public List<WebRtcSignalDto> getSignals(Long sessionId, long sinceTimestamp, String excludeSenderType) {
+        return getSignals(sessionId, sinceTimestamp, excludeSenderType, null);
+    }
+
+    public List<WebRtcSignalDto> getSignals(Long sessionId, long sinceTimestamp, String excludeSenderType, String excludeSenderIdentity) {
         List<WebRtcSignalDto> buffer = sessionSignalBuffer.get(sessionId);
         if (buffer == null || buffer.isEmpty()) {
             return Collections.emptyList();
@@ -70,7 +74,12 @@ public class InterviewSignalingService {
 
         return buffer.stream()
                 .filter(s -> s.getTimestamp() > sinceTimestamp)
-                .filter(s -> excludeSenderType == null || !excludeSenderType.equalsIgnoreCase(s.getSenderType()))
+                .filter(s -> {
+                    if (excludeSenderIdentity != null && !excludeSenderIdentity.isBlank()) {
+                        return !excludeSenderIdentity.equalsIgnoreCase(s.getSenderIdentity());
+                    }
+                    return excludeSenderType == null || !excludeSenderType.equalsIgnoreCase(s.getSenderType());
+                })
                 .collect(Collectors.toList());
     }
 

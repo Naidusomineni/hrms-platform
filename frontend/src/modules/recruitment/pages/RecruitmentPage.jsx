@@ -100,6 +100,7 @@ const RecruitmentPage = () => {
   const [interviewForm, setInterviewForm] = useState({
     roundName: 'Technical Round 1',
     interviewerId: '',
+    panelistIds: [],
     scheduledDate: format(new Date(), 'yyyy-MM-dd'),
     scheduledTime: '14:00',
     durationMinutes: 45,
@@ -156,7 +157,8 @@ const RecruitmentPage = () => {
     setInterviewForm(prev => ({
       ...prev,
       roundName: suggestedRound,
-      interviewerId: employees[0]?.id || ''
+      interviewerId: employees[0]?.id || '',
+      panelistIds: []
     }))
     setScheduleModalOpen(true)
   }
@@ -174,6 +176,7 @@ const RecruitmentPage = () => {
         candidateId: schedulingCandidate.id,
         jobPostingId: schedulingCandidate.jobPostingId,
         interviewerId: Number(interviewForm.interviewerId),
+        panelistIds: (interviewForm.panelistIds || []).map(Number),
         roundName: interviewForm.roundName,
         scheduledStart: startDate.toISOString(),
         scheduledEnd: endDate.toISOString(),
@@ -181,7 +184,7 @@ const RecruitmentPage = () => {
       }
 
       await interviewAPI.scheduleInterview(payload)
-      toast.success(`🎉 Video interview scheduled! Direct candidate guest link generated.`)
+      toast.success(`🎉 Video interview scheduled with panel! Direct guest & evaluator links generated.`)
       setScheduleModalOpen(false)
       loadData()
     } catch (err) {
@@ -976,20 +979,73 @@ const RecruitmentPage = () => {
           </div>
 
           <div>
-            <label className="label">Assigned Interviewer *</label>
+            <label className="label">Lead Evaluator / Primary Interviewer *</label>
             <select
               value={interviewForm.interviewerId}
               onChange={e => setInterviewForm({ ...interviewForm, interviewerId: e.target.value })}
               className="input bg-white"
               required
             >
-              <option value="">Select Interviewer...</option>
+              <option value="">Select Lead Interviewer...</option>
               {employees.map(emp => (
                 <option key={emp.id} value={emp.id}>
                   {emp.fullName} ({emp.employeeNumber}) — {emp.designation || 'Engineering'}
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="label flex items-center justify-between">
+              <span>Technical Co-Interviewers / Panelists</span>
+              <span className="text-[11px] text-slate-400 font-normal">Optional panel members</span>
+            </label>
+            <div className="space-y-2">
+              <select
+                onChange={e => {
+                  const val = Number(e.target.value)
+                  if (!val) return
+                  if (!interviewForm.panelistIds.includes(val)) {
+                    setInterviewForm(prev => ({ ...prev, panelistIds: [...prev.panelistIds, val] }))
+                  }
+                  e.target.value = ''
+                }}
+                className="input bg-white text-xs"
+              >
+                <option value="">+ Add Technical Co-Interviewer / Panelist...</option>
+                {employees
+                  .filter(emp => emp.id !== Number(interviewForm.interviewerId) && !interviewForm.panelistIds.includes(emp.id))
+                  .map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.fullName} ({emp.employeeNumber}) — {emp.designation || 'Engineering'}
+                    </option>
+                  ))}
+              </select>
+
+              {/* Selected Panelist Chips */}
+              {interviewForm.panelistIds.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 p-2 rounded-lg bg-indigo-50/50 border border-indigo-100">
+                  {interviewForm.panelistIds.map(pId => {
+                    const emp = employees.find(e => e.id === pId)
+                    if (!emp) return null
+                    return (
+                      <span key={pId} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-white border border-indigo-200 text-xs text-indigo-900 shadow-xs">
+                        <Users size={12} className="text-indigo-600" />
+                        <span className="font-medium">{emp.fullName}</span>
+                        <span className="text-[10px] text-indigo-600">({emp.designation || 'Panelist'})</span>
+                        <button
+                          type="button"
+                          onClick={() => setInterviewForm(prev => ({ ...prev, panelistIds: prev.panelistIds.filter(id => id !== pId) }))}
+                          className="text-slate-400 hover:text-rose-600 p-0.5 rounded cursor-pointer"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

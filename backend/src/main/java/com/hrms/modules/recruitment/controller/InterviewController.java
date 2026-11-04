@@ -100,6 +100,39 @@ public class InterviewController {
                 interviewService.saveLiveScorecard(id, dto, email)));
     }
 
+    @GetMapping("/{id}/scorecards")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_MANAGER')")
+    public ResponseEntity<ApiResponse<List<InterviewScorecardDto>>> getScorecards(
+            @PathVariable("id") Long id) {
+        return ResponseEntity.ok(ApiResponse.success(interviewService.getScorecardsForSession(id)));
+    }
+
+    @GetMapping("/{id}/panelists")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_MANAGER')")
+    public ResponseEntity<ApiResponse<List<InterviewPanelistDto>>> getPanelists(
+            @PathVariable("id") Long id) {
+        return ResponseEntity.ok(ApiResponse.success(interviewService.getPanelistsForSession(id)));
+    }
+
+    @PostMapping("/{id}/panelists")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_MANAGER')")
+    public ResponseEntity<ApiResponse<InterviewPanelistDto>> addPanelist(
+            @PathVariable("id") Long id,
+            @RequestBody PanelistAssignmentRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Panelist added successfully",
+                        interviewService.addPanelistToSession(id, request)));
+    }
+
+    @DeleteMapping("/{id}/panelists/{panelistId}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_MANAGER')")
+    public ResponseEntity<ApiResponse<Void>> removePanelist(
+            @PathVariable("id") Long id,
+            @PathVariable("panelistId") Long panelistId) {
+        interviewService.removePanelistFromSession(id, panelistId);
+        return ResponseEntity.ok(ApiResponse.success("Panelist removed successfully", null));
+    }
+
     @PostMapping("/{id}/complete")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_MANAGER')")
     public ResponseEntity<ApiResponse<InterviewSessionDto>> completeInterview(
@@ -138,12 +171,13 @@ public class InterviewController {
     @GetMapping("/guest/{guestToken}/signals")
     public ResponseEntity<ApiResponse<List<WebRtcSignalDto>>> getCandidateSignals(
             @PathVariable("guestToken") String guestToken,
-            @RequestParam(name = "since", defaultValue = "0") long since) {
+            @RequestParam(name = "since", defaultValue = "0") long since,
+            @RequestParam(name = "excludeIdentity", required = false) String excludeIdentity) {
         Long sessionId = signalingService.getSessionIdFromGuestToken(guestToken);
         if (sessionId == null) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Invalid guest token"));
         }
-        return ResponseEntity.ok(ApiResponse.success(signalingService.getSignals(sessionId, since, "CANDIDATE")));
+        return ResponseEntity.ok(ApiResponse.success(signalingService.getSignals(sessionId, since, "CANDIDATE", excludeIdentity)));
     }
 
     @PostMapping("/{id}/signal")
@@ -157,7 +191,8 @@ public class InterviewController {
     @GetMapping("/{id}/signals")
     public ResponseEntity<ApiResponse<List<WebRtcSignalDto>>> getInterviewerSignals(
             @PathVariable("id") Long id,
-            @RequestParam(name = "since", defaultValue = "0") long since) {
-        return ResponseEntity.ok(ApiResponse.success(signalingService.getSignals(id, since, "INTERVIEWER")));
+            @RequestParam(name = "since", defaultValue = "0") long since,
+            @RequestParam(name = "excludeIdentity", required = false) String excludeIdentity) {
+        return ResponseEntity.ok(ApiResponse.success(signalingService.getSignals(id, since, "INTERVIEWER", excludeIdentity)));
     }
 }

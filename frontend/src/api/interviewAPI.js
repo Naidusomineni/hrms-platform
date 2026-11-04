@@ -15,12 +15,18 @@ export const interviewAPI = {
 
   // In-Call Live Scorecard & Finalization
   saveLiveScorecard: (id, scorecard) => apiClient.put(`/v1/recruitment/interviews/${id}/scorecard`, scorecard),
+  getScorecardsForSession: (id) => apiClient.get(`/v1/recruitment/interviews/${id}/scorecards`),
+  getPanelistsForSession: (id) => apiClient.get(`/v1/recruitment/interviews/${id}/panelists`),
+  addPanelist: (id, data) => apiClient.post(`/v1/recruitment/interviews/${id}/panelists`, data),
+  removePanelist: (id, panelistId) => apiClient.delete(`/v1/recruitment/interviews/${id}/panelists/${panelistId}`),
   completeInterview: (id, nextStage) => apiClient.post(`/v1/recruitment/interviews/${id}/complete`, null, { params: { nextStage } }),
   cancelInterview: (id) => apiClient.post(`/v1/recruitment/interviews/${id}/cancel`),
 
   // WebRTC Real-Time Signaling & In-Call Chat
   postCandidateSignal: (guestToken, signal) => apiClient.post(`/v1/recruitment/interviews/guest/${guestToken}/signal`, signal),
-  getCandidateSignals: (guestToken, since = 0) => apiClient.get(`/v1/recruitment/interviews/guest/${guestToken}/signals`, { params: { since } }),
+  getCandidateSignals: (guestToken, since = 0, excludeIdentity = null) =>
+    apiClient.get(`/v1/recruitment/interviews/guest/${guestToken}/signals`, { params: { since, excludeIdentity } }),
   postInterviewerSignal: (id, signal) => apiClient.post(`/v1/recruitment/interviews/${id}/signal`, signal),
-  getInterviewerSignals: (id, since = 0) => apiClient.get(`/v1/recruitment/interviews/${id}/signals`, { params: { since } }),
+  getInterviewerSignals: (id, since = 0, excludeIdentity = null) =>
+    apiClient.get(`/v1/recruitment/interviews/${id}/signals`, { params: { since, excludeIdentity } }),
 }

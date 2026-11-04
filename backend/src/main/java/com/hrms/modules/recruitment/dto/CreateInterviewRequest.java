@@ -31,4 +31,7 @@ public class CreateInterviewRequest {
     private LocalDateTime scheduledEnd;
 
     private String notes;
+
+    private java.util.List<Long> panelistIds;
+    private java.util.List<PanelistAssignmentRequest> panelists;
 }

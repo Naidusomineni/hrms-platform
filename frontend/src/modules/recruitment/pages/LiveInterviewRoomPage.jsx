@@ -5,7 +5,7 @@ import { Button, Badge, Spinner, Card } from '../../../components/common/index.j
 import {
   Video, Mic, MicOff, VideoOff, ScreenShare, PhoneOff, ShieldCheck,
   AlertTriangle, Star, CheckCircle, FileText, Code, Check, ArrowRight,
-  Maximize2, Eye, User, Briefcase, RefreshCw, Lock, Sparkles, ExternalLink,
+  Maximize2, Eye, User, Users, Briefcase, RefreshCw, Lock, Sparkles, ExternalLink,
   MessageSquare, Send, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -109,6 +109,24 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
   })
   const [savingScorecard, setSavingScorecard] = useState(false)
   const [lastSavedTime, setLastSavedTime] = useState(null)
+  const [scorecardView, setScorecardView] = useState('mine') // 'mine' | 'panel'
+  const [panelScorecards, setPanelScorecards] = useState([])
+  const [loadingPanelScorecards, setLoadingPanelScorecards] = useState(false)
+
+  const loadPanelScorecards = async (sId) => {
+    const id = sId || sessionId || session?.id
+    if (!id || isGuest) return
+    setLoadingPanelScorecards(true)
+    try {
+      const res = await interviewAPI.getScorecardsForSession(id)
+      setPanelScorecards(res.data?.data || [])
+    } catch (err) {
+      console.debug('No panel scorecards yet', err)
+    } finally {
+      setLoadingPanelScorecards(false)
+    }
+  }
+
   const [scratchpadCode, setScratchpadCode] = useState(
     '// Candidate Coding Scratchpad\n// Write code, algorithms, or technical discussion notes here\n\nfunction solution() {\n  return true;\n}'
   )
@@ -265,6 +283,9 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         setSession(currentSession)
         if (currentSession.integrityStatus) {
           setIntegrityStatus(currentSession.integrityStatus)
+        }
+        if (!isGuest && currentSession.id) {
+          loadPanelScorecards(currentSession.id)
         }
       }
     } catch (err) {
@@ -840,6 +861,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         feedback: scorecard.feedback
       })
       setLastSavedTime(new Date())
+      loadPanelScorecards(session.id)
       toast.success('Evaluation scorecard auto-saved!')
     } catch (err) {
       toast.error('Failed to save scorecard')
@@ -909,6 +931,17 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Panelist Chips in Header */}
+          {session?.panelists?.length > 0 && (
+            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-950/60 border border-indigo-800/40 text-xs text-indigo-300">
+              <Users size={12} className="text-indigo-400" />
+              <span className="font-semibold text-[11px]">Panel:</span>
+              <span className="text-[11px] text-slate-300 truncate max-w-[220px]">
+                {session.interviewerName} (Lead), {session.panelists.map(p => p.employeeName).join(', ')}
+              </span>
+            </div>
+          )}
+
           {/* Security & Integrity Status Indicator */}
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700/60 text-xs">
             <Lock size={12} className="text-emerald-400" />
@@ -1133,121 +1166,241 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
             {/* Tab 1: Live Evaluation Scorecard */}
             {activeTab === 'scorecard' && (
               <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                {/* 🛡️ Candidate Integrity & Anti-Proxy Telemetry Monitor */}
-                <div className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                      <ShieldCheck size={14} className="text-emerald-400" /> Integrity & Proxy Monitor
-                    </span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      integrityStatus === 'CLEAN' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
-                    }`}>
-                      {integrityStatus === 'CLEAN' ? 'Verified Clean' : 'Proxy Suspect'}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-[11px]">
-                    <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
-                      <p className="text-slate-500 text-[10px]">Webcam Hardware</p>
-                      <p className="font-bold text-slate-200 mt-0.5">Physical Hardware ✅</p>
-                    </div>
-                    <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
-                      <p className="text-slate-500 text-[10px]">Tab Blur Telemetry</p>
-                      <p className={`font-bold mt-0.5 ${tabSwitchCount > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                        {tabSwitchCount} switches detected
-                      </p>
-                    </div>
-                  </div>
+                {/* Panel Evaluation Sub-navigation: My Scorecard vs Panel Consensus */}
+                <div className="flex rounded-xl bg-slate-900 p-1 border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setScorecardView('mine')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                      scorecardView === 'mine'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    My Evaluation
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScorecardView('panel')
+                      loadPanelScorecards()
+                    }}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                      scorecardView === 'panel'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Users size={13} />
+                    Panel Consensus ({panelScorecards.length})
+                  </button>
                 </div>
 
-                {/* Rating Criteria Matrix */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Evaluation Matrix (1 - 5 Stars)
-                  </h4>
+                {scorecardView === 'panel' ? (
+                  /* ── Panel Consensus & Collaborative Ratings View ── */
+                  <div className="space-y-4">
+                    <div className="p-3.5 bg-indigo-950/40 border border-indigo-800/60 rounded-xl">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                          <Users size={14} className="text-indigo-400" /> Technical Panel Consensus
+                        </span>
+                        <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full font-bold">
+                          {panelScorecards.length} Evaluators
+                        </span>
+                      </div>
+                      {panelScorecards.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                            <p className="text-[10px] text-slate-400">Avg Technical Score</p>
+                            <p className="text-base font-black text-amber-400 mt-0.5">
+                              {(panelScorecards.reduce((acc, sc) => acc + (sc.technicalRating || 0), 0) / panelScorecards.length).toFixed(1)} / 5.0
+                            </p>
+                          </div>
+                          <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                            <p className="text-[10px] text-slate-400">Consensus Recommendation</p>
+                            <p className="text-xs font-bold text-emerald-400 mt-1 uppercase">
+                              {panelScorecards[0]?.recommendation?.replace('_', ' ') || 'In Review'}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 leading-relaxed">
+                          No scorecards submitted by panelists yet. When you or other co-interviewers click "Save Scorecard", evaluations sync here in real time.
+                        </p>
+                      )}
+                    </div>
 
-                  {[
-                    { key: 'technicalRating', label: 'Technical Competence & Core Knowledge' },
-                    { key: 'problemSolvingRating', label: 'Problem Solving & Architecture Logic' },
-                    { key: 'communicationRating', label: 'Communication, Clarity & Expression' },
-                    { key: 'cultureFitRating', label: 'Culture Fit, Collaboration & Values' }
-                  ].map(({ key, label }) => (
-                    <div key={key} className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
-                      <span className="text-xs font-medium text-slate-300">{label}</span>
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map(star => (
+                    {/* Evaluator Scorecard Cards */}
+                    <div className="space-y-3">
+                      {panelScorecards.map((sc, idx) => (
+                        <div key={sc.id || idx} className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                                <User size={13} className="text-indigo-400" />
+                                {sc.interviewerName || 'Panelist'}
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">{sc.roundName || 'Technical Round'}</p>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              sc.recommendation === 'STRONG_HIRE' ? 'bg-emerald-600 text-white' :
+                              sc.recommendation === 'HIRE' ? 'bg-indigo-600 text-white' :
+                              sc.recommendation === 'HOLD' ? 'bg-amber-600 text-white' : 'bg-rose-600 text-white'
+                            }`}>
+                              {sc.recommendation?.replace('_', ' ')}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-[11px]">
+                            <div className="flex items-center justify-between bg-slate-900 px-2 py-1 rounded">
+                              <span className="text-slate-400">Technical:</span>
+                              <span className="font-bold text-amber-400">★ {sc.technicalRating}/5</span>
+                            </div>
+                            <div className="flex items-center justify-between bg-slate-900 px-2 py-1 rounded">
+                              <span className="text-slate-400">Communication:</span>
+                              <span className="font-bold text-amber-400">★ {sc.communicationRating}/5</span>
+                            </div>
+                          </div>
+
+                          {sc.feedback && (
+                            <p className="text-xs text-slate-300 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800/80 italic leading-relaxed">
+                              "{sc.feedback}"
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => loadPanelScorecards()}
+                      loading={loadingPanelScorecards}
+                      className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-xs font-medium border border-slate-800"
+                    >
+                      <RefreshCw size={12} /> Refresh Panel Consensus
+                    </Button>
+                  </div>
+                ) : (
+                  /* ── Current Evaluator Scorecard Form ── */
+                  <>
+                    {/* 🛡️ Candidate Integrity & Anti-Proxy Telemetry Monitor */}
+                    <div className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                          <ShieldCheck size={14} className="text-emerald-400" /> Integrity & Proxy Monitor
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          integrityStatus === 'CLEAN' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+                        }`}>
+                          {integrityStatus === 'CLEAN' ? 'Verified Clean' : 'Proxy Suspect'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                          <p className="text-slate-500 text-[10px]">Webcam Hardware</p>
+                          <p className="font-bold text-slate-200 mt-0.5">Physical Hardware ✅</p>
+                        </div>
+                        <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                          <p className="text-slate-500 text-[10px]">Tab Blur Telemetry</p>
+                          <p className={`font-bold mt-0.5 ${tabSwitchCount > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                            {tabSwitchCount} switches detected
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rating Criteria Matrix */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Evaluation Matrix (1 - 5 Stars)
+                      </h4>
+
+                      {[
+                        { key: 'technicalRating', label: 'Technical Competence & Core Knowledge' },
+                        { key: 'problemSolvingRating', label: 'Problem Solving & Architecture Logic' },
+                        { key: 'communicationRating', label: 'Communication, Clarity & Expression' },
+                        { key: 'cultureFitRating', label: 'Culture Fit, Collaboration & Values' }
+                      ].map(({ key, label }) => (
+                        <div key={key} className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+                          <span className="text-xs font-medium text-slate-300">{label}</span>
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map(star => (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => setScorecard(prev => ({ ...prev, [key]: star }))}
+                                className="p-1 hover:scale-125 transition-transform"
+                              >
+                                <Star
+                                  size={16}
+                                  className={star <= scorecard[key] ? 'text-amber-400 fill-amber-400' : 'text-slate-700'}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Hiring Recommendation Pills */}
+                    <div>
+                      <label className="label text-xs font-bold text-slate-400 mb-2">Hiring Recommendation</label>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {[
+                          { id: 'STRONG_HIRE', label: 'Strong Hire', color: 'bg-emerald-600 text-white' },
+                          { id: 'HIRE', label: 'Hire', color: 'bg-indigo-600 text-white' },
+                          { id: 'HOLD', label: 'Hold / Re-evaluate', color: 'bg-amber-600 text-white' },
+                          { id: 'REJECT', label: 'No Hire / Reject', color: 'bg-rose-600 text-white' }
+                        ].map(opt => (
                           <button
-                            key={star}
+                            key={opt.id}
                             type="button"
-                            onClick={() => setScorecard(prev => ({ ...prev, [key]: star }))}
-                            className="p-1 hover:scale-125 transition-transform"
+                            onClick={() => setScorecard(prev => ({ ...prev, recommendation: opt.id }))}
+                            className={`p-2.5 rounded-xl border font-bold text-center transition-all ${
+                              scorecard.recommendation === opt.id
+                                ? `${opt.color} border-transparent shadow-md`
+                                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                            }`}
                           >
-                            <Star
-                              size={16}
-                              className={star <= scorecard[key] ? 'text-amber-400 fill-amber-400' : 'text-slate-700'}
-                            />
+                            {opt.label}
                           </button>
                         ))}
                       </div>
                     </div>
-                  ))}
-                </div>
 
-                {/* Hiring Recommendation Pills */}
-                <div>
-                  <label className="label text-xs font-bold text-slate-400 mb-2">Hiring Recommendation</label>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    {[
-                      { id: 'STRONG_HIRE', label: 'Strong Hire', color: 'bg-emerald-600 text-white' },
-                      { id: 'HIRE', label: 'Hire', color: 'bg-indigo-600 text-white' },
-                      { id: 'HOLD', label: 'Hold / Re-evaluate', color: 'bg-amber-600 text-white' },
-                      { id: 'REJECT', label: 'No Hire / Reject', color: 'bg-rose-600 text-white' }
-                    ].map(opt => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setScorecard(prev => ({ ...prev, recommendation: opt.id }))}
-                        className={`p-2.5 rounded-xl border font-bold text-center transition-all ${
-                          scorecard.recommendation === opt.id
-                            ? `${opt.color} border-transparent shadow-md`
-                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                    {/* Structured Feedback Notes */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-bold text-slate-400">Detailed Feedback & Observations</label>
+                        {lastSavedTime && (
+                          <span className="text-[10px] text-emerald-400 flex items-center gap-1">
+                            <Check size={11} /> Saved {lastSavedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+                      <textarea
+                        rows={4}
+                        placeholder="Candidate demonstrated deep knowledge of distributed systems, Kafka consumer groups, and concurrency..."
+                        value={scorecard.feedback}
+                        onChange={e => setScorecard(prev => ({ ...prev, feedback: e.target.value }))}
+                        className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder:text-slate-600 resize-none focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
 
-                {/* Structured Feedback Notes */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-bold text-slate-400">Detailed Feedback & Observations</label>
-                    {lastSavedTime && (
-                      <span className="text-[10px] text-emerald-400 flex items-center gap-1">
-                        <Check size={11} /> Saved {lastSavedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    )}
-                  </div>
-                  <textarea
-                    rows={4}
-                    placeholder="Candidate demonstrated deep knowledge of distributed systems, Kafka consumer groups, and concurrency..."
-                    value={scorecard.feedback}
-                    onChange={e => setScorecard(prev => ({ ...prev, feedback: e.target.value }))}
-                    className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder:text-slate-600 resize-none focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                {/* Save Button */}
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleSaveScorecard}
-                  loading={savingScorecard}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold"
-                >
-                  Save Scorecard
-                </Button>
+                    {/* Save Button */}
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleSaveScorecard}
+                      loading={savingScorecard}
+                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold"
+                    >
+                      Save Scorecard
+                    </Button>
+                  </>
+                )}
               </div>
             )}
 

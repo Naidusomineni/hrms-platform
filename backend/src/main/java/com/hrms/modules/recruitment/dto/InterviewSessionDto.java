@@ -43,4 +43,6 @@ public class InterviewSessionDto {
     private String integrityStatus;
     private String integrityDetails;
     private LocalDateTime createdAt;
+
+    private java.util.List<InterviewPanelistDto> panelists;
 }

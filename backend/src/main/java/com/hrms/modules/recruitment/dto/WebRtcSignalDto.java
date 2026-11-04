@@ -14,6 +14,8 @@ public class WebRtcSignalDto {
     private Long sessionId;
     private String senderType; // "CANDIDATE" or "INTERVIEWER"
     private String senderName;
+    private String senderIdentity; // e.g. "cand-22" or "emp-1"
+    private String targetIdentity; // null/"*" for broadcast or specific participant
     private String signalType; // "OFFER", "ANSWER", "ICE", "JOIN", "LEAVE", "CHAT"
     private String payload;    // JSON string for SDP / ICE candidate or chat message text
     private Long timestamp;

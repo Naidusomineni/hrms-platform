@@ -7,11 +7,14 @@ import com.hrms.entity.Candidate;
 import com.hrms.entity.Employee;
 import com.hrms.entity.JobPosting;
 import com.hrms.enums.InterviewSessionStatus;
+import com.hrms.enums.PanelistRole;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.Hibernate;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "interview_sessions",
@@ -89,6 +92,23 @@ public class InterviewSession extends BaseTenantEntity {
 
     @Column(name = "integrity_details", columnDefinition = "TEXT")
     private String integrityDetails;
+
+    @OneToMany(mappedBy = "interviewSession", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<InterviewPanelist> panelists = new ArrayList<>();
+
+    public void addPanelist(Employee emp, PanelistRole role) {
+        if (panelists == null) {
+            panelists = new ArrayList<>();
+        }
+        InterviewPanelist panelist = InterviewPanelist.builder()
+                .interviewSession(this)
+                .employee(emp)
+                .role(role != null ? role : PanelistRole.TECH_PANELIST)
+                .build();
+        panelist.setTenantId(this.getTenantId());
+        panelists.add(panelist);
+    }
 
     // Helper getters for JSON serialization
     @JsonProperty("candidateId")

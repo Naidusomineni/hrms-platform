@@ -168,9 +168,8 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
   }
 
   const initializeSession = async () => {
+    let currentSession = null
     try {
-      let currentSession = null
-
       if (isGuest) {
         // Candidate join
         const camLabel = sessionStorage.getItem('hrms_interview_camera_label') || 'Webcam'
@@ -197,32 +196,43 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
           setIntegrityStatus(currentSession.integrityStatus)
         }
       }
-
-      // Initialize Native WebRTC Peer Connection
-      await connectNativeWebRTC(currentSession)
     } catch (err) {
-      console.error('Session initialization error:', err)
-      toast.error(err.response?.data?.message || 'Failed to initialize interview room.')
+      console.warn('Session API notice:', err)
     } finally {
       setLoading(false)
+    }
+
+    // Always connect WebRTC media stream even if backend state takes a second
+    try {
+      await connectNativeWebRTC(currentSession)
+    } catch (mediaErr) {
+      console.warn('WebRTC connection notice:', mediaErr)
     }
   }
 
   const connectNativeWebRTC = async (currentSession) => {
     try {
-      // 1. Acquire local camera and microphone stream
+      // 1. Check if stream was handed over seamlessly from the lobby
       let stream = null
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: true
-        })
-      } catch (mediaErr) {
-        // Fallback: try audio only (e.g. PC without physical webcam)
+      if (window.__HRMS_ACTIVE_STREAM && window.__HRMS_ACTIVE_STREAM.active) {
+        stream = window.__HRMS_ACTIVE_STREAM
+        window.__HRMS_ACTIVE_STREAM = null
+      } else {
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
-        } catch (e2) {
-          console.warn('Audio/video unavailable:', e2)
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+            audio: true
+          })
+        } catch (mediaErr) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+          } catch (e2) {
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+            } catch (e3) {
+              console.warn('Audio/video unavailable:', e3)
+            }
+          }
         }
       }
 
@@ -305,8 +315,8 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
           }
 
           if (sig.signalType === 'JOIN') {
-            // When remote participant joins, Interviewer initiates the WebRTC offer
-            if (!isGuest && pc.signalingState === 'stable') {
+            // When remote participant joins, initiate the WebRTC offer
+            if (pc.signalingState === 'stable') {
               try {
                 const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
                 await pc.setLocalDescription(offer)
@@ -423,23 +433,66 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     }
   }
 
-  const toggleMic = () => {
+  const toggleMic = async () => {
     if (localStreamRef.current) {
       const aTrack = localStreamRef.current.getAudioTracks()[0]
       if (aTrack) {
         aTrack.enabled = !aTrack.enabled
         setMicActive(aTrack.enabled)
+        return
       }
+    }
+    // Dynamic request for audio if not already running
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const track = stream.getAudioTracks()[0]
+      if (track) {
+        if (!localStreamRef.current) {
+          localStreamRef.current = new MediaStream()
+        }
+        localStreamRef.current.addTrack(track)
+        if (peerConnectionRef.current) {
+          peerConnectionRef.current.addTrack(track, localStreamRef.current)
+        }
+        setMicActive(true)
+        toast.success('Microphone unmuted')
+      }
+    } catch (e) {
+      toast.error('Could not access microphone')
     }
   }
 
-  const toggleCamera = () => {
+  const toggleCamera = async () => {
     if (localStreamRef.current) {
       const vTrack = localStreamRef.current.getVideoTracks()[0]
       if (vTrack) {
         vTrack.enabled = !vTrack.enabled
         setCameraActive(vTrack.enabled)
+        return
       }
+    }
+    // Dynamic request for camera if not already running
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+      })
+      const track = stream.getVideoTracks()[0]
+      if (track) {
+        if (!localStreamRef.current) {
+          localStreamRef.current = new MediaStream()
+        }
+        localStreamRef.current.addTrack(track)
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = localStreamRef.current
+        }
+        if (peerConnectionRef.current) {
+          peerConnectionRef.current.addTrack(track, localStreamRef.current)
+        }
+        setCameraActive(true)
+        toast.success('Camera enabled')
+      }
+    } catch (e) {
+      toast.error('Could not access camera')
     }
   }
 

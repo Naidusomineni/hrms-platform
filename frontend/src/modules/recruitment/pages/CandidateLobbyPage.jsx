@@ -170,7 +170,18 @@ const CandidateLobbyPage = () => {
     sessionStorage.setItem('hrms_interview_audio_label', deviceLabels.audio)
     sessionStorage.setItem('hrms_interview_virtual_detected', String(virtualCameraDetected))
 
-    cleanupMediaStream()
+    // Preserve the active camera stream for seamless handover to the interview room
+    if (streamRef.current) {
+      window.__HRMS_ACTIVE_STREAM = streamRef.current
+    }
+
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {})
+    }
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current)
+    }
+
     navigate(`/interview/guest/${guestToken}/room`)
   }
 

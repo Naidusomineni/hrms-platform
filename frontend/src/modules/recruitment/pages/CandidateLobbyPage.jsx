@@ -166,12 +166,16 @@ const CandidateLobbyPage = () => {
   const handleJoin = () => {
     isEnteringRoomRef.current = true
 
-    // Save device preferences and navigate to live room
-    sessionStorage.setItem('hrms_interview_cam_enabled', String(cameraActive))
-    sessionStorage.setItem('hrms_interview_mic_enabled', String(micActive))
-    sessionStorage.setItem('hrms_interview_camera_label', deviceLabels.camera)
-    sessionStorage.setItem('hrms_interview_audio_label', deviceLabels.audio)
-    sessionStorage.setItem('hrms_interview_virtual_detected', String(virtualCameraDetected))
+    // Save device preferences safely
+    try {
+      sessionStorage.setItem('hrms_interview_cam_enabled', String(cameraActive))
+      sessionStorage.setItem('hrms_interview_mic_enabled', String(micActive))
+      sessionStorage.setItem('hrms_interview_camera_label', deviceLabels.camera)
+      sessionStorage.setItem('hrms_interview_audio_label', deviceLabels.audio)
+      sessionStorage.setItem('hrms_interview_virtual_detected', String(virtualCameraDetected))
+    } catch (e) {
+      console.warn('Session storage write bypassed:', e)
+    }
 
     // Preserve the active camera stream for seamless handover to the interview room
     if (streamRef.current) {
@@ -185,7 +189,8 @@ const CandidateLobbyPage = () => {
       cancelAnimationFrame(animFrameRef.current)
     }
 
-    navigate(`/interview/guest/${guestToken}/room`)
+    const activeToken = session?.guestAccessToken || guestToken
+    navigate(`/interview/guest/${activeToken}/room`)
   }
 
   if (loading) {

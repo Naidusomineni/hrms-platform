@@ -65,7 +65,17 @@ public class TenantContextFilter extends OncePerRequestFilter {
         // 4. Check subdomain from Host header (e.g. acme.hrms.com or acme.localhost:8080)
         String host = request.getHeader("Host");
         if (StringUtils.hasText(host)) {
-            String cleanHost = host.split(":")[0];
+            String cleanHost = host.split(":")[0].toLowerCase();
+            // Ignore public tunnel domains and localhost
+            if (cleanHost.endsWith("trycloudflare.com") || 
+                cleanHost.endsWith("ngrok-free.app") || 
+                cleanHost.endsWith("ngrok.io") || 
+                cleanHost.endsWith("onrender.com") || 
+                cleanHost.endsWith("railway.app") ||
+                cleanHost.endsWith("localhost")) {
+                return TenantContext.DEFAULT_TENANT_ID;
+            }
+
             String[] parts = cleanHost.split("\\.");
             if (parts.length >= 2 && !parts[0].equalsIgnoreCase("www") && !parts[0].equalsIgnoreCase("api") && !parts[0].equalsIgnoreCase("localhost")) {
                 return parts[0].trim().toLowerCase();

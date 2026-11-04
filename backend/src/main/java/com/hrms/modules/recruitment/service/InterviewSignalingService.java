@@ -43,9 +43,10 @@ public class InterviewSignalingService {
         List<WebRtcSignalDto> buffer = sessionSignalBuffer.computeIfAbsent(sessionId, k -> new CopyOnWriteArrayList<>());
         buffer.add(signal);
 
-        // Prune older signals if buffer exceeds 150 to keep memory ultra-lean
-        if (buffer.size() > 150) {
-            buffer.subList(0, buffer.size() - 100).clear();
+        // Prune older ephemeral signals (HEARTBEAT/JOIN) older than 60 seconds, keep CHAT signals intact
+        if (buffer.size() > 200) {
+            long cutoff = System.currentTimeMillis() - 60000;
+            buffer.removeIf(s -> !"CHAT".equalsIgnoreCase(s.getSignalType()) && s.getTimestamp() < cutoff);
         }
 
         // Broadcast to WebSocket subscribers if STOMP broker is active

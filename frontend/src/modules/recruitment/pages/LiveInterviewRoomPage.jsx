@@ -45,6 +45,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
 
   const [loading, setLoading] = useState(true)
   const [session, setSession] = useState(null)
+  const [callEndedBySelf, setCallEndedBySelf] = useState(false)
 
   // Media & WebRTC states
   const [micActive, setMicActive] = useState(true)
@@ -64,6 +65,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
   const pendingIceCandidatesRef = useRef([])
   const seenSignalsRef = useRef(new Set())
   const makingOfferRef = useRef(false)
+  const heartbeatCounterRef = useRef(0)
 
   // Chat states
   const [messages, setMessages] = useState([
@@ -174,6 +176,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
 
   const sendSignal = async (type, payload) => {
     try {
+      const activeToken = session?.guestAccessToken || guestToken
       const myName = isGuest
         ? (session?.candidateName || 'Candidate')
         : (session?.interviewerName || 'Interviewer')
@@ -185,12 +188,14 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
       }
 
       if (isGuest) {
-        await interviewAPI.postCandidateSignal(guestToken, sig)
+        if (!activeToken) return
+        await interviewAPI.postCandidateSignal(activeToken, sig)
       } else {
         await interviewAPI.postInterviewerSignal(sessionId, sig)
       }
     } catch (err) {
-      console.warn('Signal send error:', err)
+      console.warn('Signal dispatch notice:', err)
+      throw err
     }
   }
 
@@ -198,19 +203,32 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     let currentSession = null
     try {
       if (isGuest) {
-        // Candidate join
-        const camLabel = sessionStorage.getItem('hrms_interview_camera_label') || 'Webcam'
-        const audioLabel = sessionStorage.getItem('hrms_interview_audio_label') || 'Mic'
-        const isVirtual = sessionStorage.getItem('hrms_interview_virtual_detected') === 'true'
-        setVirtualCameraDetected(isVirtual)
+        // Safe read of session storage hardware settings
+        let camLabel = 'Webcam'
+        let audioLabel = 'Mic'
+        let isVirtual = false
+        try {
+          camLabel = sessionStorage.getItem('hrms_interview_camera_label') || 'Webcam'
+          audioLabel = sessionStorage.getItem('hrms_interview_audio_label') || 'Mic'
+          isVirtual = sessionStorage.getItem('hrms_interview_virtual_detected') === 'true'
+          setVirtualCameraDetected(isVirtual)
+        } catch (storageErr) {
+          console.warn('Session storage read bypassed:', storageErr)
+        }
 
-        const res = await interviewAPI.candidateJoinRoom(guestToken, {
-          cameraLabel: camLabel,
-          audioDeviceLabel: audioLabel,
-          virtualCameraDetected: isVirtual,
-          clientTimestamp: new Date().toISOString()
-        })
-        currentSession = res.data?.data?.session
+        try {
+          const res = await interviewAPI.candidateJoinRoom(guestToken, {
+            cameraLabel: camLabel,
+            audioDeviceLabel: audioLabel,
+            virtualCameraDetected: isVirtual,
+            clientTimestamp: new Date().toISOString()
+          })
+          currentSession = res.data?.data?.session
+        } catch (joinErr) {
+          console.warn('candidateJoinRoom fallback to getCandidateGuestSession:', joinErr)
+          const fallbackRes = await interviewAPI.getCandidateGuestSession(guestToken)
+          currentSession = fallbackRes.data?.data
+        }
       } else {
         // Interviewer join
         const res = await interviewAPI.getInterviewerJoinToken(sessionId)
@@ -345,8 +363,6 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     }
   }
 
-  const heartbeatCounterRef = useRef(0)
-
   const startSignaling = (pc) => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current)
@@ -363,12 +379,13 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
             cameraActive,
             micActive,
             timestamp: Date.now()
-          })
+          }).catch(() => {})
         }
 
         const querySince = Math.max(0, lastSignalTimeRef.current - 5000)
+        const activeToken = session?.guestAccessToken || guestToken
         const res = isGuest
-          ? await interviewAPI.getCandidateSignals(guestToken, querySince)
+          ? await interviewAPI.getCandidateSignals(activeToken, querySince)
           : await interviewAPI.getInterviewerSignals(sessionId, querySince)
 
         const signalList = res.data?.data || []
@@ -386,7 +403,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
 
           if (sig.signalType === 'JOIN' || sig.signalType === 'HEARTBEAT') {
             setParticipantCount(2)
-            // When remote participant is detected, initiate WebRTC offer if not connected
+            // When remote participant is detected, interviewer initiates WebRTC offer
             if (!isGuest && pc.signalingState === 'stable' && !makingOfferRef.current && pc.connectionState !== 'connected') {
               try {
                 makingOfferRef.current = true
@@ -398,11 +415,41 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
               } finally {
                 makingOfferRef.current = false
               }
+            } else if (isGuest && pc.connectionState !== 'connected' && pc.signalingState === 'stable') {
+              // If candidate sees interviewer but call is not yet connected after a few seconds, nudge offer
+              if (heartbeatCounterRef.current % 4 === 0) {
+                sendSignal('REQUEST_OFFER', { timestamp: Date.now() }).catch(() => {})
+              }
+            }
+          } else if (sig.signalType === 'REQUEST_OFFER') {
+            if (!isGuest && pc.signalingState === 'stable' && !makingOfferRef.current && pc.connectionState !== 'connected') {
+              try {
+                makingOfferRef.current = true
+                const offer = await pc.createOffer()
+                await pc.setLocalDescription(offer)
+                await sendSignal('OFFER', JSON.stringify(offer))
+              } catch (offerErr) {
+                console.warn('Failed to create offer on request:', offerErr)
+              } finally {
+                makingOfferRef.current = false
+              }
             }
           } else if (sig.signalType === 'OFFER') {
             try {
               const offerDesc = new RTCSessionDescription(JSON.parse(sig.payload))
-              await pc.setRemoteDescription(offerDesc)
+              const isCollision = (pc.signalingState !== 'stable') || makingOfferRef.current
+              if (isCollision) {
+                if (isGuest) {
+                  await Promise.all([
+                    pc.setLocalDescription({ type: 'rollback' }),
+                    pc.setRemoteDescription(offerDesc)
+                  ])
+                } else {
+                  return
+                }
+              } else {
+                await pc.setRemoteDescription(offerDesc)
+              }
 
               // Flush pending queued ICE candidates
               while (pendingIceCandidatesRef.current.length > 0) {
@@ -420,7 +467,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
             }
           } else if (sig.signalType === 'ANSWER') {
             try {
-              if (pc.signalingState !== 'stable') {
+              if (pc.signalingState === 'have-local-offer') {
                 const answerDesc = new RTCSessionDescription(JSON.parse(sig.payload))
                 await pc.setRemoteDescription(answerDesc)
 
@@ -473,7 +520,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                 }
               ]
             })
-            toast(`New message from ${chatSender}`, { icon: '💬' })
+            toast(`💬 ${chatSender}: ${chatText}`, { duration: 4000 })
           }
         }
       } catch (pollErr) {
@@ -555,9 +602,11 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
   const toggleMic = async () => {
     if (localStreamRef.current) {
       const aTrack = localStreamRef.current.getAudioTracks()[0]
-      if (aTrack) {
-        aTrack.enabled = !aTrack.enabled
-        setMicActive(aTrack.enabled)
+      if (aTrack && aTrack.readyState === 'live') {
+        const nextState = !aTrack.enabled
+        aTrack.enabled = nextState
+        setMicActive(nextState)
+        toast(nextState ? 'Microphone unmuted' : 'Microphone muted')
         return
       }
     }
@@ -568,6 +617,11 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
       if (track) {
         if (!localStreamRef.current) {
           localStreamRef.current = new MediaStream()
+        } else {
+          localStreamRef.current.getAudioTracks().forEach(t => {
+            t.stop()
+            localStreamRef.current.removeTrack(t)
+          })
         }
         localStreamRef.current.addTrack(track)
         if (peerConnectionRef.current) {
@@ -590,16 +644,21 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
   const toggleCamera = async () => {
     if (localStreamRef.current) {
       const vTrack = localStreamRef.current.getVideoTracks()[0]
-      if (vTrack) {
-        vTrack.enabled = !vTrack.enabled
-        setCameraActive(vTrack.enabled)
-        if (localVideoRef.current && localVideoRef.current.srcObject !== localStreamRef.current) {
+      if (vTrack && vTrack.readyState === 'live') {
+        const nextState = !vTrack.enabled
+        vTrack.enabled = nextState
+        setCameraActive(nextState)
+        if (localVideoRef.current) {
           localVideoRef.current.srcObject = localStreamRef.current
+          if (nextState) {
+            localVideoRef.current.play().catch(() => {})
+          }
         }
+        toast(nextState ? 'Camera turned on' : 'Camera turned off')
         return
       }
     }
-    // Dynamic request for camera if not already running
+    // Dynamic request for camera if not already running or track ended
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
@@ -608,10 +667,16 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
       if (track) {
         if (!localStreamRef.current) {
           localStreamRef.current = new MediaStream()
+        } else {
+          localStreamRef.current.getVideoTracks().forEach(t => {
+            t.stop()
+            localStreamRef.current.removeTrack(t)
+          })
         }
         localStreamRef.current.addTrack(track)
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = localStreamRef.current
+          localVideoRef.current.play().catch(() => {})
         }
         if (peerConnectionRef.current) {
           const senders = peerConnectionRef.current.getSenders()
@@ -652,8 +717,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
   const handleLeaveCall = () => {
     cleanupMedia()
     if (isGuest) {
-      navigate('/login')
-      toast.success('You have left the interview room. Thank you!')
+      setCallEndedBySelf(true)
     } else {
       navigate('/recruitment')
     }
@@ -696,6 +760,20 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
       setCompleting(false)
       setCompleteModalOpen(false)
     }
+  }
+
+  if (callEndedBySelf) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-white text-center">
+        <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/10">
+          <CheckCircle size={32} className="text-emerald-400" />
+        </div>
+        <h2 className="text-xl font-black text-white">Interview Session Completed</h2>
+        <p className="text-slate-400 text-xs mt-2 max-w-md leading-relaxed">
+          Thank you for participating, <strong className="text-slate-200">{session?.candidateName || 'Candidate'}</strong>. Your responses and technical session data have been securely saved with the evaluation committee. You may now safely close this window.
+        </p>
+      </div>
+    )
   }
 
   if (loading) {
@@ -824,7 +902,9 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                 autoPlay
                 playsInline
                 muted
-                className={`w-full h-full object-cover transform -scale-x-100 ${cameraActive ? 'block' : 'hidden'}`}
+                className={`w-full h-full object-cover transform -scale-x-100 transition-opacity duration-200 ${
+                  cameraActive ? 'opacity-100' : 'opacity-0 pointer-events-none absolute'
+                }`}
               />
               {!cameraActive && (
                 <div

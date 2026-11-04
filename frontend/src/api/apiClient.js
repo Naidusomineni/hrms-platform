@@ -11,9 +11,15 @@ const apiClient = axios.create({
 // Attach JWT token and Multi-Tenant Context to every request
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    const isGuestEndpoint = config.url && (config.url.includes('/guest/') || config.url.includes('/public/'))
+    if (!isGuestEndpoint) {
+      const token = localStorage.getItem('accessToken')
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
+    } else {
+      // Never attach stale employee/admin JWT to public candidate guest endpoints
+      delete config.headers['Authorization']
     }
 
     const tenantId = localStorage.getItem('tenant_id') || 'default'
@@ -43,6 +49,12 @@ apiClient.interceptors.response.use(
         if (details) msg = `${msg} (${details})`
       }
       error.userFriendlyMessage = msg
+    }
+
+    // Do NOT redirect or clear storage for public guest candidate endpoints
+    const isGuestEndpoint = originalRequest?.url && (originalRequest.url.includes('/guest/') || originalRequest.url.includes('/public/'))
+    if (isGuestEndpoint) {
+      return Promise.reject(error)
     }
 
     // If unauthorized and not already retried, try refresh once

@@ -200,8 +200,9 @@ public class InterviewService {
         InterviewSession session = sessionRepository.findByGuestAccessTokenWithDetails(guestToken)
                 .orElseThrow(() -> new ResourceNotFoundException("InterviewSession", "guestToken", guestToken));
 
-        // Auto-upgrade to latest active session for this candidate so candidate and evaluator are always in the same room
-        if (session.getCandidate() != null) {
+        // Auto-upgrade if candidate opened an old completed link to latest active session
+        if ((session.getStatus() == InterviewSessionStatus.COMPLETED || session.getStatus() == InterviewSessionStatus.CANCELLED)
+                && session.getCandidate() != null) {
             List<InterviewSession> active = sessionRepository.findActiveSessionsForCandidate(session.getCandidate().getId());
             if (!active.isEmpty() && !active.get(0).getId().equals(session.getId())) {
                 log.info("Candidate #{} guest link auto-routed from session #{} to latest active session #{}",
@@ -222,8 +223,9 @@ public class InterviewService {
         InterviewSession session = sessionRepository.findByGuestAccessTokenWithDetails(guestToken)
                 .orElseThrow(() -> new ResourceNotFoundException("InterviewSession", "guestToken", guestToken));
 
-        // Auto-upgrade to latest active session for this candidate so candidate and evaluator are always in the same room
-        if (session.getCandidate() != null) {
+        // Auto-upgrade if candidate opened an old completed link to latest active session
+        if ((session.getStatus() == InterviewSessionStatus.COMPLETED || session.getStatus() == InterviewSessionStatus.CANCELLED)
+                && session.getCandidate() != null) {
             List<InterviewSession> active = sessionRepository.findActiveSessionsForCandidate(session.getCandidate().getId());
             if (!active.isEmpty() && !active.get(0).getId().equals(session.getId())) {
                 log.info("Candidate #{} join room auto-routed from session #{} to latest active session #{}",

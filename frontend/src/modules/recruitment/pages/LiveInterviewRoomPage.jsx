@@ -35,6 +35,16 @@ const RTC_CONFIG = {
   iceCandidatePoolSize: 10
 }
 
+const safeJsonParse = (data) => {
+  if (data === null || data === undefined) return null
+  if (typeof data === 'object') return data
+  try {
+    return JSON.parse(data)
+  } catch (e) {
+    return data
+  }
+}
+
 const LiveInterviewRoomPage = ({ isGuest = false }) => {
   const params = useParams()
   const navigate = useNavigate()
@@ -152,8 +162,24 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
       if (localVideoRef.current.srcObject !== localStreamRef.current) {
         localVideoRef.current.srcObject = localStreamRef.current
       }
+      localVideoRef.current.play().catch(() => {})
     }
   }, [cameraActive])
+
+  // Document-wide interaction listener to satisfy browser autoplay policies for remote incoming video/audio
+  useEffect(() => {
+    const handleUserGesture = () => {
+      if (remoteVideoRef.current && remoteVideoRef.current.paused && remoteStreamActive) {
+        remoteVideoRef.current.play().catch(e => console.debug('Autoplay deferred:', e))
+      }
+    }
+    window.addEventListener('click', handleUserGesture)
+    window.addEventListener('touchstart', handleUserGesture)
+    return () => {
+      window.removeEventListener('click', handleUserGesture)
+      window.removeEventListener('touchstart', handleUserGesture)
+    }
+  }, [remoteStreamActive])
 
   useEffect(() => {
     if (chatBottomRef.current) {
@@ -259,10 +285,15 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     try {
       // 1. Acquire media stream (inherit seamless handover from lobby if candidate)
       let stream = null
-      if (window.__HRMS_ACTIVE_STREAM && window.__HRMS_ACTIVE_STREAM.active) {
-        stream = window.__HRMS_ACTIVE_STREAM
+      if (window.__HRMS_ACTIVE_STREAM) {
+        const handedStream = window.__HRMS_ACTIVE_STREAM
         window.__HRMS_ACTIVE_STREAM = null
-      } else {
+        if (handedStream.getTracks().some(t => t.readyState === 'live')) {
+          stream = handedStream
+        }
+      }
+
+      if (!stream) {
         try {
           stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
@@ -285,9 +316,10 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         localStreamRef.current = stream
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream
+          localVideoRef.current.play().catch(e => console.debug('Local video play notice:', e))
         }
-        setCameraActive(stream.getVideoTracks().length > 0)
-        setMicActive(stream.getAudioTracks().length > 0)
+        setCameraActive(stream.getVideoTracks().some(t => t.enabled && t.readyState === 'live'))
+        setMicActive(stream.getAudioTracks().some(t => t.enabled && t.readyState === 'live'))
       } else {
         setCameraActive(false)
         setMicActive(false)
@@ -322,11 +354,15 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
             remoteVideoRef.current.srcObject = remoteStream
           }
         }
-        if (!remoteStream.getTracks().includes(event.track)) {
-          remoteStream.addTrack(event.track)
+        if (!remoteStream.getTrackById(event.track.id)) {
+          try {
+            remoteStream.addTrack(event.track)
+          } catch (e) {
+            console.debug('Add track notice:', e)
+          }
         }
         if (remoteVideoRef.current) {
-          remoteVideoRef.current.play().catch(() => {})
+          remoteVideoRef.current.play().catch(e => console.debug('Remote video play notice:', e))
         }
         setRemoteStreamActive(true)
         setRoomConnected(true)
@@ -360,6 +396,29 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     } catch (err) {
       console.warn('WebRTC initialization notice:', err)
       setRoomConnected(true)
+    }
+  }
+
+  const renegotiate = async (reason = 'renegotiate') => {
+    const pc = peerConnectionRef.current
+    if (!pc) return
+
+    if (!isGuest) {
+      if (pc.signalingState === 'stable' && !makingOfferRef.current) {
+        try {
+          makingOfferRef.current = true
+          console.log(`Renegotiating WebRTC offer (${reason})...`)
+          const offer = await pc.createOffer()
+          await pc.setLocalDescription(offer)
+          await sendSignal('OFFER', JSON.stringify(offer))
+        } catch (err) {
+          console.warn('Renegotiation failed:', err)
+        } finally {
+          makingOfferRef.current = false
+        }
+      }
+    } else {
+      sendSignal('REQUEST_OFFER', { reason, timestamp: Date.now() }).catch(() => {})
     }
   }
 
@@ -422,9 +481,10 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
               }
             }
           } else if (sig.signalType === 'REQUEST_OFFER') {
-            if (!isGuest && pc.signalingState === 'stable' && !makingOfferRef.current && pc.connectionState !== 'connected') {
+            if (!isGuest && pc.signalingState === 'stable' && !makingOfferRef.current) {
               try {
                 makingOfferRef.current = true
+                console.log('Interviewer generating offer upon peer request...')
                 const offer = await pc.createOffer()
                 await pc.setLocalDescription(offer)
                 await sendSignal('OFFER', JSON.stringify(offer))
@@ -436,7 +496,9 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
             }
           } else if (sig.signalType === 'OFFER') {
             try {
-              const offerDesc = new RTCSessionDescription(JSON.parse(sig.payload))
+              const offerDescInit = safeJsonParse(sig.payload)
+              if (!offerDescInit) return
+              const offerDesc = new RTCSessionDescription(offerDescInit)
               const isCollision = (pc.signalingState !== 'stable') || makingOfferRef.current
               if (isCollision) {
                 if (isGuest) {
@@ -453,9 +515,9 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
 
               // Flush pending queued ICE candidates
               while (pendingIceCandidatesRef.current.length > 0) {
-                const candPayload = pendingIceCandidatesRef.current.shift()
+                const candData = pendingIceCandidatesRef.current.shift()
                 try {
-                  await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(candPayload)))
+                  await pc.addIceCandidate(new RTCIceCandidate(candData))
                 } catch (e) {}
               }
 
@@ -468,30 +530,35 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
           } else if (sig.signalType === 'ANSWER') {
             try {
               if (pc.signalingState === 'have-local-offer') {
-                const answerDesc = new RTCSessionDescription(JSON.parse(sig.payload))
-                await pc.setRemoteDescription(answerDesc)
+                const answerDescInit = safeJsonParse(sig.payload)
+                if (answerDescInit) {
+                  const answerDesc = new RTCSessionDescription(answerDescInit)
+                  await pc.setRemoteDescription(answerDesc)
 
-                // Flush pending queued ICE candidates
-                while (pendingIceCandidatesRef.current.length > 0) {
-                  const candPayload = pendingIceCandidatesRef.current.shift()
-                  try {
-                    await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(candPayload)))
-                  } catch (e) {}
+                  // Flush pending queued ICE candidates
+                  while (pendingIceCandidatesRef.current.length > 0) {
+                    const candData = pendingIceCandidatesRef.current.shift()
+                    try {
+                      await pc.addIceCandidate(new RTCIceCandidate(candData))
+                    } catch (e) {}
+                  }
                 }
               }
             } catch (setAnsErr) {
               console.warn('Failed to set remote description answer:', setAnsErr)
             }
           } else if (sig.signalType === 'ICE') {
-            if (pc.remoteDescription && pc.remoteDescription.type) {
-              try {
-                const candidate = new RTCIceCandidate(JSON.parse(sig.payload))
-                await pc.addIceCandidate(candidate)
-              } catch (iceErr) {
-                console.warn('Failed to add ICE candidate:', iceErr)
+            const candData = safeJsonParse(sig.payload)
+            if (candData) {
+              if (pc.remoteDescription && pc.remoteDescription.type) {
+                try {
+                  await pc.addIceCandidate(new RTCIceCandidate(candData))
+                } catch (iceErr) {
+                  console.warn('Failed to add ICE candidate:', iceErr)
+                }
+              } else {
+                pendingIceCandidatesRef.current.push(candData)
               }
-            } else {
-              pendingIceCandidatesRef.current.push(sig.payload)
             }
           } else if (sig.signalType === 'CHAT') {
             let chatText = sig.payload
@@ -654,6 +721,12 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
             localVideoRef.current.play().catch(() => {})
           }
         }
+        sendSignal('HEARTBEAT', {
+          isGuest,
+          cameraActive: nextState,
+          micActive,
+          timestamp: Date.now()
+        }).catch(() => {})
         toast(nextState ? 'Camera turned on' : 'Camera turned off')
         return
       }
@@ -679,13 +752,22 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
           localVideoRef.current.play().catch(() => {})
         }
         if (peerConnectionRef.current) {
-          const senders = peerConnectionRef.current.getSenders()
-          const vSender = senders.find(s => s.track && s.track.kind === 'video')
-          if (vSender) {
-            vSender.replaceTrack(track)
+          const pc = peerConnectionRef.current
+          const transceivers = pc.getTransceivers()
+          const vTransceiver = transceivers.find(t => 
+            (t.sender?.track?.kind === 'video') ||
+            (t.receiver?.track?.kind === 'video')
+          )
+
+          if (vTransceiver && vTransceiver.sender) {
+            vTransceiver.direction = 'sendrecv'
+            await vTransceiver.sender.replaceTrack(track)
           } else {
-            peerConnectionRef.current.addTrack(track, localStreamRef.current)
+            pc.addTrack(track, localStreamRef.current)
           }
+
+          // Trigger WebRTC renegotiation
+          await renegotiate('camera_enabled')
         }
         setCameraActive(true)
         toast.success('Camera enabled')
@@ -699,18 +781,39 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     if (!isScreenSharing) {
       try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true })
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = screenStream
+        const screenTrack = screenStream.getVideoTracks()[0]
+
+        if (peerConnectionRef.current) {
+          const senders = peerConnectionRef.current.getSenders()
+          const vSender = senders.find(s => s.track && s.track.kind === 'video')
+          if (vSender) {
+            await vSender.replaceTrack(screenTrack)
+          }
         }
+
         setIsScreenSharing(true)
-        screenStream.getVideoTracks()[0].onended = () => {
-          setIsScreenSharing(false)
+        screenTrack.onended = () => {
+          stopScreenShare()
         }
       } catch (err) {
         console.warn('Screen share cancelled', err)
       }
     } else {
-      setIsScreenSharing(false)
+      stopScreenShare()
+    }
+  }
+
+  const stopScreenShare = async () => {
+    setIsScreenSharing(false)
+    if (localStreamRef.current && peerConnectionRef.current) {
+      const vTrack = localStreamRef.current.getVideoTracks()[0]
+      if (vTrack) {
+        const senders = peerConnectionRef.current.getSenders()
+        const vSender = senders.find(s => s.track && s.track.kind === 'video')
+        if (vSender) {
+          await vSender.replaceTrack(vTrack)
+        }
+      }
     }
   }
 
@@ -843,6 +946,11 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                 ref={remoteVideoRef}
                 autoPlay
                 playsInline
+                onLoadedMetadata={() => {
+                  if (remoteVideoRef.current) {
+                    remoteVideoRef.current.play().catch(e => console.debug('Autoplay deferred:', e))
+                  }
+                }}
                 className={`w-full h-full object-cover transition-opacity duration-300 ${
                   remoteStreamActive ? 'opacity-100' : 'opacity-0 absolute'
                 }`}

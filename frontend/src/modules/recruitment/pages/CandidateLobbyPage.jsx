@@ -149,6 +149,9 @@ const CandidateLobbyPage = () => {
       if (vTrack) {
         vTrack.enabled = !vTrack.enabled
         setCameraActive(vTrack.enabled)
+        if (vTrack.enabled && videoRef.current) {
+          videoRef.current.play().catch(() => {})
+        }
       }
     }
   }
@@ -242,15 +245,16 @@ const CandidateLobbyPage = () => {
         {/* Left: Video Preview & Pre-flight Controls (7 Cols) */}
         <div className="lg:col-span-7 space-y-4">
           <div className="relative aspect-video bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex items-center justify-center">
-            {cameraActive ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover transform -scale-x-100"
-              />
-            ) : (
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`w-full h-full object-cover transform -scale-x-100 transition-opacity duration-200 ${
+                cameraActive ? 'opacity-100' : 'opacity-0 pointer-events-none absolute'
+              }`}
+            />
+            {!cameraActive && (
               <div className="flex flex-col items-center justify-center text-slate-500">
                 <VideoOff size={48} className="stroke-[1.5]" />
                 <p className="text-xs mt-2 font-medium">Camera is turned off</p>

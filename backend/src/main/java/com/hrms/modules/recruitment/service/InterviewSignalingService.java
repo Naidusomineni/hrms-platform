@@ -77,6 +77,10 @@ public class InterviewSignalingService {
     public Long getSessionIdFromGuestToken(String guestToken) {
         return sessionRepository.findByGuestAccessToken(guestToken)
                 .map(session -> {
+                    if (session.getStatus() == com.hrms.enums.InterviewSessionStatus.SCHEDULED || 
+                        session.getStatus() == com.hrms.enums.InterviewSessionStatus.IN_PROGRESS) {
+                        return session.getId();
+                    }
                     if (session.getCandidate() != null) {
                         List<InterviewSession> active = sessionRepository.findActiveSessionsForCandidate(session.getCandidate().getId());
                         if (!active.isEmpty()) {

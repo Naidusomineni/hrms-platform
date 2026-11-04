@@ -537,6 +537,26 @@ public class InterviewService {
         p.setTenantId(tenantId);
         p = interviewPanelistRepository.save(p);
 
+        // Send instant mid-call join email invitation to the newly added employee
+        String evaluatorMeetingLink = frontendUrl + "/recruitment/interview/" + session.getId();
+        if (emp.getEmail() != null && !emp.getEmail().isBlank()) {
+            String nowTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a"));
+            String jobTitle = (session.getJobTitle() != null && !session.getJobTitle().isBlank())
+                    ? session.getJobTitle()
+                    : (session.getJobPosting() != null ? session.getJobPosting().getTitle() : "Candidate Interview");
+            String roleStr = p.getRole() != null ? p.getRole().name().replace('_', ' ') : "Panel Evaluator";
+            emailService.sendInterviewInvitationEmail(
+                    emp.getEmail(),
+                    emp.getFullName(),
+                    jobTitle + " (" + roleStr + " - Live Call)",
+                    session.getRoundName() != null ? session.getRoundName() : "Technical Interview",
+                    nowTime + " [CALL IN PROGRESS - JOIN NOW]",
+                    evaluatorMeetingLink
+            );
+            log.info("Sent mid-call interview invitation email to panelist {} ({}) for session #{}",
+                    emp.getFullName(), emp.getEmail(), session.getId());
+        }
+
         return InterviewPanelistDto.builder()
                 .id(p.getId())
                 .employeeId(emp.getId())
@@ -570,6 +590,30 @@ public class InterviewService {
                 candidateRepository.save(session.getCandidate());
                 log.info("Candidate #{} advanced to stage '{}' following interview #{}",
                         session.getCandidate().getId(), targetStage, sessionId);
+
+                // Dispatch corporate stage advancement notification to candidate
+                Candidate candidate = session.getCandidate();
+                if (candidate != null && candidate.getEmail() != null && !candidate.getEmail().isBlank()) {
+                    boolean isFinalOffer = (targetStage == CandidateStage.OFFER_PENDING || targetStage == CandidateStage.HIRED);
+                    String roundDisplay = (session.getRoundName() != null && !session.getRoundName().isBlank())
+                            ? session.getRoundName()
+                            : "Interview Evaluation";
+                    String jobTitle = (session.getJobTitle() != null && !session.getJobTitle().isBlank())
+                            ? session.getJobTitle()
+                            : (session.getJobPosting() != null ? session.getJobPosting().getTitle() : "Position");
+                    String humanNextStage = formatStageName(targetStage);
+
+                    emailService.sendInterviewStageAdvanceEmail(
+                            candidate.getEmail(),
+                            candidate.getName(),
+                            jobTitle,
+                            roundDisplay,
+                            humanNextStage,
+                            isFinalOffer
+                    );
+                    log.info("Dispatched stage advancement email to candidate '{}' ({}) -> {}",
+                            candidate.getName(), candidate.getEmail(), humanNextStage);
+                }
             } catch (IllegalArgumentException e) {
                 log.warn("Invalid next stage '{}' ignored", nextStage);
             }
@@ -577,6 +621,19 @@ public class InterviewService {
 
         session = sessionRepository.save(session);
         return mapToDto(session);
+    }
+
+    private String formatStageName(CandidateStage stage) {
+        if (stage == null) return "Next Evaluation Stage";
+        switch (stage) {
+            case INTERVIEW_ROUND_1: return "Technical Screening (Round 1)";
+            case INTERVIEW_ROUND_2: return "Technical Deep-Dive / Panel Interview (Round 2)";
+            case OFFER_PENDING: return "Job Offer & Compensation Discussion";
+            case HIRED: return "Offer Finalized & Corporate Onboarding";
+            case DROPPED: return "Application Review Completed";
+            case SCREENING: return "Initial Profile Screening";
+            default: return stage.name().replace('_', ' ');
+        }
     }
 
     public InterviewSessionDto cancelInterview(Long sessionId, String hrEmail) {

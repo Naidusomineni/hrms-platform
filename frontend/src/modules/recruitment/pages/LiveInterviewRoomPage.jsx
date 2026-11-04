@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { interviewAPI } from '../../../api/interviewAPI'
+import { employeeAPI } from '../../../api/employeeAPI'
 import { Button, Badge, Spinner, Card } from '../../../components/common/index.jsx'
 import {
   Video, Mic, MicOff, VideoOff, ScreenShare, PhoneOff, ShieldCheck,
   AlertTriangle, Star, CheckCircle, FileText, Code, Check, ArrowRight,
-  Maximize2, Eye, User, Users, Briefcase, RefreshCw, Lock, Sparkles, ExternalLink,
+  Maximize2, Eye, User, Users, UserPlus, Link2, Copy, Briefcase, RefreshCw, Lock, Sparkles, ExternalLink,
   MessageSquare, Send, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -135,6 +136,52 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
   const [completeModalOpen, setCompleteModalOpen] = useState(false)
   const [nextStage, setNextStage] = useState('INTERVIEW_ROUND_2')
   const [completing, setCompleting] = useState(false)
+
+  // Mid-call panelist invitation state
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
+  const [inviteEmployeeId, setInviteEmployeeId] = useState('')
+  const [inviteRole, setInviteRole] = useState('TECH_PANELIST')
+  const [invitingPanelist, setInvitingPanelist] = useState(false)
+  const [employeesList, setEmployeesList] = useState([])
+
+  const loadEmployees = async () => {
+    try {
+      const res = await employeeAPI.getAll({ size: 100 })
+      setEmployeesList(res.data?.data?.content || [])
+    } catch (err) {
+      console.debug('Failed to load employees for panelist invite', err)
+    }
+  }
+
+  const handleAddPanelistMidCall = async (e) => {
+    if (e) e.preventDefault()
+    if (!inviteEmployeeId) {
+      toast.error('Please select an employee to invite')
+      return
+    }
+    setInvitingPanelist(true)
+    try {
+      const res = await interviewAPI.addPanelist(session.id, {
+        employeeId: Number(inviteEmployeeId),
+        role: inviteRole
+      })
+      const added = res.data?.data
+      toast.success(`${added?.employeeName || 'Panelist'} invited to active call! Email invitation dispatched.`)
+      if (session) {
+        setSession(prev => ({
+          ...prev,
+          panelists: [...(prev.panelists || []).filter(p => p.employeeId !== added.employeeId), added]
+        }))
+      }
+      setInviteModalOpen(false)
+      setInviteEmployeeId('')
+      loadPanelScorecards()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to add co-interviewer.')
+    } finally {
+      setInvitingPanelist(false)
+    }
+  }
 
   useEffect(() => {
     initializeSession()
@@ -954,6 +1001,21 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
             <span>{participantCount} In Call</span>
           </div>
 
+          {/* Invite Co-Interviewer Button (Interviewer only) */}
+          {!isGuest && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                if (employeesList.length === 0) loadEmployees()
+                setInviteModalOpen(true)
+              }}
+              className="bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-200 text-xs font-semibold flex items-center gap-1.5 px-2.5 py-1.5"
+            >
+              <UserPlus size={13} /> + Invite Co-Interviewer
+            </Button>
+          )}
+
           {/* Complete Interview Button (Interviewer only) */}
           {!isGuest && (
             <Button
@@ -1271,15 +1333,28 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                       ))}
                     </div>
 
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => loadPanelScorecards()}
-                      loading={loadingPanelScorecards}
-                      className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-xs font-medium border border-slate-800"
-                    >
-                      <RefreshCw size={12} /> Refresh Panel Consensus
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          if (employeesList.length === 0) loadEmployees()
+                          setInviteModalOpen(true)
+                        }}
+                        className="flex-1 py-2 bg-indigo-950/70 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-300 text-xs font-medium flex items-center justify-center gap-1.5"
+                      >
+                        <UserPlus size={12} /> + Invite Panelist
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => loadPanelScorecards()}
+                        loading={loadingPanelScorecards}
+                        className="flex-1 py-2 bg-slate-900 hover:bg-slate-800 text-xs font-medium border border-slate-800 flex items-center justify-center gap-1.5"
+                      >
+                        <RefreshCw size={12} /> Refresh Consensus
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   /* ── Current Evaluator Scorecard Form ── */
@@ -1613,6 +1688,105 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                 Confirm & Advance
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Invite Co-Interviewer to Live Call ─────────── */}
+      {!isGuest && inviteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 text-white space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-base text-white flex items-center gap-2">
+                <UserPlus size={18} className="text-indigo-400" /> Invite Panelist to Live Call
+              </h3>
+              <button
+                type="button"
+                onClick={() => setInviteModalOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Add another engineer or HR panelist to this active interview session. An urgent notification email will be dispatched with their direct evaluator link.
+            </p>
+
+            <form onSubmit={handleAddPanelistMidCall} className="space-y-3.5">
+              <div>
+                <label className="label text-xs text-slate-300">Select Employee</label>
+                <select
+                  value={inviteEmployeeId}
+                  onChange={e => setInviteEmployeeId(e.target.value)}
+                  className="input bg-slate-950 border-slate-700 text-xs text-white"
+                  required
+                >
+                  <option value="">-- Choose Colleague to Join --</option>
+                  {employeesList.map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.fullName || `${emp.firstName} ${emp.lastName}`} ({emp.designation || 'Staff'} • {emp.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="label text-xs text-slate-300">Panelist Role</label>
+                <select
+                  value={inviteRole}
+                  onChange={e => setInviteRole(e.target.value)}
+                  className="input bg-slate-950 border-slate-700 text-xs text-white"
+                >
+                  <option value="TECH_PANELIST">Technical Panelist (Evaluator)</option>
+                  <option value="LEAD_INTERVIEWER">Co-Lead Interviewer</option>
+                  <option value="HR_OBSERVER">HR Observer</option>
+                  <option value="SHADOW">Shadow Evaluator (Trainee)</option>
+                </select>
+              </div>
+
+              {/* Instant Link Copy for Slack / Teams */}
+              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span className="flex items-center gap-1 font-semibold">
+                    <Link2 size={12} className="text-indigo-400" /> Direct Evaluator Join Link
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${window.location.origin}/recruitment/interview/${session.id}`
+                      navigator.clipboard.writeText(url)
+                      toast.success('Evaluator room link copied to clipboard!')
+                    }}
+                    className="text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1"
+                  >
+                    <Copy size={11} /> Copy Link
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-500 font-mono truncate">
+                  {typeof window !== 'undefined' ? `${window.location.origin}/recruitment/interview/${session?.id}` : ''}
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="flex-1 text-xs"
+                  onClick={() => setInviteModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold"
+                  loading={invitingPanelist}
+                >
+                  Dispatch Invitation
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

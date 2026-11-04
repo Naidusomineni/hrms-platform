@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Application Status Update</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 24px; }
+    .card { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+    .header { border-bottom: 1px solid #f1f5f9; padding-bottom: 20px; margin-bottom: 24px; }
+    .badge { display: inline-block; padding: 4px 12px; background: #ecfdf5; color: #047857; border-radius: 9999px; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+    h2 { font-size: 22px; color: #0f172a; margin: 12px 0 4px; font-weight: 800; }
+    p { font-size: 14px; line-height: 1.6; color: #475569; margin: 8px 0; }
+    .highlight { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 18px; margin: 20px 0; }
+    .footer { font-size: 12px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 20px; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <span class="badge">Interview Milestone Cleared</span>
+      <h2>Hi <span th:text="${candidateName}">Candidate</span>,</h2>
+      <p>Congratulations! We are delighted to inform you that you have successfully cleared the <strong><span th:text="${completedRound}">Technical Round</span></strong> for the <strong><span th:text="${jobTitle}">Software Engineer</span></strong> position.</p>
+    </div>
+
+    <div class="highlight">
+      <p style="margin: 0; font-size: 14px; color: #166534; font-weight: 600;">
+        Current Application Status: <span th:text="${nextStageName}" style="text-transform: uppercase; color: #15803d;">OFFER PENDING</span>
+      </p>
+    </div>
+
+    <div th:if="${isFinalOffer}">
+      <p>Our evaluation panel was thoroughly impressed by your technical depth and problem-solving abilities. Our Human Resources leadership is currently preparing your formal offer of employment.</p>
+      <p>A member of our Talent Acquisition team will be in touch with you shortly with compensation details, benefits breakdown, and onboarding documentation.</p>
+    </div>
+
+    <div th:unless="${isFinalOffer}">
+      <p>Your candidacy has been advanced to the next round of evaluations. Our recruitment coordinator will schedule your session and send you an invitation containing your meeting schedule, panel member details, and direct video room link shortly.</p>
+    </div>
+
+    <div class="footer">
+      <p>Thank you for your time, effort, and interest in joining our team. If you have any immediate questions, please feel free to reply directly to this email.</p>
+    </div>
+  </div>
+</body>
+</html>

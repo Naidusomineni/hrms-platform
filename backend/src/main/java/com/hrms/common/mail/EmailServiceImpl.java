@@ -198,6 +198,32 @@ public class EmailServiceImpl implements EmailService {
         }
     }
 
+    @Async("emailExecutor")
+    @Override
+    public void sendInterviewStageAdvanceEmail(String to, String candidateName, String jobTitle, String completedRound, String nextStageName, boolean isFinalOffer) {
+        logMncConsoleBanner("INTERVIEW STAGE ADVANCEMENT NOTIFICATION", to,
+            "Candidate: " + candidateName + " (" + to + ")" +
+            "\n  Role: " + jobTitle +
+            "\n  Cleared Round: " + completedRound +
+            "\n  Advanced Stage: " + nextStageName +
+            "\n  Offer Pending Status: " + isFinalOffer);
+        try {
+            Context ctx = new Context();
+            ctx.setVariable("candidateName", candidateName);
+            ctx.setVariable("jobTitle", jobTitle);
+            ctx.setVariable("completedRound", completedRound);
+            ctx.setVariable("nextStageName", nextStageName);
+            ctx.setVariable("isFinalOffer", isFinalOffer);
+            ctx.setVariable("appName", "HRMS Platform");
+            String subject = isFinalOffer
+                    ? "Congratulations! Final Interview Cleared for " + jobTitle
+                    : "Update: You cleared " + completedRound + " for " + jobTitle;
+            sendHtmlEmail(to, subject, "email/interview-stage-advance", ctx);
+        } catch (Exception e) {
+            log.error("Failed to send stage advance email to {}: {}", to, e.getMessage());
+        }
+    }
+
     private void sendHtmlEmail(String to, String subject, String template, Context ctx) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

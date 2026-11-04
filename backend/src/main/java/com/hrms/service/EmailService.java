@@ -48,4 +48,13 @@ public interface EmailService {
             String scheduledTime,
             String guestLink
     );
+
+    void sendInterviewStageAdvanceEmail(
+            String to,
+            String candidateName,
+            String jobTitle,
+            String completedRound,
+            String nextStageName,
+            boolean isFinalOffer
+    );
 }

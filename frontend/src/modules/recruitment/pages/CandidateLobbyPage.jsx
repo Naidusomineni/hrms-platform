@@ -32,6 +32,7 @@ const CandidateLobbyPage = () => {
   const audioContextRef = useRef(null)
   const analyserRef = useRef(null)
   const animFrameRef = useRef(null)
+  const isEnteringRoomRef = useRef(false)
 
   useEffect(() => {
     fetchSessionDetails()
@@ -131,7 +132,7 @@ const CandidateLobbyPage = () => {
   }
 
   const cleanupMediaStream = () => {
-    if (streamRef.current) {
+    if (!isEnteringRoomRef.current && streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop())
     }
     if (audioContextRef.current) {
@@ -163,6 +164,8 @@ const CandidateLobbyPage = () => {
   }
 
   const handleJoin = () => {
+    isEnteringRoomRef.current = true
+
     // Save device preferences and navigate to live room
     sessionStorage.setItem('hrms_interview_cam_enabled', String(cameraActive))
     sessionStorage.setItem('hrms_interview_mic_enabled', String(micActive))

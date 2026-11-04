@@ -10,13 +10,29 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const STUN_CONFIG = {
+const RTC_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' }
-  ]
+    { urls: 'stun:openrelay.metered.ca:80' },
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turns:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    }
+  ],
+  iceCandidatePoolSize: 10
 }
 
 const LiveInterviewRoomPage = ({ isGuest = false }) => {
@@ -45,6 +61,9 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
   const peerConnectionRef = useRef(null)
   const pollingIntervalRef = useRef(null)
   const lastSignalTimeRef = useRef(0)
+  const pendingIceCandidatesRef = useRef([])
+  const seenSignalsRef = useRef(new Set())
+  const makingOfferRef = useRef(false)
 
   // Chat states
   const [messages, setMessages] = useState([
@@ -125,6 +144,14 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
       cleanupMedia()
     }
   }, [])
+
+  useEffect(() => {
+    if (localVideoRef.current && localStreamRef.current && cameraActive) {
+      if (localVideoRef.current.srcObject !== localStreamRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current
+      }
+    }
+  }, [cameraActive])
 
   useEffect(() => {
     if (chatBottomRef.current) {
@@ -212,7 +239,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
 
   const connectNativeWebRTC = async (currentSession) => {
     try {
-      // 1. Check if stream was handed over seamlessly from the lobby
+      // 1. Acquire media stream (inherit seamless handover from lobby if candidate)
       let stream = null
       if (window.__HRMS_ACTIVE_STREAM && window.__HRMS_ACTIVE_STREAM.active) {
         stream = window.__HRMS_ACTIVE_STREAM
@@ -230,7 +257,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
             try {
               stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
             } catch (e3) {
-              console.warn('Audio/video unavailable:', e3)
+              console.log('No local camera/mic detected on this system. Operating in receive-only mode.')
             }
           }
         }
@@ -248,24 +275,44 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         setMicActive(false)
       }
 
-      // 2. Initialize native RTCPeerConnection
-      const pc = new RTCPeerConnection(STUN_CONFIG)
+      // 2. Initialize native RTCPeerConnection with STUN + TURN
+      const pc = new RTCPeerConnection(RTC_CONFIG)
       peerConnectionRef.current = pc
 
+      // Add local tracks if present
       if (stream) {
         stream.getTracks().forEach(track => pc.addTrack(track, stream))
       }
 
+      // Always configure transceivers for receiving video & audio
+      // This is essential so a PC without a camera can receive the candidate's mobile video
+      const transceivers = pc.getTransceivers()
+      if (!transceivers.some(t => t.receiver?.track?.kind === 'video')) {
+        pc.addTransceiver('video', { direction: stream?.getVideoTracks()?.length ? 'sendrecv' : 'recvonly' })
+      }
+      if (!transceivers.some(t => t.receiver?.track?.kind === 'audio')) {
+        pc.addTransceiver('audio', { direction: stream?.getAudioTracks()?.length ? 'sendrecv' : 'recvonly' })
+      }
+
       // 3. Listen for incoming remote video and audio tracks
       pc.ontrack = (event) => {
-        if (event.streams && event.streams[0]) {
+        console.log('Received remote track:', event.track.kind)
+        let remoteStream = remoteVideoRef.current?.srcObject
+        if (!remoteStream || !(remoteStream instanceof MediaStream)) {
+          remoteStream = event.streams && event.streams[0] ? event.streams[0] : new MediaStream()
           if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = event.streams[0]
+            remoteVideoRef.current.srcObject = remoteStream
           }
-          setRemoteStreamActive(true)
-          setRoomConnected(true)
-          setParticipantCount(2)
         }
+        if (!remoteStream.getTracks().includes(event.track)) {
+          remoteStream.addTrack(event.track)
+        }
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.play().catch(() => {})
+        }
+        setRemoteStreamActive(true)
+        setRoomConnected(true)
+        setParticipantCount(2)
       }
 
       // 4. ICE candidate exchange
@@ -276,11 +323,12 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
       }
 
       pc.onconnectionstatechange = () => {
+        console.log('WebRTC Connection state:', pc.connectionState)
         if (pc.connectionState === 'connected') {
           setRoomConnected(true)
           setRemoteStreamActive(true)
           setParticipantCount(2)
-          toast.success('Direct video and audio connected!')
+          toast.success('Direct live call connected!')
         } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
           setRemoteStreamActive(false)
         }
@@ -304,31 +352,51 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
 
     pollingIntervalRef.current = setInterval(async () => {
       try {
+        const querySince = Math.max(0, lastSignalTimeRef.current - 5000)
         const res = isGuest
-          ? await interviewAPI.getCandidateSignals(guestToken, lastSignalTimeRef.current)
-          : await interviewAPI.getInterviewerSignals(sessionId, lastSignalTimeRef.current)
+          ? await interviewAPI.getCandidateSignals(guestToken, querySince)
+          : await interviewAPI.getInterviewerSignals(sessionId, querySince)
 
         const signalList = res.data?.data || []
         for (const sig of signalList) {
+          if (sig.id && seenSignalsRef.current.has(sig.id)) {
+            continue
+          }
+          if (sig.id) {
+            seenSignalsRef.current.add(sig.id)
+          }
+
           if (sig.timestamp > lastSignalTimeRef.current) {
             lastSignalTimeRef.current = sig.timestamp
           }
 
           if (sig.signalType === 'JOIN') {
-            // When remote participant joins, initiate the WebRTC offer
-            if (pc.signalingState === 'stable') {
+            // When candidate joins, the interviewer initiates the WebRTC offer
+            if (!isGuest && pc.signalingState === 'stable' && !makingOfferRef.current) {
               try {
-                const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
+                makingOfferRef.current = true
+                const offer = await pc.createOffer()
                 await pc.setLocalDescription(offer)
                 await sendSignal('OFFER', JSON.stringify(offer))
               } catch (offerErr) {
                 console.warn('Failed to create offer:', offerErr)
+              } finally {
+                makingOfferRef.current = false
               }
             }
           } else if (sig.signalType === 'OFFER') {
             try {
               const offerDesc = new RTCSessionDescription(JSON.parse(sig.payload))
               await pc.setRemoteDescription(offerDesc)
+
+              // Flush pending queued ICE candidates
+              while (pendingIceCandidatesRef.current.length > 0) {
+                const candPayload = pendingIceCandidatesRef.current.shift()
+                try {
+                  await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(candPayload)))
+                } catch (e) {}
+              }
+
               const answer = await pc.createAnswer()
               await pc.setLocalDescription(answer)
               await sendSignal('ANSWER', JSON.stringify(answer))
@@ -340,35 +408,63 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
               if (pc.signalingState !== 'stable') {
                 const answerDesc = new RTCSessionDescription(JSON.parse(sig.payload))
                 await pc.setRemoteDescription(answerDesc)
+
+                // Flush pending queued ICE candidates
+                while (pendingIceCandidatesRef.current.length > 0) {
+                  const candPayload = pendingIceCandidatesRef.current.shift()
+                  try {
+                    await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(candPayload)))
+                  } catch (e) {}
+                }
               }
             } catch (setAnsErr) {
               console.warn('Failed to set remote description answer:', setAnsErr)
             }
           } else if (sig.signalType === 'ICE') {
-            try {
-              const candidate = new RTCIceCandidate(JSON.parse(sig.payload))
-              await pc.addIceCandidate(candidate)
-            } catch (iceErr) {
-              console.warn('Failed to add ICE candidate:', iceErr)
+            if (pc.remoteDescription && pc.remoteDescription.type) {
+              try {
+                const candidate = new RTCIceCandidate(JSON.parse(sig.payload))
+                await pc.addIceCandidate(candidate)
+              } catch (iceErr) {
+                console.warn('Failed to add ICE candidate:', iceErr)
+              }
+            } else {
+              pendingIceCandidatesRef.current.push(sig.payload)
             }
           } else if (sig.signalType === 'CHAT') {
-            setMessages(prev => [
-              ...prev,
-              {
-                id: sig.id || 'msg-' + Date.now(),
-                senderName: sig.senderName,
-                senderType: sig.senderType,
-                text: sig.payload,
-                timestamp: sig.timestamp
+            let chatText = sig.payload
+            let chatSender = sig.senderName || (sig.senderType === 'CANDIDATE' ? 'Candidate' : 'Interviewer')
+            let chatType = sig.senderType
+            try {
+              const parsed = JSON.parse(sig.payload)
+              if (parsed && typeof parsed === 'object') {
+                if (parsed.text) chatText = parsed.text
+                if (parsed.senderName) chatSender = parsed.senderName
+                if (parsed.senderType) chatType = parsed.senderType
               }
-            ])
-            toast(`New message from ${sig.senderName}`, { icon: '💬' })
+            } catch (e) {}
+
+            const newMsgId = sig.id || 'msg-' + Date.now()
+            setMessages(prev => {
+              if (prev.some(m => m.id === newMsgId)) return prev
+              return [
+                ...prev,
+                {
+                  id: newMsgId,
+                  senderName: chatSender,
+                  senderType: chatType,
+                  text: chatText,
+                  timestamp: sig.timestamp
+                }
+              ]
+            })
+            toast(`New message from ${chatSender}`, { icon: '💬' })
           }
         }
       } catch (pollErr) {
         // quiet polling error
       }
-    }, 1200)
+    }, 1000)
   }
 
   const handleSendMessage = async (e) => {
@@ -379,20 +475,28 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     const myName = isGuest
       ? (session?.candidateName || 'Candidate')
       : (session?.interviewerName || 'Interviewer')
+    const myType = isGuest ? 'CANDIDATE' : 'INTERVIEWER'
+    const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6)
 
     const newMsg = {
-      id: 'local-' + Date.now(),
+      id: msgId,
       senderName: myName,
-      senderType: isGuest ? 'CANDIDATE' : 'INTERVIEWER',
+      senderType: myType,
       text,
       timestamp: Date.now()
     }
 
+    seenSignalsRef.current.add(msgId)
     setMessages(prev => [...prev, newMsg])
     setChatInput('')
 
     try {
-      await sendSignal('CHAT', text)
+      await sendSignal('CHAT', JSON.stringify({
+        id: msgId,
+        text,
+        senderName: myName,
+        senderType: myType
+      }))
     } catch (err) {
       toast.error('Failed to send message.')
     }
@@ -452,7 +556,13 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         }
         localStreamRef.current.addTrack(track)
         if (peerConnectionRef.current) {
-          peerConnectionRef.current.addTrack(track, localStreamRef.current)
+          const senders = peerConnectionRef.current.getSenders()
+          const aSender = senders.find(s => s.track && s.track.kind === 'audio')
+          if (aSender) {
+            aSender.replaceTrack(track)
+          } else {
+            peerConnectionRef.current.addTrack(track, localStreamRef.current)
+          }
         }
         setMicActive(true)
         toast.success('Microphone unmuted')
@@ -468,6 +578,9 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
       if (vTrack) {
         vTrack.enabled = !vTrack.enabled
         setCameraActive(vTrack.enabled)
+        if (localVideoRef.current && localVideoRef.current.srcObject !== localStreamRef.current) {
+          localVideoRef.current.srcObject = localStreamRef.current
+        }
         return
       }
     }
@@ -486,13 +599,19 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
           localVideoRef.current.srcObject = localStreamRef.current
         }
         if (peerConnectionRef.current) {
-          peerConnectionRef.current.addTrack(track, localStreamRef.current)
+          const senders = peerConnectionRef.current.getSenders()
+          const vSender = senders.find(s => s.track && s.track.kind === 'video')
+          if (vSender) {
+            vSender.replaceTrack(track)
+          } else {
+            peerConnectionRef.current.addTrack(track, localStreamRef.current)
+          }
         }
         setCameraActive(true)
         toast.success('Camera enabled')
       }
     } catch (e) {
-      toast.error('Could not access camera')
+      toast.error('Could not access camera. Please verify device permissions.')
     }
   }
 
@@ -665,23 +784,22 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
 
             {/* PiP Local Video (Picture-in-Picture Self Feed) */}
             <div className="absolute top-4 right-4 w-40 sm:w-48 aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-700 shadow-2xl z-10">
-              {cameraActive ? (
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover transform -scale-x-100"
-                />
-              ) : (
+              <video
+                ref={localVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-cover transform -scale-x-100 ${cameraActive ? 'block' : 'hidden'}`}
+              />
+              {!cameraActive && (
                 <div
-                  onClick={requestMediaPermissions}
+                  onClick={toggleCamera}
                   className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer text-[10px] p-2 text-center"
                   title="Click to enable Camera access"
                 >
                   <VideoOff size={16} className="text-amber-400 mb-1" />
                   <span className="font-bold text-white">Camera Off</span>
-                  <span className="text-[9px] text-indigo-400 underline mt-0.5">Click to Enable</span>
+                  <span className="text-[9px] text-indigo-400 underline mt-0.5">Click to Turn On</span>
                 </div>
               )}
               <div className="absolute bottom-1.5 left-2 bg-slate-950/80 px-2 py-0.5 rounded text-[9px] font-bold text-white">

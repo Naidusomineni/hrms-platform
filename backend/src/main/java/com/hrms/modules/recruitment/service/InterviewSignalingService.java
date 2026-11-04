@@ -15,13 +15,18 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 @Service
-@Slf4j
-@RequiredArgsConstructor
 public class InterviewSignalingService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(InterviewSignalingService.class);
 
     private final InterviewSessionRepository sessionRepository;
     @Nullable
     private final SimpMessagingTemplate messagingTemplate;
+
+    public InterviewSignalingService(InterviewSessionRepository sessionRepository, @Nullable SimpMessagingTemplate messagingTemplate) {
+        this.sessionRepository = sessionRepository;
+        this.messagingTemplate = messagingTemplate;
+    }
 
     // Buffer to hold signals per interview session (max 150 per session)
     private final Map<Long, List<WebRtcSignalDto>> sessionSignalBuffer = new ConcurrentHashMap<>();
@@ -70,7 +75,15 @@ public class InterviewSignalingService {
 
     public Long getSessionIdFromGuestToken(String guestToken) {
         return sessionRepository.findByGuestAccessToken(guestToken)
-                .map(InterviewSession::getId)
+                .map(session -> {
+                    if (session.getCandidate() != null) {
+                        List<InterviewSession> active = sessionRepository.findActiveSessionsForCandidate(session.getCandidate().getId());
+                        if (!active.isEmpty()) {
+                            return active.get(0).getId();
+                        }
+                    }
+                    return session.getId();
+                })
                 .orElse(null);
     }
 }

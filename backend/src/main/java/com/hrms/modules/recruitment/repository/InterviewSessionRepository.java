@@ -48,6 +48,13 @@ public interface InterviewSessionRepository extends JpaRepository<InterviewSessi
            "WHERE s.id = :id")
     Optional<InterviewSession> findByIdWithDetails(@Param("id") Long id);
 
+    @Query("SELECT s FROM InterviewSession s " +
+           "JOIN FETCH s.candidate c " +
+           "LEFT JOIN FETCH s.jobPosting j " +
+           "JOIN FETCH s.interviewer i " +
+           "WHERE s.candidate.id = :candidateId AND s.status IN ('SCHEDULED', 'IN_PROGRESS') ORDER BY s.id DESC")
+    List<InterviewSession> findActiveSessionsForCandidate(@Param("candidateId") Long candidateId);
+
     Optional<InterviewSession> findByGuestAccessToken(String guestAccessToken);
 
     Optional<InterviewSession> findByRoomName(String roomName);

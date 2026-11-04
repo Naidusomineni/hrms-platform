@@ -30,10 +30,10 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 @Transactional
 public class InterviewService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(InterviewService.class);
 
     private final InterviewSessionRepository sessionRepository;
     private final CandidateRepository candidateRepository;
@@ -42,6 +42,22 @@ public class InterviewService {
     private final InterviewScorecardRepository scorecardRepository;
     private final LiveKitTokenService liveKitTokenService;
     private final EmailService emailService;
+
+    public InterviewService(InterviewSessionRepository sessionRepository,
+                            CandidateRepository candidateRepository,
+                            EmployeeRepository employeeRepository,
+                            JobPostingRepository jobPostingRepository,
+                            InterviewScorecardRepository scorecardRepository,
+                            LiveKitTokenService liveKitTokenService,
+                            EmailService emailService) {
+        this.sessionRepository = sessionRepository;
+        this.candidateRepository = candidateRepository;
+        this.employeeRepository = employeeRepository;
+        this.jobPostingRepository = jobPostingRepository;
+        this.scorecardRepository = scorecardRepository;
+        this.liveKitTokenService = liveKitTokenService;
+        this.emailService = emailService;
+    }
 
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
@@ -66,6 +82,13 @@ public class InterviewService {
         String guestToken = UUID.randomUUID().toString().replace("-", "") + System.currentTimeMillis();
         LocalDateTime guestTokenExpiry = (request.getScheduledEnd() != null ? request.getScheduledEnd() : LocalDateTime.now()).plusDays(2); // 48-hour access window
         String meetingLink = frontendUrl + "/interview/guest/" + guestToken;
+
+        // Close out previous active sessions for this candidate so only this fresh session remains active
+        List<InterviewSession> previousActive = sessionRepository.findActiveSessionsForCandidate(candidate.getId());
+        for (InterviewSession prev : previousActive) {
+            prev.setStatus(InterviewSessionStatus.COMPLETED);
+            sessionRepository.save(prev);
+        }
 
         InterviewSession session = InterviewSession.builder()
                 .candidate(candidate)
@@ -177,6 +200,16 @@ public class InterviewService {
         InterviewSession session = sessionRepository.findByGuestAccessTokenWithDetails(guestToken)
                 .orElseThrow(() -> new ResourceNotFoundException("InterviewSession", "guestToken", guestToken));
 
+        // Auto-upgrade to latest active session for this candidate so candidate and evaluator are always in the same room
+        if (session.getCandidate() != null) {
+            List<InterviewSession> active = sessionRepository.findActiveSessionsForCandidate(session.getCandidate().getId());
+            if (!active.isEmpty() && !active.get(0).getId().equals(session.getId())) {
+                log.info("Candidate #{} guest link auto-routed from session #{} to latest active session #{}",
+                        session.getCandidate().getId(), session.getId(), active.get(0).getId());
+                session = active.get(0);
+            }
+        }
+
         if (session.getGuestTokenExpiry().isBefore(LocalDateTime.now())) {
             throw new BadRequestException("Interview session link has expired. Please contact HR for a new invitation.");
         }
@@ -188,6 +221,16 @@ public class InterviewService {
     public LiveKitTokenResponse candidateJoinRoom(String guestToken, IntegrityTelemetryDto telemetry) {
         InterviewSession session = sessionRepository.findByGuestAccessTokenWithDetails(guestToken)
                 .orElseThrow(() -> new ResourceNotFoundException("InterviewSession", "guestToken", guestToken));
+
+        // Auto-upgrade to latest active session for this candidate so candidate and evaluator are always in the same room
+        if (session.getCandidate() != null) {
+            List<InterviewSession> active = sessionRepository.findActiveSessionsForCandidate(session.getCandidate().getId());
+            if (!active.isEmpty() && !active.get(0).getId().equals(session.getId())) {
+                log.info("Candidate #{} join room auto-routed from session #{} to latest active session #{}",
+                        session.getCandidate().getId(), session.getId(), active.get(0).getId());
+                session = active.get(0);
+            }
+        }
 
         if (session.getGuestTokenExpiry().isBefore(LocalDateTime.now())) {
             throw new BadRequestException("Interview session link has expired.");

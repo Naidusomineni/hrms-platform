@@ -345,6 +345,8 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     }
   }
 
+  const heartbeatCounterRef = useRef(0)
+
   const startSignaling = (pc) => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current)
@@ -352,6 +354,18 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
 
     pollingIntervalRef.current = setInterval(async () => {
       try {
+        heartbeatCounterRef.current = (heartbeatCounterRef.current || 0) + 1
+
+        // Send periodic heartbeat every ~2 seconds
+        if (heartbeatCounterRef.current % 2 === 0) {
+          sendSignal('HEARTBEAT', {
+            isGuest,
+            cameraActive,
+            micActive,
+            timestamp: Date.now()
+          })
+        }
+
         const querySince = Math.max(0, lastSignalTimeRef.current - 5000)
         const res = isGuest
           ? await interviewAPI.getCandidateSignals(guestToken, querySince)
@@ -370,9 +384,10 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
             lastSignalTimeRef.current = sig.timestamp
           }
 
-          if (sig.signalType === 'JOIN') {
-            // When candidate joins, the interviewer initiates the WebRTC offer
-            if (!isGuest && pc.signalingState === 'stable' && !makingOfferRef.current) {
+          if (sig.signalType === 'JOIN' || sig.signalType === 'HEARTBEAT') {
+            setParticipantCount(2)
+            // When remote participant is detected, initiate WebRTC offer if not connected
+            if (!isGuest && pc.signalingState === 'stable' && !makingOfferRef.current && pc.connectionState !== 'connected') {
               try {
                 makingOfferRef.current = true
                 const offer = await pc.createOffer()
@@ -762,13 +777,33 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                     <User size={36} className="text-slate-400" />
                   </div>
                   <p className="text-sm font-semibold text-slate-300">
-                    {roomConnected ? 'Connected! Waiting for remote camera feed...' : 'Waiting for participant to join...'}
+                    {participantCount >= 2
+                      ? 'Remote participant is in call! Establishing direct video feed...'
+                      : roomConnected
+                      ? 'Connected! Waiting for remote camera feed...'
+                      : 'Waiting for participant to join...'}
                   </p>
                   <p className="text-xs text-slate-500 mt-1 max-w-sm">
                     {isGuest
                       ? 'You are in the room as the candidate. The interviewer will appear once they join.'
                       : 'You are in the room as the evaluator. The candidate feed will display here once they enter.'}
                   </p>
+                  {!isGuest && session?.meetingLink && participantCount < 2 && (
+                    <div className="mt-4 flex items-center gap-2 bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl">
+                      <span className="text-[11px] text-slate-300 font-mono truncate max-w-[220px]">
+                        {session.meetingLink}
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(session.meetingLink)
+                          toast.success('Meeting link copied to clipboard!')
+                        }}
+                        className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg transition-colors cursor-pointer"
+                      >
+                        Copy Link
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 

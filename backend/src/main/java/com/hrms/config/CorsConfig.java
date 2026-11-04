@@ -8,7 +8,7 @@ import java.util.*;
 
 @Configuration
 public class CorsConfig {
-    @Value("${cors.allowed-origins:http://localhost:5173}") private String allowedOrigins;
+    @Value("${cors.allowed-origins:http://localhost:5173,https://*.trycloudflare.com,https://*.onrender.com,https://*.up.railway.app,https://*.vercel.app,*}") private String allowedOrigins;
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {

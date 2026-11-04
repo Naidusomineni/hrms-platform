@@ -55,15 +55,38 @@ const CandidateLobbyPage = () => {
 
   const initMediaStream = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: true
-      })
+      let stream = null
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+          audio: true
+        })
+      } catch (err1) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        } catch (err2) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+          } catch (err3) {
+            console.warn('Devices unavailable:', err3)
+          }
+        }
+      }
+
+      if (!stream) {
+        setCameraActive(false)
+        setMicActive(false)
+        toast.error('Please allow camera and microphone permissions when prompted by your browser.')
+        return
+      }
+
       streamRef.current = stream
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
       }
+      setCameraActive(stream.getVideoTracks().length > 0)
+      setMicActive(stream.getAudioTracks().length > 0)
 
       // Enumerate hardware devices
       const devList = await navigator.mediaDevices.enumerateDevices()
@@ -76,36 +99,31 @@ const CandidateLobbyPage = () => {
       const primaryAudio = audioDevs[0]?.label || 'Default Microphone'
       setDeviceLabels({ camera: primaryCamera, audio: primaryAudio })
 
-      // Proxy / Virtual Camera Detection Gate
-      const isVirtualCam = videoDevs.some(d => /OBS|Virtual|ManyCam|Fake|v4l2loopback/i.test(d.label))
-      if (isVirtualCam) {
-        setVirtualCameraDetected(true)
-        toast.error('Virtual camera software detected. Please switch to a physical hardware webcam.', { duration: 6000 })
-      }
-
       // Setup Web Audio Analyser for live microphone level bars
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)()
-      audioContextRef.current = audioContext
-      const analyser = audioContext.createAnalyser()
-      analyser.fftSize = 64
-      analyserRef.current = analyser
+      if (stream.getAudioTracks().length > 0) {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+        audioContextRef.current = audioContext
+        const analyser = audioContext.createAnalyser()
+        analyser.fftSize = 64
+        analyserRef.current = analyser
 
-      const source = audioContext.createMediaStreamSource(stream)
-      source.connect(analyser)
+        const source = audioContext.createMediaStreamSource(stream)
+        source.connect(analyser)
 
-      const dataArray = new Uint8Array(analyser.frequencyBinCount)
-      const checkAudioLevel = () => {
-        if (!analyserRef.current) return
-        analyserRef.current.getByteFrequencyData(dataArray)
-        let sum = 0
-        for (let i = 0; i < dataArray.length; i++) {
-          sum += dataArray[i]
+        const dataArray = new Uint8Array(analyser.frequencyBinCount)
+        const checkAudioLevel = () => {
+          if (!analyserRef.current) return
+          analyserRef.current.getByteFrequencyData(dataArray)
+          let sum = 0
+          for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i]
+          }
+          const avg = sum / dataArray.length
+          setMicLevel(Math.min(100, Math.round((avg / 128) * 100)))
+          animFrameRef.current = requestAnimationFrame(checkAudioLevel)
         }
-        const avg = sum / dataArray.length
-        setMicLevel(Math.min(100, Math.round((avg / 128) * 100)))
-        animFrameRef.current = requestAnimationFrame(checkAudioLevel)
+        checkAudioLevel()
       }
-      checkAudioLevel()
     } catch (err) {
       console.warn('Media devices could not be initialized:', err)
       toast.error('Please allow camera and microphone permissions to join the interview.')

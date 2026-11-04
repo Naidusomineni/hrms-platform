@@ -136,8 +136,9 @@ public class InterviewService {
         return mapToDto(session);
     }
 
+    @Transactional
     public LiveKitTokenResponse getInterviewerJoinToken(Long id, String employeeEmail) {
-        InterviewSession session = sessionRepository.findById(id)
+        InterviewSession session = sessionRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("InterviewSession", "id", id));
 
         if (session.getInterviewerJoinedAt() == null) {
@@ -183,6 +184,7 @@ public class InterviewService {
         return mapToDto(session);
     }
 
+    @Transactional
     public LiveKitTokenResponse candidateJoinRoom(String guestToken, IntegrityTelemetryDto telemetry) {
         InterviewSession session = sessionRepository.findByGuestAccessTokenWithDetails(guestToken)
                 .orElseThrow(() -> new ResourceNotFoundException("InterviewSession", "guestToken", guestToken));

@@ -5,10 +5,19 @@ import { Button, Badge, Spinner, Card } from '../../../components/common/index.j
 import {
   Video, Mic, MicOff, VideoOff, ScreenShare, PhoneOff, ShieldCheck,
   AlertTriangle, Star, CheckCircle, FileText, Code, Check, ArrowRight,
-  Maximize2, Eye, User, Briefcase, RefreshCw, Lock, Sparkles, ExternalLink
+  Maximize2, Eye, User, Briefcase, RefreshCw, Lock, Sparkles, ExternalLink,
+  MessageSquare, Send, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { Room, RoomEvent, createLocalTracks } from 'livekit-client'
+
+const STUN_CONFIG = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' }
+  ]
+}
 
 const LiveInterviewRoomPage = ({ isGuest = false }) => {
   const params = useParams()
@@ -19,7 +28,6 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
   const sessionId = params.sessionId
 
   const [loading, setLoading] = useState(true)
-  const [tokenData, setTokenData] = useState(null)
   const [session, setSession] = useState(null)
 
   // Media & WebRTC states
@@ -27,13 +35,30 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
   const [cameraActive, setCameraActive] = useState(true)
   const [isScreenSharing, setIsScreenSharing] = useState(false)
   const [roomConnected, setRoomConnected] = useState(false)
+  const [remoteStreamActive, setRemoteStreamActive] = useState(false)
   const [participantCount, setParticipantCount] = useState(1)
 
   // Stream elements
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
-  const livekitRoomRef = useRef(null)
   const localStreamRef = useRef(null)
+  const peerConnectionRef = useRef(null)
+  const pollingIntervalRef = useRef(null)
+  const lastSignalTimeRef = useRef(0)
+
+  // Chat states
+  const [messages, setMessages] = useState([
+    {
+      id: 'welcome',
+      senderName: 'System',
+      senderType: 'SYSTEM',
+      text: 'Encrypted interview room ready. Audio, video, and text chat are online.',
+      timestamp: Date.now()
+    }
+  ])
+  const [chatInput, setChatInput] = useState('')
+  const [showMobileChat, setShowMobileChat] = useState(false)
+  const chatBottomRef = useRef(null)
 
   // Anti-Proxy Telemetry States
   const [tabSwitchCount, setTabSwitchCount] = useState(0)
@@ -42,13 +67,13 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
   const [virtualCameraDetected, setVirtualCameraDetected] = useState(false)
 
   // Interviewer Workspace States
-  const [activeTab, setActiveTab] = useState('scorecard') // 'scorecard' | 'resume' | 'scratchpad'
+  const [activeTab, setActiveTab] = useState('scorecard') // 'scorecard' | 'resume' | 'scratchpad' | 'chat'
   const [scorecard, setScorecard] = useState({
     technicalRating: 4,
     communicationRating: 4,
     cultureFitRating: 4,
     problemSolvingRating: 4,
-    recommendation: 'HIRE', // STRONG_HIRE, HIRE, HOLD, REJECT
+    recommendation: 'HIRE',
     feedback: ''
   })
   const [savingScorecard, setSavingScorecard] = useState(false)
@@ -65,7 +90,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
   useEffect(() => {
     initializeSession()
 
-    // Anti-Proxy Telemetry: Monitor tab switches and window blur events
+    // Anti-Proxy Telemetry for Guest Candidate
     if (isGuest) {
       const handleVisibilityChange = () => {
         if (document.hidden) {
@@ -101,6 +126,12 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     }
   }, [])
 
+  useEffect(() => {
+    if (chatBottomRef.current) {
+      chatBottomRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages])
+
   const reportTelemetryUpdate = async (tabSwitches, blurs) => {
     if (!guestToken) return
     try {
@@ -114,9 +145,32 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     }
   }
 
+  const sendSignal = async (type, payload) => {
+    try {
+      const myName = isGuest
+        ? (session?.candidateName || 'Candidate')
+        : (session?.interviewerName || 'Interviewer')
+
+      const sig = {
+        signalType: type,
+        payload: typeof payload === 'string' ? payload : JSON.stringify(payload),
+        senderName: myName
+      }
+
+      if (isGuest) {
+        await interviewAPI.postCandidateSignal(guestToken, sig)
+      } else {
+        await interviewAPI.postInterviewerSignal(sessionId, sig)
+      }
+    } catch (err) {
+      console.warn('Signal send error:', err)
+    }
+  }
+
   const initializeSession = async () => {
     try {
-      let res
+      let currentSession = null
+
       if (isGuest) {
         // Candidate join
         const camLabel = sessionStorage.getItem('hrms_interview_camera_label') || 'Webcam'
@@ -124,107 +178,213 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         const isVirtual = sessionStorage.getItem('hrms_interview_virtual_detected') === 'true'
         setVirtualCameraDetected(isVirtual)
 
-        res = await interviewAPI.candidateJoinRoom(guestToken, {
+        const res = await interviewAPI.candidateJoinRoom(guestToken, {
           cameraLabel: camLabel,
           audioDeviceLabel: audioLabel,
           virtualCameraDetected: isVirtual,
           clientTimestamp: new Date().toISOString()
         })
+        currentSession = res.data?.data?.session
       } else {
         // Interviewer join
-        res = await interviewAPI.getInterviewerJoinToken(sessionId)
+        const res = await interviewAPI.getInterviewerJoinToken(sessionId)
+        currentSession = res.data?.data?.session
       }
 
-      const data = res.data?.data
-      setTokenData(data)
-      setSession(data.session)
-      if (data.session?.integrityStatus) {
-        setIntegrityStatus(data.session.integrityStatus)
+      if (currentSession) {
+        setSession(currentSession)
+        if (currentSession.integrityStatus) {
+          setIntegrityStatus(currentSession.integrityStatus)
+        }
       }
 
-      // Initialize WebRTC media feed
-      await connectWebRTC(data)
+      // Initialize Native WebRTC Peer Connection
+      await connectNativeWebRTC(currentSession)
     } catch (err) {
+      console.error('Session initialization error:', err)
       toast.error(err.response?.data?.message || 'Failed to initialize interview room.')
     } finally {
       setLoading(false)
     }
   }
 
-  const connectWebRTC = async (data) => {
+  const connectNativeWebRTC = async (currentSession) => {
     try {
-      let localStream = null
+      // 1. Acquire local camera and microphone stream
+      let stream = null
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({
+        stream = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: true
         })
       } catch (mediaErr) {
-        // Fallback: try audio only or video only
+        // Fallback: try audio only (e.g. PC without physical webcam)
         try {
-          localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+          stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
         } catch (e2) {
-          try {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
-          } catch (e3) {
-            console.warn('Camera/Microphone access not granted yet:', e3)
-          }
+          console.warn('Audio/video unavailable:', e2)
         }
       }
 
-      if (localStream) {
-        localStreamRef.current = localStream
+      if (stream) {
+        localStreamRef.current = stream
         if (localVideoRef.current) {
-          localVideoRef.current.srcObject = localStream
+          localVideoRef.current.srcObject = stream
         }
-        setCameraActive(localStream.getVideoTracks().length > 0)
-        setMicActive(localStream.getAudioTracks().length > 0)
+        setCameraActive(stream.getVideoTracks().length > 0)
+        setMicActive(stream.getAudioTracks().length > 0)
       } else {
         setCameraActive(false)
         setMicActive(false)
       }
 
-      // Connect to LiveKit Room if valid WebSocket URL provided
-      if (data?.serverUrl && data.serverUrl.startsWith('ws') && data?.token) {
-        const room = new Room({
-          adaptiveStream: true,
-          dynacast: true
-        })
-        livekitRoomRef.current = room
+      // 2. Initialize native RTCPeerConnection
+      const pc = new RTCPeerConnection(STUN_CONFIG)
+      peerConnectionRef.current = pc
 
-        room.on(RoomEvent.Connected, () => {
-          setRoomConnected(true)
-          setParticipantCount(room.remoteParticipants.size + 1)
-        })
-
-        room.on(RoomEvent.ParticipantConnected, (p) => {
-          setParticipantCount(room.remoteParticipants.size + 1)
-          toast.success(`${p.name || 'Participant'} joined the interview`)
-        })
-
-        room.on(RoomEvent.ParticipantDisconnected, (p) => {
-          setParticipantCount(room.remoteParticipants.size + 1)
-          toast(`${p.name || 'Participant'} disconnected`)
-        })
-
-        room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-          if (track.kind === 'video' && remoteVideoRef.current) {
-            track.attach(remoteVideoRef.current)
-          }
-        })
-
-        try {
-          await room.connect(data.serverUrl, data.token)
-          await room.localParticipant.enableCameraAndMicrophone()
-        } catch (webrtcErr) {
-          console.info('Operating in local direct mode:', webrtcErr.message)
-          setRoomConnected(true)
-        }
-      } else {
-        setRoomConnected(true)
+      if (stream) {
+        stream.getTracks().forEach(track => pc.addTrack(track, stream))
       }
+
+      // 3. Listen for incoming remote video and audio tracks
+      pc.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = event.streams[0]
+          }
+          setRemoteStreamActive(true)
+          setRoomConnected(true)
+          setParticipantCount(2)
+        }
+      }
+
+      // 4. ICE candidate exchange
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          sendSignal('ICE', JSON.stringify(event.candidate))
+        }
+      }
+
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'connected') {
+          setRoomConnected(true)
+          setRemoteStreamActive(true)
+          setParticipantCount(2)
+          toast.success('Direct video and audio connected!')
+        } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+          setRemoteStreamActive(false)
+        }
+      }
+
+      // 5. Send JOIN notification to signal other participant
+      await sendSignal('JOIN', { isGuest, timestamp: Date.now() })
+
+      // 6. Start continuous signaling polling loop
+      startSignaling(pc)
     } catch (err) {
-      console.warn('Media setup notice:', err)
+      console.warn('WebRTC initialization notice:', err)
+      setRoomConnected(true)
+    }
+  }
+
+  const startSignaling = (pc) => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+    }
+
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const res = isGuest
+          ? await interviewAPI.getCandidateSignals(guestToken, lastSignalTimeRef.current)
+          : await interviewAPI.getInterviewerSignals(sessionId, lastSignalTimeRef.current)
+
+        const signalList = res.data?.data || []
+        for (const sig of signalList) {
+          if (sig.timestamp > lastSignalTimeRef.current) {
+            lastSignalTimeRef.current = sig.timestamp
+          }
+
+          if (sig.signalType === 'JOIN') {
+            // When remote participant joins, Interviewer initiates the WebRTC offer
+            if (!isGuest && pc.signalingState === 'stable') {
+              try {
+                const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
+                await pc.setLocalDescription(offer)
+                await sendSignal('OFFER', JSON.stringify(offer))
+              } catch (offerErr) {
+                console.warn('Failed to create offer:', offerErr)
+              }
+            }
+          } else if (sig.signalType === 'OFFER') {
+            try {
+              const offerDesc = new RTCSessionDescription(JSON.parse(sig.payload))
+              await pc.setRemoteDescription(offerDesc)
+              const answer = await pc.createAnswer()
+              await pc.setLocalDescription(answer)
+              await sendSignal('ANSWER', JSON.stringify(answer))
+            } catch (ansErr) {
+              console.warn('Failed to answer offer:', ansErr)
+            }
+          } else if (sig.signalType === 'ANSWER') {
+            try {
+              if (pc.signalingState !== 'stable') {
+                const answerDesc = new RTCSessionDescription(JSON.parse(sig.payload))
+                await pc.setRemoteDescription(answerDesc)
+              }
+            } catch (setAnsErr) {
+              console.warn('Failed to set remote description answer:', setAnsErr)
+            }
+          } else if (sig.signalType === 'ICE') {
+            try {
+              const candidate = new RTCIceCandidate(JSON.parse(sig.payload))
+              await pc.addIceCandidate(candidate)
+            } catch (iceErr) {
+              console.warn('Failed to add ICE candidate:', iceErr)
+            }
+          } else if (sig.signalType === 'CHAT') {
+            setMessages(prev => [
+              ...prev,
+              {
+                id: sig.id || 'msg-' + Date.now(),
+                senderName: sig.senderName,
+                senderType: sig.senderType,
+                text: sig.payload,
+                timestamp: sig.timestamp
+              }
+            ])
+            toast(`New message from ${sig.senderName}`, { icon: '💬' })
+          }
+        }
+      } catch (pollErr) {
+        // quiet polling error
+      }
+    }, 1200)
+  }
+
+  const handleSendMessage = async (e) => {
+    if (e) e.preventDefault()
+    if (!chatInput.trim()) return
+
+    const text = chatInput.trim()
+    const myName = isGuest
+      ? (session?.candidateName || 'Candidate')
+      : (session?.interviewerName || 'Interviewer')
+
+    const newMsg = {
+      id: 'local-' + Date.now(),
+      senderName: myName,
+      senderType: isGuest ? 'CANDIDATE' : 'INTERVIEWER',
+      text,
+      timestamp: Date.now()
+    }
+
+    setMessages(prev => [...prev, newMsg])
+    setChatInput('')
+
+    try {
+      await sendSignal('CHAT', text)
+    } catch (err) {
+      toast.error('Failed to send message.')
     }
   }
 
@@ -237,18 +397,29 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
       }
       setCameraActive(true)
       setMicActive(true)
+
+      if (peerConnectionRef.current) {
+        stream.getTracks().forEach(track => {
+          peerConnectionRef.current.addTrack(track, stream)
+        })
+      }
       toast.success('Camera and microphone enabled!')
     } catch (e) {
-      toast.error('Permission blocked. Click the icon next to the address bar to allow Camera and Microphone.')
+      toast.error('Permission blocked. Click the lock/info icon in your address bar to allow Camera and Microphone.')
     }
   }
 
   const cleanupMedia = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(t => t.stop())
     }
-    if (livekitRoomRef.current) {
-      livekitRoomRef.current.disconnect()
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close()
+      peerConnectionRef.current = null
     }
   }
 
@@ -327,9 +498,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     if (!session) return
     setCompleting(true)
     try {
-      // First save latest scorecard
       await handleSaveScorecard()
-      // Then complete and advance
       await interviewAPI.completeInterview(session.id, nextStage)
       toast.success(`Interview completed! Candidate advanced to ${nextStage.replace('_', ' ')}`)
       cleanupMedia()
@@ -352,96 +521,97 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden">
-      {/* ── Top Bar ────────────────────────────────────────────────── */}
-      <header className="h-14 bg-slate-900 border-b border-slate-800 px-4 flex items-center justify-between shrink-0">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col overflow-hidden">
+      {/* ── Top Corporate Status Bar ───────────────────────────────── */}
+      <header className="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md px-5 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black text-white text-sm">
+          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black text-sm tracking-wider text-white shadow-xs">
             H
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-bold text-sm text-white">
-                {session?.jobTitle || 'Role Interview'}
-              </h2>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold uppercase tracking-wider">
-                {session?.roundName || 'Technical'}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400">
-              Candidate: <strong className="text-slate-200">{session?.candidateName}</strong> • Interviewer: <strong className="text-slate-200">{session?.interviewerName}</strong>
+            <h1 className="font-bold text-sm text-white flex items-center gap-2">
+              <span>{session?.jobTitle || 'Technical Interview'}</span>
+              <span className="text-slate-500 font-normal">|</span>
+              <span className="text-slate-300 font-medium text-xs">{session?.roundName || 'Round 1'}</span>
+            </h1>
+            <p className="text-[10px] text-slate-400">
+              Candidate: <strong className="text-slate-200">{session?.candidateName}</strong>
             </p>
           </div>
         </div>
 
-        {/* Live Session Status Badges */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-bold text-emerald-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Live • HD Video</span>
+          {/* Security & Integrity Status Indicator */}
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700/60 text-xs">
+            <Lock size={12} className="text-emerald-400" />
+            <span className="text-slate-300 text-[11px] font-medium">Encrypted Direct Video Session</span>
           </div>
 
+          {/* Participant count */}
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>{participantCount} In Call</span>
+          </div>
+
+          {/* Complete Interview Button (Interviewer only) */}
           {!isGuest && (
             <Button
               variant="primary"
               size="sm"
               onClick={() => setCompleteModalOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-xs font-bold"
+              className="bg-emerald-600 hover:bg-emerald-700 text-xs font-bold flex items-center gap-1.5 px-3 py-1.5 shadow-xs"
             >
-              <CheckCircle size={13} /> Complete & Advance
+              <CheckCircle size={14} /> Finalize Interview
             </Button>
           )}
-
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={handleLeaveCall}
-            className="flex items-center gap-1.5 text-xs font-bold"
-          >
-            <PhoneOff size={13} /> Leave
-          </Button>
         </div>
       </header>
 
-      {/* ── Main Layout: Split Screen (Interviewer) or Full Video (Guest) ── */}
+      {/* ── Main Split View Container ──────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Video Panel (60% for Interviewer, 100% for Guest) */}
-        <div className={`${isGuest ? 'w-full' : 'w-full lg:w-[60%]'} flex flex-col p-4 bg-slate-950 border-r border-slate-800/80`}>
-          {/* Video Grid Canvas */}
-          <div className="flex-1 relative bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex items-center justify-center">
-            {/* Primary Remote Video Feed */}
-            <div className="w-full h-full relative flex items-center justify-center bg-radial from-slate-850 to-slate-900">
+        {/* Left Video Stage (60% for interviewer, 100% for candidate) */}
+        <div className={`flex flex-col flex-1 p-3 bg-slate-950 transition-all ${isGuest ? 'w-full' : 'lg:w-[60%]'}`}>
+          <div className="relative flex-1 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-inner">
+            {/* Remote Video Stream (Main Feed) */}
+            <div className="relative w-full h-full flex items-center justify-center bg-slate-950">
               <video
                 ref={remoteVideoRef}
                 autoPlay
                 playsInline
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover transition-opacity duration-300 ${
+                  remoteStreamActive ? 'opacity-100' : 'opacity-0 absolute'
+                }`}
               />
 
-              {/* Remote Feed Overlay Placeholder if remote has no video yet */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <div className="w-20 h-20 rounded-full bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-white text-2xl font-black mb-3 shadow-xl backdrop-blur-xs">
-                  {isGuest ? (session?.interviewerName?.charAt(0) || 'I') : (session?.candidateName?.charAt(0) || 'C')}
+              {/* Placeholder when remote participant is connecting */}
+              {!remoteStreamActive && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 p-6 text-center">
+                  <div className="w-20 h-20 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center mb-3 shadow-lg">
+                    <User size={36} className="text-slate-400" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-300">
+                    {roomConnected ? 'Connected! Waiting for remote camera feed...' : 'Waiting for participant to join...'}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                    {isGuest
+                      ? 'You are in the room as the candidate. The interviewer will appear once they join.'
+                      : 'You are in the room as the evaluator. The candidate feed will display here once they enter.'}
+                  </p>
                 </div>
-                <p className="font-bold text-sm text-white drop-shadow-md">
-                  {isGuest ? session?.interviewerName : session?.candidateName}
-                </p>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {isGuest ? 'Interviewer' : 'Candidate Feed'}
-                </p>
-              </div>
+              )}
 
               {/* Remote Participant Name Tag */}
-              <div className="absolute bottom-4 left-4 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/80 flex items-center gap-2 text-xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <div className="absolute bottom-4 left-4 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/80 flex items-center gap-2 text-xs z-10">
+                <span className={`w-2 h-2 rounded-full ${remoteStreamActive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
                 <span className="font-semibold text-white">
-                  {isGuest ? session?.interviewerName : session?.candidateName}
+                  {isGuest ? (session?.interviewerName || 'Interviewer') : (session?.candidateName || 'Candidate')}
                 </span>
+                {remoteStreamActive && <span className="text-[10px] text-emerald-400 font-medium">Live</span>}
               </div>
             </div>
 
             {/* PiP Local Video (Picture-in-Picture Self Feed) */}
-            <div className="absolute top-4 right-4 w-44 aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-700 shadow-2xl">
+            <div className="absolute top-4 right-4 w-40 sm:w-48 aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-700 shadow-2xl z-10">
               {cameraActive ? (
                 <video
                   ref={localVideoRef}
@@ -454,11 +624,11 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                 <div
                   onClick={requestMediaPermissions}
                   className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer text-[10px] p-2 text-center"
-                  title="Click to enable Camera & Microphone access"
+                  title="Click to enable Camera access"
                 >
-                  <VideoOff size={18} className="text-amber-400 mb-1" />
+                  <VideoOff size={16} className="text-amber-400 mb-1" />
                   <span className="font-bold text-white">Camera Off</span>
-                  <span className="text-[9px] text-indigo-400 underline mt-0.5">Click to Allow</span>
+                  <span className="text-[9px] text-indigo-400 underline mt-0.5">Click to Enable</span>
                 </div>
               )}
               <div className="absolute bottom-1.5 left-2 bg-slate-950/80 px-2 py-0.5 rounded text-[9px] font-bold text-white">
@@ -499,6 +669,24 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
               <ScreenShare size={20} />
             </button>
 
+            {/* Mobile / Fullscreen Chat Toggle */}
+            <button
+              onClick={() => {
+                if (isGuest) {
+                  setShowMobileChat(prev => !prev)
+                } else {
+                  setActiveTab('chat')
+                }
+              }}
+              className="relative p-3 rounded-full bg-slate-800 text-white hover:bg-slate-700 transition-all shadow-md"
+              title="Open Chat"
+            >
+              <MessageSquare size={20} />
+              {messages.length > 1 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-indigo-500" />
+              )}
+            </button>
+
             <button
               onClick={handleLeaveCall}
               className="p-3 rounded-full bg-rose-600 text-white hover:bg-rose-700 transition-all shadow-md"
@@ -520,7 +708,15 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                   activeTab === 'scorecard' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <CheckCircle size={14} /> Live Scorecard
+                <CheckCircle size={14} /> Scorecard
+              </button>
+              <button
+                onClick={() => setActiveTab('chat')}
+                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                  activeTab === 'chat' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <MessageSquare size={14} /> In-Call Chat ({messages.length})
               </button>
               <button
                 onClick={() => setActiveTab('resume')}
@@ -528,7 +724,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                   activeTab === 'resume' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <FileText size={14} /> Resume & Profile
+                <FileText size={14} /> Resume
               </button>
               <button
                 onClick={() => setActiveTab('scratchpad')}
@@ -559,7 +755,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                   <div className="grid grid-cols-2 gap-2 text-[11px]">
                     <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
                       <p className="text-slate-500 text-[10px]">Webcam Hardware</p>
-                      <p className="font-bold text-slate-200 mt-0.5">Physical USB Camera ✅</p>
+                      <p className="font-bold text-slate-200 mt-0.5">Physical Hardware ✅</p>
                     </div>
                     <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
                       <p className="text-slate-500 text-[10px]">Tab Blur Telemetry</p>
@@ -573,7 +769,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                 {/* Rating Criteria Matrix */}
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Evaluation Competency Matrix (1 - 5 Stars)
+                    Evaluation Matrix (1 - 5 Stars)
                   </h4>
 
                   {[
@@ -661,7 +857,55 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
               </div>
             )}
 
-            {/* Tab 2: Resume & Profile */}
+            {/* Tab: Real-Time In-Call Chat */}
+            {activeTab === 'chat' && (
+              <div className="flex-1 flex flex-col p-4 overflow-hidden">
+                <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                  {messages.map(msg => (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col ${
+                        msg.senderType === 'INTERVIEWER' ? 'items-end' : msg.senderType === 'SYSTEM' ? 'items-center' : 'items-start'
+                      }`}
+                    >
+                      {msg.senderType !== 'SYSTEM' && (
+                        <span className="text-[10px] text-slate-500 mb-0.5">{msg.senderName}</span>
+                      )}
+                      <div
+                        className={`max-w-[85%] px-3 py-2 rounded-xl text-xs ${
+                          msg.senderType === 'INTERVIEWER'
+                            ? 'bg-indigo-600 text-white rounded-br-xs'
+                            : msg.senderType === 'SYSTEM'
+                            ? 'bg-slate-800/80 text-slate-400 text-[10px] text-center'
+                            : 'bg-slate-800 text-slate-200 rounded-bl-xs'
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={chatBottomRef} />
+                </div>
+
+                <form onSubmit={handleSendMessage} className="mt-3 flex gap-2 pt-2 border-t border-slate-800">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    placeholder="Type a message to candidate..."
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  />
+                  <button
+                    type="submit"
+                    className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors"
+                  >
+                    <Send size={15} />
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* Tab: Resume & Profile */}
             {activeTab === 'resume' && (
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
@@ -707,7 +951,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
               </div>
             )}
 
-            {/* Tab 3: Collaborative Scratchpad */}
+            {/* Tab: Collaborative Scratchpad */}
             {activeTab === 'scratchpad' && (
               <div className="flex-1 flex flex-col p-4 space-y-2">
                 <p className="text-xs text-slate-400 font-semibold">Real-Time Technical Scratchpad</p>
@@ -721,6 +965,68 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
           </div>
         )}
       </div>
+
+      {/* ── Mobile / Candidate In-Call Chat Modal ─────────────────── */}
+      {isGuest && showMobileChat && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end sm:justify-center sm:items-center p-3">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md h-[70vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+              <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
+                <MessageSquare size={14} className="text-indigo-400" /> In-Call Chat
+              </h3>
+              <button
+                onClick={() => setShowMobileChat(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {messages.map(msg => (
+                <div
+                  key={msg.id}
+                  className={`flex flex-col ${
+                    msg.senderType === 'CANDIDATE' ? 'items-end' : msg.senderType === 'SYSTEM' ? 'items-center' : 'items-start'
+                  }`}
+                >
+                  {msg.senderType !== 'SYSTEM' && (
+                    <span className="text-[10px] text-slate-500 mb-0.5">{msg.senderName}</span>
+                  )}
+                  <div
+                    className={`max-w-[85%] px-3 py-2 rounded-xl text-xs ${
+                      msg.senderType === 'CANDIDATE'
+                        ? 'bg-indigo-600 text-white rounded-br-xs'
+                        : msg.senderType === 'SYSTEM'
+                        ? 'bg-slate-800/80 text-slate-400 text-[10px] text-center'
+                        : 'bg-slate-800 text-slate-200 rounded-bl-xs'
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              <div ref={chatBottomRef} />
+            </div>
+
+            <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-800 flex gap-2 bg-slate-950">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                placeholder="Type a message to interviewer..."
+                className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              />
+              <button
+                type="submit"
+                className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors"
+              >
+                <Send size={15} />
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal: Complete Interview & Advance Pipeline ─────────── */}
       {!isGuest && completeModalOpen && (

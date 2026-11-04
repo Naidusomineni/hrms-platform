@@ -3,6 +3,7 @@ package com.hrms.modules.recruitment.controller;
 import com.hrms.dto.response.ApiResponse;
 import com.hrms.modules.recruitment.dto.*;
 import com.hrms.modules.recruitment.service.InterviewService;
+import com.hrms.modules.recruitment.service.InterviewSignalingService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -24,6 +25,7 @@ import java.util.List;
 public class InterviewController {
 
     private final InterviewService interviewService;
+    private final InterviewSignalingService signalingService;
 
     @PostMapping
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_MANAGER')")
@@ -117,5 +119,45 @@ public class InterviewController {
         String email = userDetails != null ? userDetails.getUsername() : "hr@hrms.com";
         return ResponseEntity.ok(ApiResponse.success("Interview cancelled",
                 interviewService.cancelInterview(id, email)));
+    }
+
+    // ── WebRTC Signaling & Real-time In-Call Chat ────────────────────
+
+    @PostMapping("/guest/{guestToken}/signal")
+    public ResponseEntity<ApiResponse<WebRtcSignalDto>> postCandidateSignal(
+            @PathVariable("guestToken") String guestToken,
+            @RequestBody WebRtcSignalDto signal) {
+        Long sessionId = signalingService.getSessionIdFromGuestToken(guestToken);
+        if (sessionId == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid guest token"));
+        }
+        signal.setSenderType("CANDIDATE");
+        return ResponseEntity.ok(ApiResponse.success(signalingService.postSignal(sessionId, signal)));
+    }
+
+    @GetMapping("/guest/{guestToken}/signals")
+    public ResponseEntity<ApiResponse<List<WebRtcSignalDto>>> getCandidateSignals(
+            @PathVariable("guestToken") String guestToken,
+            @RequestParam(name = "since", defaultValue = "0") long since) {
+        Long sessionId = signalingService.getSessionIdFromGuestToken(guestToken);
+        if (sessionId == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid guest token"));
+        }
+        return ResponseEntity.ok(ApiResponse.success(signalingService.getSignals(sessionId, since, "CANDIDATE")));
+    }
+
+    @PostMapping("/{id}/signal")
+    public ResponseEntity<ApiResponse<WebRtcSignalDto>> postInterviewerSignal(
+            @PathVariable("id") Long id,
+            @RequestBody WebRtcSignalDto signal) {
+        signal.setSenderType("INTERVIEWER");
+        return ResponseEntity.ok(ApiResponse.success(signalingService.postSignal(id, signal)));
+    }
+
+    @GetMapping("/{id}/signals")
+    public ResponseEntity<ApiResponse<List<WebRtcSignalDto>>> getInterviewerSignals(
+            @PathVariable("id") Long id,
+            @RequestParam(name = "since", defaultValue = "0") long since) {
+        return ResponseEntity.ok(ApiResponse.success(signalingService.getSignals(id, since, "INTERVIEWER")));
     }
 }

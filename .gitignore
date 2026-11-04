@@ -8,6 +8,8 @@
 
 # Java / Maven
 backend/target/
+backend/bin/
+bin/
 **/*.class
 *.jar
 *.war

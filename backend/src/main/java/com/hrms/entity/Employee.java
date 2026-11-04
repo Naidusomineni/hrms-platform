@@ -148,7 +148,7 @@ public class Employee extends BaseTenantEntity {
     private Boolean deleted = false;
 
     // ── Relationships ─────────────────────────────────────────────
-    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", unique = true)
     @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "employee", "refreshTokens", "loginHistory", "notifications", "password"})
     private User user;

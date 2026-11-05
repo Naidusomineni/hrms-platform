@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
-import { Bell, Search, Moon, Sun } from 'lucide-react'
-import { toggleTheme } from '../../store/slices/uiSlice'
+import { Bell, Search, Moon, Sun, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { toggleSidebar, toggleTheme } from '../../store/slices/uiSlice'
 import { notificationAPI } from '../../api/notificationAPI'
 import { clsx } from 'clsx'
 
@@ -17,7 +17,7 @@ const Topbar = () => {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const { user } = useSelector(s => s.auth)
-  const { theme } = useSelector(s => s.ui)
+  const { theme, sidebarOpen } = useSelector(s => s.ui)
   const { tenant } = useSelector(s => s.tenant)
   const [unreadCount, setUnreadCount] = useState(0)
 
@@ -34,11 +34,21 @@ const Topbar = () => {
 
   return (
     <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-6 shrink-0 shadow-sm">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">{pageTitle}</h1>
-        <p className="text-xs text-slate-400 dark:text-slate-400">
-          {new Date().toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
-        </p>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => dispatch(toggleSidebar())}
+          className="p-2 -ml-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+          title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          aria-label="Toggle sidebar"
+        >
+          {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+        </button>
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">{pageTitle}</h1>
+          <p className="text-xs text-slate-400 dark:text-slate-400">
+            {new Date().toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
+          </p>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

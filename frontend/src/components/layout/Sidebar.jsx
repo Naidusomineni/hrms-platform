@@ -118,18 +118,21 @@ const Sidebar = () => {
 
   return (
     <aside className={clsx(
-      'fixed left-0 top-0 h-full bg-slate-900 text-white flex flex-col z-40 transition-all duration-300',
+      'fixed left-0 top-0 h-full bg-slate-900 text-white flex flex-col z-40 transition-all duration-300 shadow-xl',
       sidebarOpen ? 'w-64' : 'w-16'
     )}>
       {/* Logo & Tenant Identity */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-slate-800">
+      <div className={clsx(
+        "flex items-center h-16 border-b border-slate-800 transition-all duration-300 shrink-0",
+        sidebarOpen ? "justify-between px-4" : "justify-center px-2"
+      )}>
         {sidebarOpen ? (
-          <div className="flex items-center gap-2.5 overflow-hidden">
+          <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
             {tenant?.logoUrl ? (
               <img
                 src={tenant.logoUrl}
                 alt={tenant.name || 'Company Logo'}
-                className="h-8 max-w-[120px] object-contain rounded bg-white/10 p-0.5"
+                className="h-8 max-w-[120px] object-contain rounded bg-white/10 p-0.5 shrink-0"
                 onError={(e) => { e.currentTarget.style.display = 'none' }}
               />
             ) : (
@@ -137,7 +140,7 @@ const Sidebar = () => {
                 {tenant?.name ? tenant.name.charAt(0).toUpperCase() : <Briefcase size={16} className="text-white" />}
               </div>
             )}
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <span className="font-bold text-white text-sm block truncate" title={tenant?.name || 'HRMS'}>
                 {tenant?.name || 'HRMS'}
               </span>
@@ -147,43 +150,57 @@ const Sidebar = () => {
             </div>
           </div>
         ) : (
-          <div className="mx-auto">
-            {tenant?.logoUrl ? (
-              <img
-                src={tenant.logoUrl}
-                alt="Logo"
-                className="w-7 h-7 object-contain rounded bg-white/10 p-0.5"
-                onError={(e) => { e.currentTarget.style.display = 'none' }}
-              />
-            ) : (
-              <div className="w-7 h-7 gradient-primary rounded-lg flex items-center justify-center shadow font-bold text-white text-xs">
-                {tenant?.name ? tenant.name.charAt(0).toUpperCase() : 'H'}
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => dispatch(toggleSidebar())}
+            title={tenant?.name || 'Expand Sidebar'}
+            className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-md text-white font-bold text-sm cursor-pointer hover:scale-105 transition-all group relative shrink-0"
+          >
+            {tenant?.name ? tenant.name.charAt(0).toUpperCase() : 'H'}
+            <div className="fixed left-16 ml-3 px-2.5 py-1.5 bg-slate-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-50 transition-opacity shadow-xl border border-slate-700 font-normal">
+              {tenant?.name || 'Expand Sidebar'}
+            </div>
+          </button>
         )}
-        <button onClick={() => dispatch(toggleSidebar())}
-          className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors ml-auto text-slate-400 hover:text-white">
-          {sidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-        </button>
+
+        {sidebarOpen && (
+          <button
+            onClick={() => dispatch(toggleSidebar())}
+            className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors text-slate-400 hover:text-white shrink-0 ml-2"
+            title="Collapse Sidebar"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 space-y-0.5 overflow-y-auto px-2">
+      <nav className={clsx(
+        "flex-1 py-3 space-y-1 transition-all overflow-x-hidden",
+        sidebarOpen ? "overflow-y-auto sidebar-scroll px-3" : "overflow-y-auto no-scrollbar px-2"
+      )}>
         {visibleNav.map(item => {
           const Icon = item.icon
           return (
-            <NavLink key={item.path} to={item.path} title={!sidebarOpen ? item.label : undefined}
+            <NavLink
+              key={item.path}
+              to={item.path}
+              title={!sidebarOpen ? item.label : undefined}
               className={({ isActive }) => clsx(
-                'sidebar-link group relative',
-                isActive ? 'sidebar-link-active' : 'sidebar-link-inactive'
-              )}>
+                'group relative transition-all duration-150 flex items-center font-medium text-sm',
+                sidebarOpen
+                  ? 'gap-3 px-3 py-2.5 rounded-xl'
+                  : 'justify-center w-10 h-10 mx-auto rounded-xl p-0',
+                isActive
+                  ? 'bg-primary-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+              )}
+            >
               <Icon size={19} className="shrink-0" />
-              {sidebarOpen && <span>{item.label}</span>}
+              {sidebarOpen && <span className="truncate">{item.label}</span>}
               {!sidebarOpen && (
-                <div className="absolute left-full ml-2 px-2.5 py-1.5 bg-slate-800 text-white text-xs
+                <div className="fixed left-16 ml-3 px-2.5 py-1.5 bg-slate-800 text-white text-xs
                   rounded-lg opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none
-                  z-50 transition-opacity shadow-xl border border-slate-700">
+                  z-50 transition-opacity shadow-xl border border-slate-700 font-medium">
                   {item.label}
                 </div>
               )}
@@ -193,10 +210,40 @@ const Sidebar = () => {
       </nav>
 
       {/* User info + Logout */}
-      <div className="border-t border-slate-800 p-3">
-        {sidebarOpen && user && (
-          <div className="flex items-center gap-3 mb-3 px-2 py-2.5 rounded-xl bg-slate-800">
-            <div className="w-8 h-8 rounded-lg overflow-hidden bg-primary-600 flex items-center justify-center font-bold text-xs shrink-0 text-white border border-slate-700">
+      <div className={clsx(
+        "border-t border-slate-800 transition-all shrink-0",
+        sidebarOpen ? "p-3" : "py-3 px-2 flex flex-col items-center gap-2"
+      )}>
+        {sidebarOpen ? (
+          user && (
+            <div className="flex items-center gap-3 mb-3 px-2 py-2.5 rounded-xl bg-slate-800/90 border border-slate-750">
+              <div className="w-8 h-8 rounded-lg overflow-hidden bg-primary-600 flex items-center justify-center font-bold text-xs shrink-0 text-white border border-slate-700">
+                {user.profilePicture ? (
+                  <img
+                    src={user.profilePicture}
+                    alt={user.fullName || 'User'}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  />
+                ) : (
+                  <span>{user.fullName?.charAt(0) || 'U'}</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-white truncate">{user.fullName}</p>
+                <span className={clsx('text-[10px] px-1.5 py-0.5 rounded font-semibold', roleColors[roleLabel] || roleColors.EMPLOYEE)}>
+                  {roleLabel}
+                </span>
+              </div>
+            </div>
+          )
+        ) : (
+          user && (
+            <div
+              className="w-10 h-10 rounded-xl overflow-hidden bg-primary-600 flex items-center justify-center font-bold text-xs shrink-0 text-white border border-slate-700 cursor-pointer group relative shadow-sm"
+              title={`${user.fullName} (${roleLabel})`}
+              onClick={() => navigate('/profile')}
+            >
               {user.profilePicture ? (
                 <img
                   src={user.profilePicture}
@@ -207,22 +254,31 @@ const Sidebar = () => {
               ) : (
                 <span>{user.fullName?.charAt(0) || 'U'}</span>
               )}
+              <div className="fixed left-16 ml-3 px-2.5 py-1.5 bg-slate-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-50 transition-opacity shadow-xl border border-slate-700">
+                {user.fullName} <span className="text-slate-400">({roleLabel})</span>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-white truncate">{user.fullName}</p>
-              <span className={clsx('text-[10px] px-1.5 py-0.5 rounded font-semibold', roleColors[roleLabel] || roleColors.EMPLOYEE)}>
-                {roleLabel}
-              </span>
-            </div>
-          </div>
+          )
         )}
-        <button onClick={handleLogoutClick}
+
+        <button
+          onClick={handleLogoutClick}
           disabled={loggingOut}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-slate-400
-            hover:bg-red-500/10 hover:text-red-400 transition-all duration-200 text-sm font-medium cursor-pointer"
-          title={!sidebarOpen ? 'Logout' : undefined}>
+          className={clsx(
+            "transition-all duration-200 text-slate-400 hover:bg-red-500/10 hover:text-red-400 font-medium cursor-pointer flex items-center",
+            sidebarOpen
+              ? "gap-3 w-full px-3 py-2.5 rounded-xl text-sm"
+              : "justify-center w-10 h-10 mx-auto rounded-xl p-0 group relative"
+          )}
+          title={!sidebarOpen ? 'Logout' : undefined}
+        >
           <LogOut size={18} className="shrink-0" />
           {sidebarOpen && <span>{loggingOut ? 'Signing out…' : 'Logout'}</span>}
+          {!sidebarOpen && (
+            <div className="fixed left-16 ml-3 px-2.5 py-1.5 bg-slate-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-50 transition-opacity shadow-xl border border-slate-700">
+              Logout
+            </div>
+          )}
         </button>
       </div>
 

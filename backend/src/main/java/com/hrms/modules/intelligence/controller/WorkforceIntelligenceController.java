@@ -9,9 +9,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -58,6 +60,19 @@ public class WorkforceIntelligenceController {
     public ResponseEntity<ApiResponse<HrPolicyArticle>> createPolicy(@Valid @RequestBody HrPolicyRequest request) {
         HrPolicyArticle created = intelligenceService.createPolicy(request);
         return ResponseEntity.ok(ApiResponse.success("HR Policy article created successfully", created));
+    }
+
+    @Operation(summary = "Upload and ingest corporate HR policy document (PDF/DOCX/TXT/MD)")
+    @PostMapping(value = "/policies/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<HrPolicyArticle>> uploadPolicyDocument(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "category", defaultValue = "GENERAL") String category,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "actionLabel", required = false) String actionLabel,
+            @RequestParam(value = "actionRoute", required = false) String actionRoute) {
+        HrPolicyArticle created = intelligenceService.uploadPolicyDocument(file, category, title, actionLabel, actionRoute);
+        return ResponseEntity.ok(ApiResponse.success("HR policy document ingested successfully into AI Copilot", created));
     }
 
     @Operation(summary = "Update corporate HR policy article")

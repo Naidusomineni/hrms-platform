@@ -26,7 +26,8 @@ import {
   Edit2,
   Trash2,
   BookOpen,
-  Tag
+  Tag,
+  UploadCloud
 } from 'lucide-react'
 import { intelligenceAPI } from '../../../api/intelligenceAPI'
 import { recruitmentAPI } from '../../../api/recruitmentAPI'
@@ -76,6 +77,15 @@ export default function WorkforceIntelligencePage() {
     isActive: true
   })
   const [savingPolicy, setSavingPolicy] = useState(false)
+
+  // Policy Document Ingestion State
+  const [docUploadModalOpen, setDocUploadModalOpen] = useState(false)
+  const [uploadingDoc, setUploadingDoc] = useState(false)
+  const [docFile, setDocFile] = useState(null)
+  const [docCategory, setDocCategory] = useState('ATTENDANCE_LEAVE')
+  const [docTitle, setDocTitle] = useState('')
+  const [docActionLabel, setDocActionLabel] = useState('Review Policy')
+  const [docActionRoute, setDocActionRoute] = useState('/intelligence')
 
   // Attrition Risk State
   const [attritionList, setAttritionList] = useState([])
@@ -166,6 +176,34 @@ export default function WorkforceIntelligencePage() {
       toast.error(err?.response?.data?.message || 'Failed to save policy article')
     } finally {
       setSavingPolicy(false)
+    }
+  }
+
+  const handleUploadDoc = async (e) => {
+    e.preventDefault()
+    if (!docFile) {
+      toast.error('Please select a document file (.docx, .pdf, .txt, .md)')
+      return
+    }
+    setUploadingDoc(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', docFile)
+      formData.append('category', docCategory)
+      if (docTitle.trim()) formData.append('title', docTitle.trim())
+      if (docActionLabel.trim()) formData.append('actionLabel', docActionLabel.trim())
+      if (docActionRoute.trim()) formData.append('actionRoute', docActionRoute.trim())
+
+      await intelligenceAPI.uploadPolicyDocument(formData)
+      toast.success(`Policy document "${docFile.name}" ingested and indexed into HR Copilot!`)
+      setDocUploadModalOpen(false)
+      setDocFile(null)
+      setDocTitle('')
+      fetchPolicies()
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to ingest document into HR Copilot')
+    } finally {
+      setUploadingDoc(false)
     }
   }
 
@@ -938,15 +976,26 @@ export default function WorkforceIntelligencePage() {
               </select>
             </div>
             {isHrOrAdmin && (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleOpenCreatePolicy}
-                className="w-full sm:w-auto"
-              >
-                <Plus className="h-4 w-4 mr-1.5" />
-                New Policy Article
-              </Button>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setDocUploadModalOpen(true)}
+                  className="w-full sm:w-auto text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                >
+                  <UploadCloud className="h-4 w-4 mr-1.5" />
+                  Ingest Policy Document
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleOpenCreatePolicy}
+                  className="w-full sm:w-auto"
+                >
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  New Policy Article
+                </Button>
+              </div>
             )}
           </div>
 
@@ -1129,6 +1178,139 @@ export default function WorkforceIntelligencePage() {
                 <label htmlFor="isActivePolicy" className="text-xs text-slate-700 font-medium">
                   Active (Available for AI Copilot queries & employee portal)
                 </label>
+              </div>
+            </form>
+          </Modal>
+
+          {/* Document Ingestion Modal */}
+          <Modal
+            isOpen={docUploadModalOpen}
+            onClose={() => {
+              setDocUploadModalOpen(false)
+              setDocFile(null)
+            }}
+            title="Ingest Corporate Policy Document into AI Copilot"
+            size="md"
+            footer={
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setDocUploadModalOpen(false)
+                    setDocFile(null)
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  form="ingest-policy-form"
+                  type="submit"
+                  loading={uploadingDoc}
+                  disabled={!docFile}
+                >
+                  <UploadCloud className="h-4 w-4 mr-1.5" />
+                  Ingest & Index
+                </Button>
+              </div>
+            }
+          >
+            <form id="ingest-policy-form" onSubmit={handleUploadDoc} className="space-y-4 text-xs">
+              <div>
+                <label className="label font-medium text-slate-700">Document File (.docx, .pdf, .txt, .md) *</label>
+                <div className="mt-1 border-2 border-dashed border-slate-300 hover:border-indigo-400 rounded-xl p-4 text-center cursor-pointer bg-slate-50 transition-colors">
+                  <input
+                    type="file"
+                    id="policyFileInput"
+                    className="hidden"
+                    accept=".docx,.pdf,.txt,.md,.markdown"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) {
+                        setDocFile(e.target.files[0])
+                        if (!docTitle) {
+                          const base = e.target.files[0].name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ')
+                          setDocTitle(base)
+                        }
+                      }
+                    }}
+                  />
+                  <label htmlFor="policyFileInput" className="cursor-pointer block">
+                    <UploadCloud className="h-8 w-8 text-indigo-500 mx-auto mb-2" />
+                    {docFile ? (
+                      <div>
+                        <p className="font-semibold text-slate-800 text-sm">{docFile.name}</p>
+                        <p className="text-[11px] text-slate-500">{(docFile.size / 1024).toFixed(1)} KB — Ready to extract</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="font-medium text-slate-700">Click to select or drag and drop corporate document</p>
+                        <p className="text-[11px] text-slate-400 mt-1">Supports Word (.docx), PDF (.pdf), Text (.txt), and Markdown (.md)</p>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Category *</label>
+                  <select
+                    value={docCategory}
+                    onChange={(e) => setDocCategory(e.target.value)}
+                    className="input bg-white"
+                    required
+                  >
+                    <option value="ATTENDANCE_LEAVE">Attendance & Leaves</option>
+                    <option value="COMPENSATION_PAYROLL">Compensation & Payroll</option>
+                    <option value="CODE_OF_CONDUCT">Code of Conduct & Ethics</option>
+                    <option value="STATUTORY_BENEFITS">Statutory Benefits & Insurance</option>
+                    <option value="PERFORMANCE_APPRAISAL">Performance Appraisal</option>
+                    <option value="GENERAL_HR_INQUIRY">General HR Policy</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Document / Article Title (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="Auto-derived from filename if left blank"
+                    value={docTitle}
+                    onChange={(e) => setDocTitle(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Quick Action Label</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Apply for Benefit"
+                    value={docActionLabel}
+                    onChange={(e) => setDocActionLabel(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="label">Quick Action Route</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. /leaves or /requests"
+                    value={docActionRoute}
+                    onChange={(e) => setDocActionRoute(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg text-indigo-800 text-[11px] space-y-1">
+                <p className="font-semibold flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                  Automated AI Copilot Ingestion Pipeline
+                </p>
+                <p className="text-indigo-700">
+                  During ingestion, the system automatically parses text paragraphs, generates an executive summary, and extracts top domain keywords into tenant-isolated knowledge storage for real-time semantic query answering.
+                </p>
               </div>
             </form>
           </Modal>

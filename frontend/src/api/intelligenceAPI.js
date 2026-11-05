@@ -18,6 +18,11 @@ export const intelligenceAPI = {
   createPolicy: (data) =>
     apiClient.post('/v1/intelligence/policies', data),
 
+  uploadPolicyDocument: (formData) =>
+    apiClient.post('/v1/intelligence/policies/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+
   updatePolicy: (id, data) =>
     apiClient.put(`/v1/intelligence/policies/${id}`, data),
 

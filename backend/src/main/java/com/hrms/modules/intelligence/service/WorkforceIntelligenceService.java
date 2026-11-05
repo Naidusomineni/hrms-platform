@@ -25,6 +25,14 @@ public interface WorkforceIntelligenceService {
 
     HrPolicyArticle createPolicy(HrPolicyRequest request);
 
+    HrPolicyArticle uploadPolicyDocument(
+            org.springframework.web.multipart.MultipartFile file,
+            String category,
+            String title,
+            String actionLabel,
+            String actionRoute
+    );
+
     HrPolicyArticle updatePolicy(Long id, HrPolicyRequest request);
 
     void deletePolicy(Long id);

@@ -3,8 +3,10 @@ package com.hrms.modules.intelligence.service.impl;
 import com.hrms.entity.Candidate;
 import com.hrms.entity.Employee;
 import com.hrms.entity.JobPosting;
+import com.hrms.exception.BadRequestException;
 import com.hrms.exception.ResourceNotFoundException;
 import com.hrms.infrastructure.multitenancy.context.TenantContext;
+import org.springframework.web.multipart.MultipartFile;
 import com.hrms.modules.intelligence.dto.*;
 import com.hrms.modules.intelligence.entity.FlightRiskEvaluation;
 import com.hrms.modules.intelligence.entity.HrPolicyArticle;
@@ -546,6 +548,79 @@ public class WorkforceIntelligenceServiceImpl implements WorkforceIntelligenceSe
     }
 
     @Override
+    public HrPolicyArticle uploadPolicyDocument(
+            MultipartFile file,
+            String category,
+            String title,
+            String actionLabel,
+            String actionRoute
+    ) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("Uploaded document file cannot be empty");
+        }
+
+        String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "Policy_Document.txt";
+        String lowerName = originalFilename.toLowerCase();
+        String extractedText = "";
+
+        try {
+            if (lowerName.endsWith(".docx")) {
+                try (var is = file.getInputStream();
+                     var doc = new org.apache.poi.xwpf.usermodel.XWPFDocument(is);
+                     var extractor = new org.apache.poi.xwpf.extractor.XWPFWordExtractor(doc)) {
+                    extractedText = extractor.getText();
+                }
+            } else if (lowerName.endsWith(".pdf")) {
+                extractedText = extractTextFromPdf(file.getBytes());
+            } else {
+                extractedText = new String(file.getBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse policy document {}: {}", originalFilename, e.getMessage(), e);
+            throw new BadRequestException("Failed to read document content: " + e.getMessage());
+        }
+
+        extractedText = extractedText.trim();
+        if (extractedText.isEmpty()) {
+            throw new BadRequestException("Extracted content from document is empty. Please check the file formatting.");
+        }
+
+        // Determine title
+        String effectiveTitle = (title != null && !title.isBlank()) ? title.trim() : null;
+        if (effectiveTitle == null) {
+            effectiveTitle = originalFilename.replaceAll("\\.[^.]+$", "").replace('_', ' ').replace('-', ' ').trim();
+            if (effectiveTitle.isEmpty()) {
+                effectiveTitle = "Corporate Policy Document " + LocalDate.now();
+            }
+        }
+
+        // Auto-extract Summary & Keywords
+        String effectiveSummary = extractSummary(extractedText);
+        String effectiveKeywords = extractKeywords(extractedText, effectiveTitle);
+        String effectiveCategory = (category != null && !category.isBlank()) ? category.trim() : "GENERAL";
+
+        String effectiveActionLabel = (actionLabel != null && !actionLabel.isBlank()) ? actionLabel.trim() : "Review Policy";
+        String effectiveActionRoute = (actionRoute != null && !actionRoute.isBlank()) ? actionRoute.trim() : "/intelligence";
+
+        HrPolicyArticle article = HrPolicyArticle.builder()
+                .category(effectiveCategory)
+                .title(effectiveTitle)
+                .summary(effectiveSummary)
+                .content(extractedText)
+                .keywords(effectiveKeywords)
+                .actionLabel(effectiveActionLabel)
+                .actionRoute(effectiveActionRoute)
+                .isActive(true)
+                .build();
+        article.setTenantId(getTenantId());
+
+        log.info("Successfully ingested document '{}' (category: {}, keywords: [{}]) into HR Copilot for tenant '{}'",
+                effectiveTitle, effectiveCategory, effectiveKeywords, article.getTenantId());
+
+        return hrPolicyArticleRepository.save(article);
+    }
+
+    @Override
     public HrPolicyArticle updatePolicy(Long id, HrPolicyRequest request) {
         String tenantId = getTenantId();
         HrPolicyArticle article = hrPolicyArticleRepository.findByIdAndTenantId(id, tenantId)
@@ -595,6 +670,55 @@ public class WorkforceIntelligenceServiceImpl implements WorkforceIntelligenceSe
     private String getTenantId() {
         String tenantId = TenantContext.getTenantId();
         return (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+    }
+
+    private String extractSummary(String text) {
+        String[] lines = text.split("\\r?\\n");
+        StringBuilder sb = new StringBuilder();
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.length() > 20 && !trimmed.startsWith("#") && !trimmed.startsWith("==")) {
+                sb.append(trimmed).append(" ");
+                if (sb.length() > 200) break;
+            }
+        }
+        if (sb.length() == 0) {
+            return text.length() > 250 ? text.substring(0, 247) + "..." : text;
+        }
+        String res = sb.toString().trim();
+        return res.length() > 280 ? res.substring(0, 277) + "..." : res;
+    }
+
+    private String extractKeywords(String text, String title) {
+        Set<String> tokens = new LinkedHashSet<>();
+        String combined = (title + " " + (text.length() > 3000 ? text.substring(0, 3000) : text)).toLowerCase();
+        String[] words = combined.split("\\W+");
+        for (String w : words) {
+            if (w.length() >= 4 && !STOP_WORDS.contains(w) && !w.matches("\\d+")) {
+                tokens.add(w);
+                if (tokens.size() >= 12) break;
+            }
+        }
+        return String.join(", ", tokens);
+    }
+
+    private String extractTextFromPdf(byte[] pdfBytes) {
+        StringBuilder sb = new StringBuilder();
+        String raw = new String(pdfBytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\(([^\\)]+)\\)\\s*Tj").matcher(raw);
+        while (m.find()) {
+            sb.append(m.group(1)).append(" ");
+        }
+        if (sb.length() < 30) {
+            java.util.regex.Matcher wordMatcher = java.util.regex.Pattern.compile("[A-Za-z0-9,.:;\"'\\-\\s]{4,}").matcher(raw);
+            while (wordMatcher.find()) {
+                String candidate = wordMatcher.group().trim();
+                if (!candidate.contains("Obj") && !candidate.contains("endobj") && !candidate.contains("stream") && !candidate.contains("Filter")) {
+                    sb.append(candidate).append("\n");
+                }
+            }
+        }
+        return sb.length() > 0 ? sb.toString() : "PDF Policy Document Content";
     }
 
     private static final Set<String> STOP_WORDS = Set.of(

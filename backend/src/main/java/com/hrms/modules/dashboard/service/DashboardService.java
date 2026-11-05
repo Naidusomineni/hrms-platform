@@ -2,6 +2,7 @@ package com.hrms.modules.dashboard.service;
 
 import com.hrms.dto.response.*;
 import com.hrms.enums.AttendanceStatus;
+import com.hrms.enums.EmploymentStatus;
 import com.hrms.enums.LeaveStatus;
 import com.hrms.modules.employee.service.EmployeeService;
 import com.hrms.repository.*;
@@ -27,31 +28,41 @@ public class DashboardService {
 
     public DashboardStats getAdminDashboard() {
         LocalDate today = LocalDate.now();
+        String tenantId = com.hrms.infrastructure.multitenancy.context.TenantContext.getTenantId();
 
-        long totalEmp = employeeRepository.count();
-        long activeEmp = employeeRepository.countActive();
-        long totalDepts = departmentRepository.count();
+        long totalEmp = (tenantId != null && !tenantId.isBlank())
+                ? employeeRepository.countByTenantId(tenantId)
+                : employeeRepository.count();
+        long activeEmp = (tenantId != null && !tenantId.isBlank())
+                ? employeeRepository.countByTenantIdAndEmploymentStatus(tenantId, EmploymentStatus.ACTIVE)
+                : employeeRepository.countActive();
+        long totalDepts = (tenantId != null && !tenantId.isBlank())
+                ? departmentRepository.countByTenantId(tenantId)
+                : departmentRepository.count();
 
-        long presentToday = attendanceRepository.countByDateAndStatus(today, AttendanceStatus.PRESENT);
-        long absentToday  = attendanceRepository.countByDateAndStatus(today, AttendanceStatus.ABSENT);
-        long onLeaveToday = attendanceRepository.countByDateAndStatus(today, AttendanceStatus.ON_LEAVE);
-        long pendingLeaves = leaveRepository.countByStatus(LeaveStatus.PENDING);
-        long openJobs = jobPostingRepository.countByStatus("OPEN");
+        long presentToday = attendanceRepository.countByTenantIdAndDateAndStatus(tenantId, today, AttendanceStatus.PRESENT);
+        long absentToday  = attendanceRepository.countByTenantIdAndDateAndStatus(tenantId, today, AttendanceStatus.ABSENT);
+        long onLeaveToday = attendanceRepository.countByTenantIdAndDateAndStatus(tenantId, today, AttendanceStatus.ON_LEAVE);
+        long pendingLeaves = leaveRepository.countByTenantIdAndStatus(tenantId, LeaveStatus.PENDING);
+        long openJobs = (tenantId != null && !tenantId.isBlank())
+                ? jobPostingRepository.countByTenantIdAndStatus(tenantId, "OPEN")
+                : jobPostingRepository.countByStatus("OPEN");
 
-        // Employees by department map
+        // Employees by department map (scoped to tenant)
         Map<String, Long> byDept = new LinkedHashMap<>();
-        employeeRepository.countByDepartment().forEach(r -> byDept.put((String)r[0], (Long)r[1]));
+        employeeRepository.countByDepartmentForTenant(tenantId).forEach(r -> byDept.put((String) r[0], (Long) r[1]));
 
-        // Headcount trend: last 6 months (simplified — uses joined employees)
+        // Headcount trend: last 6 months (dynamically calculated based on joined and retained employees)
         Map<String, Long> trend = new LinkedHashMap<>();
         for (int i = 5; i >= 0; i--) {
             YearMonth ym = YearMonth.now().minusMonths(i);
-            trend.put(ym.getMonth().name().substring(0, 3), 0L); // placeholder
+            LocalDate endOfMonth = ym.atEndOfMonth();
+            Long headcount = employeeRepository.countHeadcountAtDate(tenantId, endOfMonth);
+            trend.put(ym.getMonth().name().substring(0, 3) + " " + ym.getYear(), headcount != null ? headcount : 0L);
         }
 
         // Recent hires
-        String tenantId = com.hrms.infrastructure.multitenancy.context.TenantContext.getTenantId();
-        var recentHires = (tenantId != null
+        var recentHires = (tenantId != null && !tenantId.isBlank()
             ? employeeRepository.findByTenantId(tenantId, PageRequest.of(0, 5, Sort.by("dateOfJoining").descending()))
             : employeeRepository.findAll(PageRequest.of(0, 5, Sort.by("dateOfJoining").descending())))
             .stream().map(employeeService::toResponse).collect(Collectors.toList());
@@ -61,8 +72,8 @@ public class DashboardService {
         int startDay = today.getDayOfYear();
         int endDay = nextWeek.getDayOfYear();
         List<Map<String, Object>> birthdays = (endDay >= startDay
-            ? employeeRepository.findUpcomingBirthdaysBetween(startDay, endDay)
-            : employeeRepository.findUpcomingBirthdaysWrap(startDay, endDay))
+            ? employeeRepository.findUpcomingBirthdaysBetweenForTenant(tenantId, startDay, endDay)
+            : employeeRepository.findUpcomingBirthdaysWrapForTenant(tenantId, startDay, endDay))
             .stream()
             .map(e -> {
                 Map<String, Object> m = new LinkedHashMap<>();

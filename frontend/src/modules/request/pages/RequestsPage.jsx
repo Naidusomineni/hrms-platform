@@ -22,8 +22,11 @@ export default function RequestsPage() {
   const fetchRequests = async () => {
     try {
       setLoading(true)
-      const empId = user?.employeeId || 2
-      const res = await requestAPI.getForEmployee(empId)
+      if (!user?.employeeId) {
+        setRequests([])
+        return
+      }
+      const res = await requestAPI.getForEmployee(user.employeeId)
       setRequests(res.data.data?.content || [])
     } catch (err) {
       toast.error('Failed to load requests')
@@ -34,14 +37,18 @@ export default function RequestsPage() {
 
   useEffect(() => {
     fetchRequests()
-  }, [])
+  }, [user?.employeeId])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (!user?.employeeId) {
+      toast.error('Employee profile not linked yet')
+      return
+    }
     try {
       setSubmitting(true)
       await requestAPI.create({
-        employeeId: user?.employeeId || 2,
+        employeeId: user.employeeId,
         requestType,
         title,
         startDate: startDate || null,

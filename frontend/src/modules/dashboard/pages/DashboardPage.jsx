@@ -59,6 +59,10 @@ const DashboardPage = () => {
     ? Object.entries(stats.employeesByDepartment).map(([name, count]) => ({ name, count }))
     : []
 
+  const trendData = stats?.headcountTrend
+    ? Object.entries(stats.headcountTrend).map(([month, count]) => ({ month, count }))
+    : []
+
   const attendanceData = [
     { name: 'Present', value: Number(stats?.presentToday || 0), color: '#10b981' },
     { name: 'Absent', value: Number(stats?.absentToday || 0), color: '#ef4444' },
@@ -106,7 +110,7 @@ const DashboardPage = () => {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Department Bar Chart */}
-        <div className="lg:col-span-2 card">
+        <div className="card">
           <CardHeader>
             <h3 className="font-bold text-slate-800">Employees by Department</h3>
             <p className="text-sm text-slate-400 mt-0.5">Headcount distribution</p>
@@ -114,7 +118,7 @@ const DashboardPage = () => {
           <CardBody>
             {deptData.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={deptData} margin={{ top:5, right:20, left:0, bottom:5 }}>
+                <BarChart data={deptData} margin={{ top:5, right:15, left:-15, bottom:5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="name" tick={{ fontSize:11, fill:'#94a3b8' }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fontSize:11, fill:'#94a3b8' }} tickLine={false} axisLine={false} />
@@ -126,6 +130,35 @@ const DashboardPage = () => {
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-48 text-slate-400 text-sm">No department data yet</div>
+            )}
+          </CardBody>
+        </div>
+
+        {/* Headcount Trend Area Chart */}
+        <div className="card">
+          <CardHeader>
+            <h3 className="font-bold text-slate-800">Headcount Trend</h3>
+            <p className="text-sm text-slate-400 mt-0.5">Trailing 6-month growth</p>
+          </CardHeader>
+          <CardBody>
+            {trendData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={trendData} margin={{ top:5, right:15, left:-15, bottom:5 }}>
+                  <defs>
+                    <linearGradient id="headcountGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="month" tick={{ fontSize:10, fill:'#94a3b8' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize:11, fill:'#94a3b8' }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ borderRadius:'12px', border:'none', boxShadow:'0 4px 24px rgba(0,0,0,0.1)', fontSize:'13px' }} />
+                  <Area type="monotone" dataKey="count" stroke="#2563eb" strokeWidth={2.5} fillOpacity={1} fill="url(#headcountGrad)" name="Headcount" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-48 text-slate-400 text-sm">No trend data yet</div>
             )}
           </CardBody>
         </div>

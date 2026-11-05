@@ -59,6 +59,11 @@ public class PerformanceController {
                 performanceService.updateGoalProgress(id, progress, status)));
     }
 
+    @GetMapping("/reviews")
+    public ResponseEntity<ApiResponse<List<PerformanceReviewDto>>> getAllReviews() {
+        return ResponseEntity.ok(ApiResponse.success(performanceService.getAllReviews()));
+    }
+
     @GetMapping("/reviews/employee/{empId}")
     public ResponseEntity<ApiResponse<List<PerformanceReviewDto>>> getReviews(@PathVariable("empId") Long empId) {
         return ResponseEntity.ok(ApiResponse.success(performanceService.getReviewsForEmployee(empId)));

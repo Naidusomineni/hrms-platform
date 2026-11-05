@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useSelector } from 'react-redux'
 import { interviewAPI } from '../../../api/interviewAPI'
 import { employeeAPI } from '../../../api/employeeAPI'
 import { Button, Badge, Spinner, Card } from '../../../components/common/index.jsx'
@@ -7,7 +8,7 @@ import {
   Video, Mic, MicOff, VideoOff, ScreenShare, PhoneOff, ShieldCheck,
   AlertTriangle, Star, CheckCircle, FileText, Code, Check, ArrowRight,
   Maximize2, Eye, User, Users, UserPlus, Link2, Copy, Briefcase, RefreshCw, Lock, Sparkles, ExternalLink,
-  MessageSquare, Send, X
+  MessageSquare, Send, X, Layout, Grid, Pin, PinOff, Minimize2, PanelRightClose, PanelRightOpen, Volume2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -46,6 +47,154 @@ const safeJsonParse = (data) => {
   }
 }
 
+const VideoTile = ({
+  participant,
+  isLocal,
+  localVideoRef,
+  isSpotlight = false,
+  onSpotlight,
+  canSpotlight = false
+}) => {
+  const remoteRef = useRef(null)
+
+  useEffect(() => {
+    if (!isLocal && remoteRef.current && participant.stream) {
+      if (remoteRef.current.srcObject !== participant.stream) {
+        remoteRef.current.srcObject = participant.stream
+      }
+      remoteRef.current.play().catch(e => console.debug('Autoplay notice:', e))
+    }
+  }, [isLocal, participant.stream])
+
+  return (
+    <div
+      className={`relative w-full h-full bg-slate-900 rounded-2xl overflow-hidden border transition-all duration-300 flex items-center justify-center shadow-xl group select-none ${
+        isSpotlight
+          ? 'border-indigo-500/80 ring-2 ring-indigo-500/30 shadow-indigo-950/40'
+          : 'border-slate-800/90 hover:border-slate-700/80'
+      }`}
+    >
+      {/* Video Feed */}
+      {isLocal ? (
+        <video
+          ref={localVideoRef}
+          autoPlay
+          playsInline
+          muted
+          className={`w-full h-full object-cover transform -scale-x-100 transition-opacity duration-300 ${
+            participant.cameraActive ? 'opacity-100' : 'opacity-0 absolute pointer-events-none'
+          }`}
+        />
+      ) : (
+        <video
+          ref={remoteRef}
+          autoPlay
+          playsInline
+          className={`w-full h-full object-cover transition-opacity duration-300 ${
+            participant.cameraActive ? 'opacity-100' : 'opacity-0 absolute pointer-events-none'
+          }`}
+        />
+      )}
+
+      {/* Subtle Cinema Vignette Overlay */}
+      <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/75 via-transparent to-black/30" />
+
+      {/* Camera Off Monogram Card */}
+      {!participant.cameraActive && (
+        <div className="flex flex-col items-center justify-center p-6 text-center select-none z-10">
+          <div className="relative mb-3">
+            <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 border border-indigo-500/30 flex items-center justify-center shadow-2xl">
+              <span className="text-2xl sm:text-3xl font-black text-white tracking-wider">
+                {(participant.name || 'P').charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="absolute -bottom-1 -right-1 p-1 bg-slate-900 rounded-full border border-slate-700 shadow-md">
+              <VideoOff size={13} className="text-amber-400" />
+            </div>
+          </div>
+          <span className="text-sm font-bold text-white drop-shadow-sm">{participant.name}</span>
+          <span className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1.5 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Camera muted
+          </span>
+        </div>
+      )}
+
+      {/* Top Left: Corporate Role & Spotlight Badges */}
+      <div className="absolute top-3 left-3 flex items-center gap-1.5 z-10 pointer-events-auto">
+        <span
+          className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1.5 shadow-md backdrop-blur-md ${
+            participant.role === 'CANDIDATE'
+              ? 'bg-emerald-950/85 text-emerald-300 border border-emerald-500/40'
+              : isLocal
+              ? 'bg-indigo-950/85 text-indigo-300 border border-indigo-500/40'
+              : 'bg-purple-950/85 text-purple-300 border border-purple-500/40'
+          }`}
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              participant.cameraActive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'
+            }`}
+          />
+          {participant.role === 'CANDIDATE' ? 'Candidate' : isLocal ? 'Lead (You)' : 'Panelist'}
+        </span>
+
+        {isSpotlight && (
+          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 backdrop-blur-md shadow-sm">
+            <Pin size={10} className="fill-amber-400 text-amber-400" /> Spotlight
+          </span>
+        )}
+      </div>
+
+      {/* Top Right: Mic Equalizer & Pin Controls */}
+      <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10 pointer-events-auto">
+        {canSpotlight && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onSpotlight && onSpotlight(participant.peerId)
+            }}
+            className="p-1.5 rounded-lg bg-slate-950/75 hover:bg-indigo-600 border border-slate-700/60 text-slate-300 hover:text-white transition-all opacity-0 group-hover:opacity-100 cursor-pointer shadow-md backdrop-blur-md"
+            title={isSpotlight ? 'Unpin participant' : 'Spotlight this participant'}
+          >
+            <Pin size={13} className={isSpotlight ? 'text-amber-400 fill-amber-400' : ''} />
+          </button>
+        )}
+
+        <div
+          className={`p-1.5 rounded-lg border backdrop-blur-md transition-all shadow-md ${
+            participant.micActive
+              ? 'bg-slate-950/80 border-slate-700/60 text-emerald-400'
+              : 'bg-rose-950/80 border-rose-600/50 text-rose-400'
+          }`}
+        >
+          {participant.micActive ? (
+            <div className="flex items-end gap-0.5 h-3 px-0.5" title="Microphone Active">
+              <span className="w-0.5 h-2 bg-emerald-400 rounded-full animate-pulse" />
+              <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+              <span className="w-0.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+            </div>
+          ) : (
+            <MicOff size={13} title="Microphone Muted" />
+          )}
+        </div>
+      </div>
+
+      {/* Bottom Left: Name Tag with HD status */}
+      <div className="absolute bottom-3 left-3 bg-slate-950/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-700/70 flex items-center gap-2 text-xs text-white z-10 shadow-lg">
+        <span className="font-semibold text-xs text-slate-100 truncate max-w-[160px]">
+          {participant.name}
+        </span>
+        {participant.cameraActive && (
+          <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 rounded">
+            HD
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const LiveInterviewRoomPage = ({ isGuest = false }) => {
   const params = useParams()
   const navigate = useNavigate()
@@ -58,25 +207,85 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
   const [session, setSession] = useState(null)
   const [callEndedBySelf, setCallEndedBySelf] = useState(false)
 
+  const { user } = useSelector(s => s.auth || {})
+
+  // Stable Unique Peer Identity
+  const myIdentity = useMemo(() => {
+    if (isGuest) {
+      return `cand-${guestToken || 'guest'}`
+    }
+    const uid = user?.id || user?.employeeId || (Math.floor(Math.random() * 8999) + 1000)
+    return `int-${uid}`
+  }, [isGuest, guestToken, user])
+
+  const myName = useMemo(() => {
+    if (isGuest) {
+      return session?.candidateName || 'Candidate'
+    }
+    return user?.fullName || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : null) || session?.interviewerName || 'Interviewer'
+  }, [isGuest, session, user])
+
   // Media & WebRTC states
   const [micActive, setMicActive] = useState(true)
   const [cameraActive, setCameraActive] = useState(true)
   const [isScreenSharing, setIsScreenSharing] = useState(false)
   const [roomConnected, setRoomConnected] = useState(false)
-  const [remoteStreamActive, setRemoteStreamActive] = useState(false)
-  const [participantCount, setParticipantCount] = useState(1)
+  const [remoteParticipants, setRemoteParticipants] = useState({})
 
   // Stream elements
   const localVideoRef = useRef(null)
-  const remoteVideoRef = useRef(null)
   const localStreamRef = useRef(null)
-  const peerConnectionRef = useRef(null)
+  const peerConnectionsRef = useRef(new Map())
+  const pendingIceRef = useRef(new Map())
+  const makingOfferMapRef = useRef(new Map())
   const pollingIntervalRef = useRef(null)
   const lastSignalTimeRef = useRef(0)
-  const pendingIceCandidatesRef = useRef([])
   const seenSignalsRef = useRef(new Set())
-  const makingOfferRef = useRef(false)
   const heartbeatCounterRef = useRef(0)
+
+  // Derived Participants List
+  const localParticipant = useMemo(() => ({
+    peerId: myIdentity,
+    name: `${myName} (You)`,
+    role: isGuest ? 'CANDIDATE' : 'INTERVIEWER',
+    isLocal: true,
+    stream: localStreamRef.current,
+    cameraActive,
+    micActive
+  }), [myIdentity, myName, isGuest, cameraActive, micActive])
+
+  const allParticipants = useMemo(() => {
+    return [localParticipant, ...Object.values(remoteParticipants)]
+  }, [localParticipant, remoteParticipants])
+
+  const participantCount = allParticipants.length
+
+  // Corporate SaaS Layout States
+  const [layoutMode, setLayoutMode] = useState('spotlight') // 'spotlight' | 'grid'
+  const [spotlightPeerId, setSpotlightPeerId] = useState(null)
+  const [isWorkspaceCollapsed, setIsWorkspaceCollapsed] = useState(false)
+
+  const candidateParticipant = useMemo(() => {
+    return allParticipants.find(p => p.role === 'CANDIDATE')
+  }, [allParticipants])
+
+  const effectiveSpotlightId = useMemo(() => {
+    if (spotlightPeerId && allParticipants.some(p => p.peerId === spotlightPeerId)) {
+      return spotlightPeerId
+    }
+    // In an interview room, the candidate is always spotlighted by default
+    if (candidateParticipant) return candidateParticipant.peerId
+    const firstRemote = allParticipants.find(p => !p.isLocal)
+    return firstRemote ? firstRemote.peerId : myIdentity
+  }, [spotlightPeerId, allParticipants, candidateParticipant, myIdentity])
+
+  const spotlightParticipant = useMemo(() => {
+    return allParticipants.find(p => p.peerId === effectiveSpotlightId) || allParticipants[0]
+  }, [allParticipants, effectiveSpotlightId])
+
+  const filmstripParticipants = useMemo(() => {
+    return allParticipants.filter(p => p.peerId !== effectiveSpotlightId)
+  }, [allParticipants, effectiveSpotlightId])
 
   // Chat states
   const [messages, setMessages] = useState([
@@ -231,12 +440,12 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     }
   }, [cameraActive])
 
-  // Document-wide interaction listener to satisfy browser autoplay policies for remote incoming video/audio
+  // Document-wide interaction listener to satisfy browser autoplay policies for incoming video/audio
   useEffect(() => {
     const handleUserGesture = () => {
-      if (remoteVideoRef.current && remoteVideoRef.current.paused && remoteStreamActive) {
-        remoteVideoRef.current.play().catch(e => console.debug('Autoplay deferred:', e))
-      }
+      document.querySelectorAll('video').forEach(v => {
+        if (v.paused) v.play().catch(() => {})
+      })
     }
     window.addEventListener('click', handleUserGesture)
     window.addEventListener('touchstart', handleUserGesture)
@@ -244,7 +453,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
       window.removeEventListener('click', handleUserGesture)
       window.removeEventListener('touchstart', handleUserGesture)
     }
-  }, [remoteStreamActive])
+  }, [])
 
   useEffect(() => {
     if (chatBottomRef.current) {
@@ -265,17 +474,17 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     }
   }
 
-  const sendSignal = async (type, payload) => {
+  const sendSignal = async (type, payload, targetIdentity = '*') => {
     try {
       const activeToken = session?.guestAccessToken || guestToken
-      const myName = isGuest
-        ? (session?.candidateName || 'Candidate')
-        : (session?.interviewerName || 'Interviewer')
 
       const sig = {
         signalType: type,
         payload: typeof payload === 'string' ? payload : JSON.stringify(payload),
-        senderName: myName
+        senderName: myName,
+        senderIdentity: myIdentity,
+        senderType: isGuest ? 'CANDIDATE' : 'INTERVIEWER',
+        targetIdentity: targetIdentity || '*'
       }
 
       if (isGuest) {
@@ -286,7 +495,6 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
       }
     } catch (err) {
       console.warn('Signal dispatch notice:', err)
-      throw err
     }
   }
 
@@ -349,6 +557,107 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     }
   }
 
+  const getOrCreatePeerConnection = (peerId, peerName, peerRole) => {
+    if (!peerId || peerId === myIdentity) return null
+
+    if (peerConnectionsRef.current.has(peerId)) {
+      return peerConnectionsRef.current.get(peerId)
+    }
+
+    const pc = new RTCPeerConnection(RTC_CONFIG)
+    peerConnectionsRef.current.set(peerId, pc)
+    if (!pendingIceRef.current.has(peerId)) {
+      pendingIceRef.current.set(peerId, [])
+    }
+    makingOfferMapRef.current.set(peerId, false)
+
+    // Add local tracks to this peer connection
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        try {
+          pc.addTrack(track, localStreamRef.current)
+        } catch (e) {
+          console.debug(`Track attach notice for ${peerId}:`, e)
+        }
+      })
+    }
+
+    // Ensure video & audio transceivers exist
+    const transceivers = pc.getTransceivers()
+    if (!transceivers.some(t => t.receiver?.track?.kind === 'video')) {
+      pc.addTransceiver('video', {
+        direction: localStreamRef.current?.getVideoTracks()?.length ? 'sendrecv' : 'recvonly'
+      })
+    }
+    if (!transceivers.some(t => t.receiver?.track?.kind === 'audio')) {
+      pc.addTransceiver('audio', {
+        direction: localStreamRef.current?.getAudioTracks()?.length ? 'sendrecv' : 'recvonly'
+      })
+    }
+
+    // Handle remote tracks from this specific peer
+    pc.ontrack = (event) => {
+      console.log(`Received track from ${peerId} (${peerName}):`, event.track.kind)
+      let stream = event.streams && event.streams[0] ? event.streams[0] : null
+      if (!stream) {
+        stream = new MediaStream()
+        stream.addTrack(event.track)
+      }
+      setRemoteParticipants(prev => {
+        const existing = prev[peerId] || {
+          peerId,
+          name: peerName || 'Participant',
+          role: peerRole || 'INTERVIEWER',
+          cameraActive: true,
+          micActive: true
+        }
+        return {
+          ...prev,
+          [peerId]: {
+            ...existing,
+            stream: stream,
+            cameraActive: true,
+            micActive: true
+          }
+        }
+      })
+      setRoomConnected(true)
+    }
+
+    // ICE Candidate targeted to this specific peer
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        sendSignal('ICE', JSON.stringify(event.candidate), peerId)
+      }
+    }
+
+    pc.onconnectionstatechange = () => {
+      console.log(`WebRTC state with ${peerId} (${peerName}):`, pc.connectionState)
+      if (pc.connectionState === 'connected') {
+        setRoomConnected(true)
+      }
+    }
+
+    return pc
+  }
+
+  const negotiateOffer = async (peerId, pc) => {
+    if (!pc || makingOfferMapRef.current.get(peerId)) return
+    if (pc.signalingState !== 'stable') return
+
+    try {
+      makingOfferMapRef.current.set(peerId, true)
+      console.log(`Creating WebRTC offer for ${peerId} (tiebreaker winner: ${myIdentity})...`)
+      const offer = await pc.createOffer()
+      await pc.setLocalDescription(offer)
+      await sendSignal('OFFER', JSON.stringify(offer), peerId)
+    } catch (err) {
+      console.warn(`Offer generation failed for ${peerId}:`, err)
+    } finally {
+      makingOfferMapRef.current.set(peerId, false)
+    }
+  }
+
   const connectNativeWebRTC = async (currentSession) => {
     try {
       // 1. Acquire media stream (inherit seamless handover from lobby if candidate)
@@ -393,104 +702,26 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         setMicActive(false)
       }
 
-      // 2. Initialize native RTCPeerConnection with STUN + TURN
-      const pc = new RTCPeerConnection(RTC_CONFIG)
-      peerConnectionRef.current = pc
+      // 2. Announce presence to all room participants
+      await sendSignal('JOIN', {
+        isGuest,
+        senderName: myName,
+        senderIdentity: myIdentity,
+        senderType: isGuest ? 'CANDIDATE' : 'INTERVIEWER',
+        cameraActive: !!stream?.getVideoTracks()?.length,
+        micActive: !!stream?.getAudioTracks()?.length,
+        timestamp: Date.now()
+      })
 
-      // Add local tracks if present
-      if (stream) {
-        stream.getTracks().forEach(track => pc.addTrack(track, stream))
-      }
-
-      // Always configure transceivers for receiving video & audio
-      // This is essential so a PC without a camera can receive the candidate's mobile video
-      const transceivers = pc.getTransceivers()
-      if (!transceivers.some(t => t.receiver?.track?.kind === 'video')) {
-        pc.addTransceiver('video', { direction: stream?.getVideoTracks()?.length ? 'sendrecv' : 'recvonly' })
-      }
-      if (!transceivers.some(t => t.receiver?.track?.kind === 'audio')) {
-        pc.addTransceiver('audio', { direction: stream?.getAudioTracks()?.length ? 'sendrecv' : 'recvonly' })
-      }
-
-      // 3. Listen for incoming remote video and audio tracks
-      pc.ontrack = (event) => {
-        console.log('Received remote track:', event.track.kind)
-        let remoteStream = remoteVideoRef.current?.srcObject
-        if (!remoteStream || !(remoteStream instanceof MediaStream)) {
-          remoteStream = event.streams && event.streams[0] ? event.streams[0] : new MediaStream()
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = remoteStream
-          }
-        }
-        if (!remoteStream.getTrackById(event.track.id)) {
-          try {
-            remoteStream.addTrack(event.track)
-          } catch (e) {
-            console.debug('Add track notice:', e)
-          }
-        }
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.play().catch(e => console.debug('Remote video play notice:', e))
-        }
-        setRemoteStreamActive(true)
-        setRoomConnected(true)
-        setParticipantCount(2)
-      }
-
-      // 4. ICE candidate exchange
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          sendSignal('ICE', JSON.stringify(event.candidate))
-        }
-      }
-
-      pc.onconnectionstatechange = () => {
-        console.log('WebRTC Connection state:', pc.connectionState)
-        if (pc.connectionState === 'connected') {
-          setRoomConnected(true)
-          setRemoteStreamActive(true)
-          setParticipantCount(2)
-          toast.success('Direct live call connected!')
-        } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-          setRemoteStreamActive(false)
-        }
-      }
-
-      // 5. Send JOIN notification to signal other participant
-      await sendSignal('JOIN', { isGuest, timestamp: Date.now() })
-
-      // 6. Start continuous signaling polling loop
-      startSignaling(pc)
+      // 3. Start multi-peer signaling loop
+      startSignaling()
     } catch (err) {
       console.warn('WebRTC initialization notice:', err)
       setRoomConnected(true)
     }
   }
 
-  const renegotiate = async (reason = 'renegotiate') => {
-    const pc = peerConnectionRef.current
-    if (!pc) return
-
-    if (!isGuest) {
-      if (pc.signalingState === 'stable' && !makingOfferRef.current) {
-        try {
-          makingOfferRef.current = true
-          console.log(`Renegotiating WebRTC offer (${reason})...`)
-          const offer = await pc.createOffer()
-          await pc.setLocalDescription(offer)
-          await sendSignal('OFFER', JSON.stringify(offer))
-        } catch (err) {
-          console.warn('Renegotiation failed:', err)
-        } finally {
-          makingOfferRef.current = false
-        }
-      }
-    } else {
-      sendSignal('REQUEST_OFFER', { reason, timestamp: Date.now() }).catch(() => {})
-    }
-  }
-
-  const startSignaling = (pc) => {
+  const startSignaling = () => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current)
     }
@@ -512,8 +743,8 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         const querySince = Math.max(0, lastSignalTimeRef.current - 5000)
         const activeToken = session?.guestAccessToken || guestToken
         const res = isGuest
-          ? await interviewAPI.getCandidateSignals(activeToken, querySince)
-          : await interviewAPI.getInterviewerSignals(sessionId, querySince)
+          ? await interviewAPI.getCandidateSignals(activeToken, querySince, myIdentity)
+          : await interviewAPI.getInterviewerSignals(sessionId, querySince, myIdentity)
 
         const signalList = res.data?.data || []
         for (const sig of signalList) {
@@ -528,120 +759,160 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
             lastSignalTimeRef.current = sig.timestamp
           }
 
+          // Ignore own echo
+          if (sig.senderIdentity && sig.senderIdentity === myIdentity) {
+            continue
+          }
+
+          // Targeted signal filtering: if signal is destined for another peer, skip
+          if (sig.targetIdentity && sig.targetIdentity !== '*' && sig.targetIdentity !== myIdentity) {
+            continue
+          }
+
+          const senderPeerId = sig.senderIdentity || (sig.senderType === 'CANDIDATE' ? 'cand-guest' : 'int-lead')
+          const senderName = sig.senderName || (sig.senderType === 'CANDIDATE' ? 'Candidate' : 'Interviewer')
+          const senderRole = sig.senderType || 'INTERVIEWER'
+
           if (sig.signalType === 'JOIN' || sig.signalType === 'HEARTBEAT') {
-            setParticipantCount(2)
-            // When remote participant is detected, interviewer initiates WebRTC offer
-            if (!isGuest && pc.signalingState === 'stable' && !makingOfferRef.current && pc.connectionState !== 'connected') {
-              try {
-                makingOfferRef.current = true
-                const offer = await pc.createOffer()
-                await pc.setLocalDescription(offer)
-                await sendSignal('OFFER', JSON.stringify(offer))
-              } catch (offerErr) {
-                console.warn('Failed to create offer:', offerErr)
-              } finally {
-                makingOfferRef.current = false
+            let cam = true
+            let mic = true
+            try {
+              const payloadObj = safeJsonParse(sig.payload)
+              if (payloadObj && typeof payloadObj === 'object') {
+                if (typeof payloadObj.cameraActive === 'boolean') cam = payloadObj.cameraActive
+                if (typeof payloadObj.micActive === 'boolean') mic = payloadObj.micActive
               }
-            } else if (isGuest && pc.connectionState !== 'connected' && pc.signalingState === 'stable') {
-              // If candidate sees interviewer but call is not yet connected after a few seconds, nudge offer
-              if (heartbeatCounterRef.current % 4 === 0) {
-                sendSignal('REQUEST_OFFER', { timestamp: Date.now() }).catch(() => {})
+            } catch (e) {}
+
+            setRemoteParticipants(prev => {
+              const existing = prev[senderPeerId] || {}
+              return {
+                ...prev,
+                [senderPeerId]: {
+                  peerId: senderPeerId,
+                  name: senderName,
+                  role: senderRole,
+                  stream: existing.stream || null,
+                  cameraActive: typeof existing.cameraActive === 'boolean' ? existing.cameraActive : cam,
+                  micActive: typeof existing.micActive === 'boolean' ? existing.micActive : mic
+                }
               }
-            }
-          } else if (sig.signalType === 'REQUEST_OFFER') {
-            if (!isGuest && pc.signalingState === 'stable' && !makingOfferRef.current) {
-              try {
-                makingOfferRef.current = true
-                console.log('Interviewer generating offer upon peer request...')
-                const offer = await pc.createOffer()
-                await pc.setLocalDescription(offer)
-                await sendSignal('OFFER', JSON.stringify(offer))
-              } catch (offerErr) {
-                console.warn('Failed to create offer on request:', offerErr)
-              } finally {
-                makingOfferRef.current = false
+            })
+
+            const pc = getOrCreatePeerConnection(senderPeerId, senderName, senderRole)
+            if (pc) {
+              // Deterministic tie-breaker: offerer is the one with smaller identity string
+              if (myIdentity < senderPeerId && pc.signalingState === 'stable' && pc.connectionState !== 'connected') {
+                await negotiateOffer(senderPeerId, pc)
               }
             }
           } else if (sig.signalType === 'OFFER') {
-            try {
-              const offerDescInit = safeJsonParse(sig.payload)
-              if (!offerDescInit) return
-              const offerDesc = new RTCSessionDescription(offerDescInit)
-              const isCollision = (pc.signalingState !== 'stable') || makingOfferRef.current
-              if (isCollision) {
-                if (isGuest) {
-                  await Promise.all([
-                    pc.setLocalDescription({ type: 'rollback' }),
-                    pc.setRemoteDescription(offerDesc)
-                  ])
-                } else {
-                  return
-                }
-              } else {
-                await pc.setRemoteDescription(offerDesc)
-              }
+            const pc = getOrCreatePeerConnection(senderPeerId, senderName, senderRole)
+            if (pc) {
+              try {
+                const offerDescInit = safeJsonParse(sig.payload)
+                if (offerDescInit) {
+                  const offerDesc = new RTCSessionDescription(offerDescInit)
+                  if (pc.signalingState !== 'stable') {
+                    await pc.setLocalDescription({ type: 'rollback' })
+                  }
+                  await pc.setRemoteDescription(offerDesc)
 
-              // Flush pending queued ICE candidates
-              while (pendingIceCandidatesRef.current.length > 0) {
-                const candData = pendingIceCandidatesRef.current.shift()
-                try {
-                  await pc.addIceCandidate(new RTCIceCandidate(candData))
-                } catch (e) {}
-              }
-
-              const answer = await pc.createAnswer()
-              await pc.setLocalDescription(answer)
-              await sendSignal('ANSWER', JSON.stringify(answer))
-            } catch (ansErr) {
-              console.warn('Failed to answer offer:', ansErr)
-            }
-          } else if (sig.signalType === 'ANSWER') {
-            try {
-              if (pc.signalingState === 'have-local-offer') {
-                const answerDescInit = safeJsonParse(sig.payload)
-                if (answerDescInit) {
-                  const answerDesc = new RTCSessionDescription(answerDescInit)
-                  await pc.setRemoteDescription(answerDesc)
-
-                  // Flush pending queued ICE candidates
-                  while (pendingIceCandidatesRef.current.length > 0) {
-                    const candData = pendingIceCandidatesRef.current.shift()
+                  // Flush pending queued ICE candidates for this peer
+                  const pending = pendingIceRef.current.get(senderPeerId) || []
+                  while (pending.length > 0) {
+                    const candData = pending.shift()
                     try {
                       await pc.addIceCandidate(new RTCIceCandidate(candData))
-                    } catch (e) {}
+                    } catch (iceErr) {}
+                  }
+
+                  const answer = await pc.createAnswer()
+                  await pc.setLocalDescription(answer)
+                  await sendSignal('ANSWER', JSON.stringify(answer), senderPeerId)
+                }
+              } catch (ansErr) {
+                console.warn(`Failed to answer offer from ${senderPeerId}:`, ansErr)
+              }
+            }
+          } else if (sig.signalType === 'ANSWER') {
+            const pc = peerConnectionsRef.current.get(senderPeerId)
+            if (pc && pc.signalingState === 'have-local-offer') {
+              try {
+                const answerDescInit = safeJsonParse(sig.payload)
+                if (answerDescInit) {
+                  await pc.setRemoteDescription(new RTCSessionDescription(answerDescInit))
+                  const pending = pendingIceRef.current.get(senderPeerId) || []
+                  while (pending.length > 0) {
+                    const candData = pending.shift()
+                    try {
+                      await pc.addIceCandidate(new RTCIceCandidate(candData))
+                    } catch (iceErr) {}
                   }
                 }
+              } catch (setAnsErr) {
+                console.warn(`Failed to set remote answer from ${senderPeerId}:`, setAnsErr)
               }
-            } catch (setAnsErr) {
-              console.warn('Failed to set remote description answer:', setAnsErr)
             }
           } else if (sig.signalType === 'ICE') {
+            const pc = getOrCreatePeerConnection(senderPeerId, senderName, senderRole)
             const candData = safeJsonParse(sig.payload)
-            if (candData) {
+            if (pc && candData) {
               if (pc.remoteDescription && pc.remoteDescription.type) {
                 try {
                   await pc.addIceCandidate(new RTCIceCandidate(candData))
                 } catch (iceErr) {
-                  console.warn('Failed to add ICE candidate:', iceErr)
+                  console.warn(`ICE add failure for ${senderPeerId}:`, iceErr)
                 }
               } else {
-                pendingIceCandidatesRef.current.push(candData)
+                const pending = pendingIceRef.current.get(senderPeerId) || []
+                pending.push(candData)
+                pendingIceRef.current.set(senderPeerId, pending)
               }
             }
+          } else if (sig.signalType === 'MEDIA_STATE') {
+            const mediaState = safeJsonParse(sig.payload)
+            if (mediaState) {
+              setRemoteParticipants(prev => {
+                if (!prev[senderPeerId]) return prev
+                return {
+                  ...prev,
+                  [senderPeerId]: {
+                    ...prev[senderPeerId],
+                    cameraActive: typeof mediaState.cameraActive === 'boolean' ? mediaState.cameraActive : prev[senderPeerId].cameraActive,
+                    micActive: typeof mediaState.micActive === 'boolean' ? mediaState.micActive : prev[senderPeerId].micActive
+                  }
+                }
+              })
+            }
+          } else if (sig.signalType === 'LEAVE') {
+            const pc = peerConnectionsRef.current.get(senderPeerId)
+            if (pc) {
+              pc.close()
+              peerConnectionsRef.current.delete(senderPeerId)
+            }
+            setRemoteParticipants(prev => {
+              const next = { ...prev }
+              delete next[senderPeerId]
+              return next
+            })
+            toast(`${senderName} left the interview.`)
           } else if (sig.signalType === 'CHAT') {
             let chatText = sig.payload
             let chatSender = sig.senderName || (sig.senderType === 'CANDIDATE' ? 'Candidate' : 'Interviewer')
             let chatType = sig.senderType
+            let chatSenderId = sig.senderIdentity
             try {
-              const parsed = JSON.parse(sig.payload)
+              const parsed = safeJsonParse(sig.payload)
               if (parsed && typeof parsed === 'object') {
                 if (parsed.text) chatText = parsed.text
                 if (parsed.senderName) chatSender = parsed.senderName
                 if (parsed.senderType) chatType = parsed.senderType
+                if (parsed.senderIdentity) chatSenderId = parsed.senderIdentity
               }
             } catch (e) {}
 
-            const newMsgId = sig.id || 'msg-' + Date.now()
+            const newMsgId = sig.id || 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6)
             setMessages(prev => {
               if (prev.some(m => m.id === newMsgId)) return prev
               return [
@@ -649,6 +920,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                 {
                   id: newMsgId,
                   senderName: chatSender,
+                  senderIdentity: chatSenderId,
                   senderType: chatType,
                   text: chatText,
                   timestamp: sig.timestamp
@@ -669,18 +941,17 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     if (!chatInput.trim()) return
 
     const text = chatInput.trim()
-    const myName = isGuest
-      ? (session?.candidateName || 'Candidate')
-      : (session?.interviewerName || 'Interviewer')
-    const myType = isGuest ? 'CANDIDATE' : 'INTERVIEWER'
     const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6)
+    const myType = isGuest ? 'CANDIDATE' : 'INTERVIEWER'
 
     const newMsg = {
       id: msgId,
       senderName: myName,
+      senderIdentity: myIdentity,
       senderType: myType,
       text,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      isSelf: true
     }
 
     seenSignalsRef.current.add(msgId)
@@ -692,31 +963,11 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         id: msgId,
         text,
         senderName: myName,
+        senderIdentity: myIdentity,
         senderType: myType
       }))
     } catch (err) {
       toast.error('Failed to send message.')
-    }
-  }
-
-  const requestMediaPermissions = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      localStreamRef.current = stream
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream
-      }
-      setCameraActive(true)
-      setMicActive(true)
-
-      if (peerConnectionRef.current) {
-        stream.getTracks().forEach(track => {
-          peerConnectionRef.current.addTrack(track, stream)
-        })
-      }
-      toast.success('Camera and microphone enabled!')
-    } catch (e) {
-      toast.error('Permission blocked. Click the lock/info icon in your address bar to allow Camera and Microphone.')
     }
   }
 
@@ -725,13 +976,17 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
       clearInterval(pollingIntervalRef.current)
       pollingIntervalRef.current = null
     }
+    sendSignal('LEAVE', { timestamp: Date.now() }).catch(() => {})
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(t => t.stop())
+      localStreamRef.current = null
     }
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close()
-      peerConnectionRef.current = null
-    }
+    peerConnectionsRef.current.forEach(pc => {
+      try { pc.close() } catch (e) {}
+    })
+    peerConnectionsRef.current.clear()
+    pendingIceRef.current.clear()
+    makingOfferMapRef.current.clear()
   }
 
   const toggleMic = async () => {
@@ -741,11 +996,11 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         const nextState = !aTrack.enabled
         aTrack.enabled = nextState
         setMicActive(nextState)
+        sendSignal('MEDIA_STATE', { cameraActive, micActive: nextState }).catch(() => {})
         toast(nextState ? 'Microphone unmuted' : 'Microphone muted')
         return
       }
     }
-    // Dynamic request for audio if not already running
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const track = stream.getAudioTracks()[0]
@@ -759,16 +1014,17 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
           })
         }
         localStreamRef.current.addTrack(track)
-        if (peerConnectionRef.current) {
-          const senders = peerConnectionRef.current.getSenders()
+        peerConnectionsRef.current.forEach(pc => {
+          const senders = pc.getSenders()
           const aSender = senders.find(s => s.track && s.track.kind === 'audio')
           if (aSender) {
             aSender.replaceTrack(track)
           } else {
-            peerConnectionRef.current.addTrack(track, localStreamRef.current)
+            pc.addTrack(track, localStreamRef.current)
           }
-        }
+        })
         setMicActive(true)
+        sendSignal('MEDIA_STATE', { cameraActive, micActive: true }).catch(() => {})
         toast.success('Microphone unmuted')
       }
     } catch (e) {
@@ -789,17 +1045,11 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
             localVideoRef.current.play().catch(() => {})
           }
         }
-        sendSignal('HEARTBEAT', {
-          isGuest,
-          cameraActive: nextState,
-          micActive,
-          timestamp: Date.now()
-        }).catch(() => {})
+        sendSignal('MEDIA_STATE', { cameraActive: nextState, micActive }).catch(() => {})
         toast(nextState ? 'Camera turned on' : 'Camera turned off')
         return
       }
     }
-    // Dynamic request for camera if not already running or track ended
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
@@ -819,25 +1069,21 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
           localVideoRef.current.srcObject = localStreamRef.current
           localVideoRef.current.play().catch(() => {})
         }
-        if (peerConnectionRef.current) {
-          const pc = peerConnectionRef.current
+        peerConnectionsRef.current.forEach(pc => {
           const transceivers = pc.getTransceivers()
           const vTransceiver = transceivers.find(t => 
             (t.sender?.track?.kind === 'video') ||
             (t.receiver?.track?.kind === 'video')
           )
-
           if (vTransceiver && vTransceiver.sender) {
             vTransceiver.direction = 'sendrecv'
-            await vTransceiver.sender.replaceTrack(track)
+            vTransceiver.sender.replaceTrack(track).catch(() => {})
           } else {
             pc.addTrack(track, localStreamRef.current)
           }
-
-          // Trigger WebRTC renegotiation
-          await renegotiate('camera_enabled')
-        }
+        })
         setCameraActive(true)
+        sendSignal('MEDIA_STATE', { cameraActive: true, micActive }).catch(() => {})
         toast.success('Camera enabled')
       }
     } catch (e) {
@@ -851,13 +1097,13 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true })
         const screenTrack = screenStream.getVideoTracks()[0]
 
-        if (peerConnectionRef.current) {
-          const senders = peerConnectionRef.current.getSenders()
+        peerConnectionsRef.current.forEach(pc => {
+          const senders = pc.getSenders()
           const vSender = senders.find(s => s.track && s.track.kind === 'video')
           if (vSender) {
-            await vSender.replaceTrack(screenTrack)
+            vSender.replaceTrack(screenTrack).catch(() => {})
           }
-        }
+        })
 
         setIsScreenSharing(true)
         screenTrack.onended = () => {
@@ -873,14 +1119,16 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
 
   const stopScreenShare = async () => {
     setIsScreenSharing(false)
-    if (localStreamRef.current && peerConnectionRef.current) {
+    if (localStreamRef.current) {
       const vTrack = localStreamRef.current.getVideoTracks()[0]
       if (vTrack) {
-        const senders = peerConnectionRef.current.getSenders()
-        const vSender = senders.find(s => s.track && s.track.kind === 'video')
-        if (vSender) {
-          await vSender.replaceTrack(vTrack)
-        }
+        peerConnectionsRef.current.forEach(pc => {
+          const senders = pc.getSenders()
+          const vSender = senders.find(s => s.track && s.track.kind === 'video')
+          if (vSender) {
+            vSender.replaceTrack(vTrack).catch(() => {})
+          }
+        })
       }
     }
   }
@@ -1001,6 +1249,53 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
             <span>{participantCount} In Call</span>
           </div>
 
+          {/* Corporate SaaS Layout Switcher (Spotlight vs Gallery) */}
+          <div className="hidden md:flex items-center bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/60 text-xs">
+            <button
+              onClick={() => setLayoutMode('spotlight')}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                layoutMode === 'spotlight' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+              }`}
+              title="Candidate Spotlight Mode (Candidate in focus with docked panel)"
+            >
+              <Layout size={12} /> Spotlight
+            </button>
+            <button
+              onClick={() => setLayoutMode('grid')}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                layoutMode === 'grid' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+              }`}
+              title="Gallery Grid Mode (Equal conference tiles)"
+            >
+              <Grid size={12} /> Gallery
+            </button>
+          </div>
+
+          {/* Workspace Expand / Collapse Split Button (Interviewer only) */}
+          {!isGuest && (
+            <button
+              onClick={() => setIsWorkspaceCollapsed(prev => !prev)}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                isWorkspaceCollapsed
+                  ? 'bg-indigo-600 hover:bg-indigo-700 border-indigo-500 text-white shadow-xs'
+                  : 'bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-slate-300 hover:text-white'
+              }`}
+              title={isWorkspaceCollapsed ? 'Show Evaluation Scorecard' : 'Maximize Video Stage (Full Width)'}
+            >
+              {isWorkspaceCollapsed ? (
+                <>
+                  <PanelRightOpen size={13} />
+                  <span className="hidden xl:inline">Show Scorecard</span>
+                </>
+              ) : (
+                <>
+                  <PanelRightClose size={13} />
+                  <span className="hidden xl:inline">Maximize Stage</span>
+                </>
+              )}
+            </button>
+          )}
+
           {/* Invite Co-Interviewer Button (Interviewer only) */}
           {!isGuest && (
             <Button
@@ -1010,7 +1305,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                 if (employeesList.length === 0) loadEmployees()
                 setInviteModalOpen(true)
               }}
-              className="bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-200 text-xs font-semibold flex items-center gap-1.5 px-2.5 py-1.5"
+              className="bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-200 text-xs font-semibold flex items-center gap-1.5 px-2.5 py-1.5 cursor-pointer"
             >
               <UserPlus size={13} /> + Invite Co-Interviewer
             </Button>
@@ -1022,7 +1317,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
               variant="primary"
               size="sm"
               onClick={() => setCompleteModalOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-xs font-bold flex items-center gap-1.5 px-3 py-1.5 shadow-xs"
+              className="bg-emerald-600 hover:bg-emerald-700 text-xs font-bold flex items-center gap-1.5 px-3 py-1.5 shadow-xs cursor-pointer"
             >
               <CheckCircle size={14} /> Finalize Interview
             </Button>
@@ -1030,48 +1325,39 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         </div>
       </header>
 
-      {/* ── Main Split View Container ──────────────────────────────── */}
+      {/* ── Main Corporate SaaS Split View Container ───────────────── */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Video Stage (60% for interviewer, 100% for candidate) */}
-        <div className={`flex flex-col flex-1 p-3 bg-slate-950 transition-all ${isGuest ? 'w-full' : 'lg:w-[60%]'}`}>
-          <div className="relative flex-1 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-inner">
-            {/* Remote Video Stream (Main Feed) */}
-            <div className="relative w-full h-full flex items-center justify-center bg-slate-950">
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                onLoadedMetadata={() => {
-                  if (remoteVideoRef.current) {
-                    remoteVideoRef.current.play().catch(e => console.debug('Autoplay deferred:', e))
-                  }
-                }}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${
-                  remoteStreamActive ? 'opacity-100' : 'opacity-0 absolute'
-                }`}
-              />
-
-              {/* Placeholder when remote participant is connecting */}
-              {!remoteStreamActive && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 p-6 text-center">
-                  <div className="w-20 h-20 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center mb-3 shadow-lg">
-                    <User size={36} className="text-slate-400" />
+        {/* Left Video Stage (60% for interviewer, 100% when collapsed or for candidate) */}
+        <div className={`flex flex-col flex-1 p-3.5 bg-slate-950 transition-all duration-300 ${
+          isGuest || isWorkspaceCollapsed ? 'w-full' : 'lg:w-[60%]'
+        }`}>
+          {/* Multi-Party Video Stage */}
+          <div className="relative flex-1 bg-slate-900/60 rounded-2xl overflow-hidden border border-slate-800 p-2.5 flex flex-col items-center justify-center shadow-inner">
+            {allParticipants.length === 1 ? (
+              // 1 Participant (Waiting Room)
+              <div className="relative w-full h-full flex flex-col items-center justify-center">
+                <div className="w-full max-w-2xl h-full max-h-[500px]">
+                  <VideoTile
+                    participant={localParticipant}
+                    isLocal={true}
+                    localVideoRef={localVideoRef}
+                  />
+                </div>
+                <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center rounded-2xl pointer-events-none">
+                  <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center mb-3 pointer-events-auto shadow-md shadow-indigo-500/10">
+                    <Users size={28} className="text-indigo-400 animate-pulse" />
                   </div>
-                  <p className="text-sm font-semibold text-slate-300">
-                    {participantCount >= 2
-                      ? 'Remote participant is in call! Establishing direct video feed...'
-                      : roomConnected
-                      ? 'Connected! Waiting for remote camera feed...'
-                      : 'Waiting for participant to join...'}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                  <h3 className="text-base font-bold text-white pointer-events-auto">
+                    {isGuest ? 'You are in the interview room' : 'Ready for interview'}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 max-w-sm pointer-events-auto leading-relaxed">
                     {isGuest
-                      ? 'You are in the room as the candidate. The interviewer will appear once they join.'
-                      : 'You are in the room as the evaluator. The candidate feed will display here once they enter.'}
+                      ? 'Waiting for interview panelist(s) to join. Your camera and audio are configured.'
+                      : 'Waiting for candidate and panelists to enter. The video grid will dynamically split as each person joins.'}
                   </p>
-                  {!isGuest && session?.meetingLink && participantCount < 2 && (
-                    <div className="mt-4 flex items-center gap-2 bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl">
-                      <span className="text-[11px] text-slate-300 font-mono truncate max-w-[220px]">
+                  {!isGuest && session?.meetingLink && (
+                    <div className="mt-4 flex items-center gap-2 bg-slate-900/90 border border-slate-700/80 px-3 py-1.5 rounded-xl pointer-events-auto shadow-lg">
+                      <span className="text-[11px] text-slate-300 font-mono truncate max-w-[240px]">
                         {session.meetingLink}
                       </span>
                       <button
@@ -1086,114 +1372,210 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                     </div>
                   )}
                 </div>
-              )}
-
-              {/* Remote Participant Name Tag */}
-              <div className="absolute bottom-4 left-4 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/80 flex items-center gap-2 text-xs z-10">
-                <span className={`w-2 h-2 rounded-full ${remoteStreamActive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                <span className="font-semibold text-white">
-                  {isGuest ? (session?.interviewerName || 'Interviewer') : (session?.candidateName || 'Candidate')}
-                </span>
-                {remoteStreamActive && <span className="text-[10px] text-emerald-400 font-medium">Live</span>}
               </div>
-            </div>
-
-            {/* PiP Local Video (Picture-in-Picture Self Feed) */}
-            <div className="absolute top-4 right-4 w-40 sm:w-48 aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-700 shadow-2xl z-10">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className={`w-full h-full object-cover transform -scale-x-100 transition-opacity duration-200 ${
-                  cameraActive ? 'opacity-100' : 'opacity-0 pointer-events-none absolute'
-                }`}
-              />
-              {!cameraActive && (
-                <div
-                  onClick={toggleCamera}
-                  className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer text-[10px] p-2 text-center"
-                  title="Click to enable Camera access"
-                >
-                  <VideoOff size={16} className="text-amber-400 mb-1" />
-                  <span className="font-bold text-white">Camera Off</span>
-                  <span className="text-[9px] text-indigo-400 underline mt-0.5">Click to Turn On</span>
+            ) : allParticipants.length === 2 ? (
+              // 2 Participants: Side-by-Side Split View (Widescreen 16:9 Tiles)
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full h-full">
+                {allParticipants.map(p => (
+                  <VideoTile
+                    key={p.peerId}
+                    participant={p}
+                    isLocal={p.isLocal}
+                    localVideoRef={localVideoRef}
+                    canSpotlight={true}
+                    isSpotlight={p.peerId === effectiveSpotlightId}
+                    onSpotlight={(id) => setSpotlightPeerId(id)}
+                  />
+                ))}
+              </div>
+            ) : layoutMode === 'spotlight' ? (
+              // 3+ Participants: Corporate Candidate Spotlight Mode
+              // (Candidate large on top in 16:9 cinematic aspect, Panelists docked below in widescreen cards)
+              <div className="flex flex-col h-full w-full">
+                {/* Spotlight Primary Stage */}
+                <div className="flex-1 min-h-0 w-full">
+                  <VideoTile
+                    participant={spotlightParticipant}
+                    isLocal={spotlightParticipant.isLocal}
+                    localVideoRef={localVideoRef}
+                    isSpotlight={true}
+                    canSpotlight={false}
+                  />
                 </div>
-              )}
-              <div className="absolute bottom-1.5 left-2 bg-slate-950/80 px-2 py-0.5 rounded text-[9px] font-bold text-white">
-                You ({isGuest ? 'Candidate' : 'Interviewer'})
+
+                {/* Docked Panel Filmstrip (16:9 Wide Cards for Panelists) */}
+                <div className="h-40 sm:h-44 shrink-0 grid grid-cols-2 gap-3.5 w-full mt-3">
+                  {filmstripParticipants.map(p => (
+                    <VideoTile
+                      key={p.peerId}
+                      participant={p}
+                      isLocal={p.isLocal}
+                      localVideoRef={localVideoRef}
+                      isSpotlight={false}
+                      canSpotlight={true}
+                      onSpotlight={(id) => setSpotlightPeerId(id)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              // 3+ Participants: Gallery Grid Mode (Row 1: Candidate, Row 2: Interviewers)
+              <div className="flex flex-col h-full w-full gap-3.5">
+                {/* Top Row: Candidate */}
+                <div className="flex-1 min-h-0 w-full flex items-center justify-center">
+                  <div className="w-full h-full max-w-4xl">
+                    <VideoTile
+                      participant={candidateParticipant || allParticipants[0]}
+                      isLocal={(candidateParticipant || allParticipants[0]).isLocal}
+                      localVideoRef={localVideoRef}
+                      canSpotlight={true}
+                      onSpotlight={(id) => {
+                        setSpotlightPeerId(id)
+                        setLayoutMode('spotlight')
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Bottom Row: 2 Panelists side-by-side */}
+                <div className="flex-1 min-h-0 grid grid-cols-2 gap-3.5 w-full">
+                  {allParticipants
+                    .filter(p => p.peerId !== (candidateParticipant || allParticipants[0]).peerId)
+                    .map(p => (
+                      <VideoTile
+                        key={p.peerId}
+                        participant={p}
+                        isLocal={p.isLocal}
+                        localVideoRef={localVideoRef}
+                        canSpotlight={true}
+                        onSpotlight={(id) => {
+                          setSpotlightPeerId(id)
+                          setLayoutMode('spotlight')
+                        }}
+                      />
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quick Re-open Scorecard Overlay Button when Stage is Maximized */}
+            {!isGuest && isWorkspaceCollapsed && (
+              <button
+                onClick={() => setIsWorkspaceCollapsed(false)}
+                className="absolute top-4 right-4 bg-slate-900/90 hover:bg-indigo-600 border border-slate-700/80 hover:border-indigo-500 text-slate-200 hover:text-white px-3 py-1.5 rounded-xl shadow-2xl backdrop-blur-md text-xs font-bold flex items-center gap-1.5 transition-all z-20 cursor-pointer"
+              >
+                <PanelRightOpen size={14} />
+                <span>Show Evaluation Scorecard</span>
+              </button>
+            )}
           </div>
 
-          {/* Bottom Floating Media Control Bar */}
-          <div className="h-16 flex items-center justify-center gap-3 mt-3">
-            <button
-              onClick={toggleMic}
-              className={`p-3 rounded-full transition-all shadow-md ${
-                micActive ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-rose-600 text-white hover:bg-rose-700'
-              }`}
-              title={micActive ? 'Mute Mic' : 'Unmute Mic'}
-            >
-              {micActive ? <Mic size={20} /> : <MicOff size={20} />}
-            </button>
+          {/* Bottom Floating Corporate SaaS Media Dock */}
+          <div className="h-16 flex items-center justify-center shrink-0 mt-3 z-20">
+            <div className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/70 rounded-2xl px-5 py-2 shadow-2xl flex items-center gap-3">
+              <button
+                onClick={toggleMic}
+                className={`p-3 rounded-xl transition-all shadow-sm flex items-center justify-center cursor-pointer ${
+                  micActive
+                    ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white'
+                    : 'bg-rose-600 text-white hover:bg-rose-700'
+                }`}
+                title={micActive ? 'Mute Mic' : 'Unmute Mic'}
+              >
+                {micActive ? <Mic size={18} /> : <MicOff size={18} />}
+              </button>
 
-            <button
-              onClick={toggleCamera}
-              className={`p-3 rounded-full transition-all shadow-md ${
-                cameraActive ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-rose-600 text-white hover:bg-rose-700'
-              }`}
-              title={cameraActive ? 'Turn Off Camera' : 'Turn On Camera'}
-            >
-              {cameraActive ? <Video size={20} /> : <VideoOff size={20} />}
-            </button>
+              <button
+                onClick={toggleCamera}
+                className={`p-3 rounded-xl transition-all shadow-sm flex items-center justify-center cursor-pointer ${
+                  cameraActive
+                    ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white'
+                    : 'bg-rose-600 text-white hover:bg-rose-700'
+                }`}
+                title={cameraActive ? 'Turn Off Camera' : 'Turn On Camera'}
+              >
+                {cameraActive ? <Video size={18} /> : <VideoOff size={18} />}
+              </button>
 
-            <button
-              onClick={toggleScreenShare}
-              className={`p-3 rounded-full transition-all shadow-md ${
-                isScreenSharing ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-white hover:bg-slate-700'
-              }`}
-              title="Share Screen"
-            >
-              <ScreenShare size={20} />
-            </button>
+              <button
+                onClick={toggleScreenShare}
+                className={`p-3 rounded-xl transition-all shadow-sm flex items-center justify-center cursor-pointer ${
+                  isScreenSharing
+                    ? 'bg-indigo-600 text-white ring-2 ring-indigo-400/40'
+                    : 'bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white'
+                }`}
+                title={isScreenSharing ? 'Stop Screen Sharing' : 'Share Screen'}
+              >
+                <ScreenShare size={18} />
+              </button>
 
-            {/* Mobile / Fullscreen Chat Toggle */}
-            <button
-              onClick={() => {
-                if (isGuest) {
-                  setShowMobileChat(prev => !prev)
-                } else {
-                  setActiveTab('chat')
-                }
-              }}
-              className="relative p-3 rounded-full bg-slate-800 text-white hover:bg-slate-700 transition-all shadow-md"
-              title="Open Chat"
-            >
-              <MessageSquare size={20} />
-              {messages.length > 1 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-indigo-500" />
+              {/* Layout Switcher */}
+              <button
+                onClick={() => setLayoutMode(prev => prev === 'spotlight' ? 'grid' : 'spotlight')}
+                className={`p-3 rounded-xl transition-all shadow-sm flex items-center justify-center cursor-pointer ${
+                  layoutMode === 'spotlight'
+                    ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white'
+                    : 'bg-indigo-600 text-white'
+                }`}
+                title={`Switch layout: currently ${layoutMode === 'spotlight' ? 'Spotlight' : 'Gallery'}`}
+              >
+                {layoutMode === 'spotlight' ? <Layout size={18} /> : <Grid size={18} />}
+              </button>
+
+              {/* Workspace Toggle (Interviewer only) */}
+              {!isGuest && (
+                <button
+                  onClick={() => setIsWorkspaceCollapsed(prev => !prev)}
+                  className={`p-3 rounded-xl transition-all shadow-sm flex items-center justify-center cursor-pointer ${
+                    !isWorkspaceCollapsed
+                      ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white'
+                      : 'bg-indigo-600 text-white ring-2 ring-indigo-400/40'
+                  }`}
+                  title={isWorkspaceCollapsed ? 'Show Evaluation Workspace' : 'Maximize Video Stage'}
+                >
+                  <FileText size={18} />
+                </button>
               )}
-            </button>
 
-            <button
-              onClick={handleLeaveCall}
-              className="p-3 rounded-full bg-rose-600 text-white hover:bg-rose-700 transition-all shadow-md"
-              title="Leave Room"
-            >
-              <PhoneOff size={20} />
-            </button>
+              {/* Mobile / Fullscreen Chat Toggle */}
+              <button
+                onClick={() => {
+                  if (isGuest) {
+                    setShowMobileChat(prev => !prev)
+                  } else {
+                    if (isWorkspaceCollapsed) setIsWorkspaceCollapsed(false)
+                    setActiveTab('chat')
+                  }
+                }}
+                className="relative p-3 rounded-xl bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white transition-all shadow-sm flex items-center justify-center cursor-pointer"
+                title="Open Chat"
+              >
+                <MessageSquare size={18} />
+                {messages.length > 1 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                )}
+              </button>
+
+              <button
+                onClick={handleLeaveCall}
+                className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                title="Leave Room"
+              >
+                <PhoneOff size={16} />
+                <span>Leave</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Right Evaluation & Workspace Panel (40% - Interviewer View Only) */}
-        {!isGuest && (
-          <div className="hidden lg:flex flex-col w-[40%] bg-slate-900 border-l border-slate-800">
-            {/* Tab Switcher */}
-            <div className="flex border-b border-slate-800 bg-slate-950/60 p-2 gap-1.5 text-xs font-semibold">
+        {/* Right Evaluation & Workspace Panel (40% - Interviewer View Only, Collapsible) */}
+        {!isGuest && !isWorkspaceCollapsed && (
+          <div className="hidden lg:flex flex-col w-[40%] bg-slate-900 border-l border-slate-800 animate-in slide-in-from-right duration-200">
+            {/* Tab Switcher & Collapse Header */}
+            <div className="flex items-center border-b border-slate-800 bg-slate-950/70 p-2 gap-1.5 text-xs font-semibold">
               <button
                 onClick={() => setActiveTab('scorecard')}
-                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   activeTab === 'scorecard' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -1201,15 +1583,15 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
               </button>
               <button
                 onClick={() => setActiveTab('chat')}
-                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   activeTab === 'chat' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <MessageSquare size={14} /> In-Call Chat ({messages.length})
+                <MessageSquare size={14} /> Chat ({messages.length})
               </button>
               <button
                 onClick={() => setActiveTab('resume')}
-                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   activeTab === 'resume' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -1217,11 +1599,20 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
               </button>
               <button
                 onClick={() => setActiveTab('scratchpad')}
-                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   activeTab === 'scratchpad' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <Code size={14} /> Scratchpad
+                <Code size={14} /> Code
+              </button>
+
+              {/* Close Panel Button */}
+              <button
+                onClick={() => setIsWorkspaceCollapsed(true)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors ml-1 cursor-pointer"
+                title="Collapse Panel (Maximize Video)"
+              >
+                <PanelRightClose size={15} />
               </button>
             </div>
 
@@ -1483,29 +1874,49 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
             {activeTab === 'chat' && (
               <div className="flex-1 flex flex-col p-4 overflow-hidden">
                 <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-                  {messages.map(msg => (
-                    <div
-                      key={msg.id}
-                      className={`flex flex-col ${
-                        msg.senderType === 'INTERVIEWER' ? 'items-end' : msg.senderType === 'SYSTEM' ? 'items-center' : 'items-start'
-                      }`}
-                    >
-                      {msg.senderType !== 'SYSTEM' && (
-                        <span className="text-[10px] text-slate-500 mb-0.5">{msg.senderName}</span>
-                      )}
+                  {messages.map(msg => {
+                    const isSelf = msg.senderIdentity === myIdentity || msg.isSelf
+                    return (
                       <div
-                        className={`max-w-[85%] px-3 py-2 rounded-xl text-xs ${
-                          msg.senderType === 'INTERVIEWER'
-                            ? 'bg-indigo-600 text-white rounded-br-xs'
-                            : msg.senderType === 'SYSTEM'
-                            ? 'bg-slate-800/80 text-slate-400 text-[10px] text-center'
-                            : 'bg-slate-800 text-slate-200 rounded-bl-xs'
+                        key={msg.id}
+                        className={`flex flex-col ${
+                          msg.senderType === 'SYSTEM'
+                            ? 'items-center'
+                            : isSelf
+                            ? 'items-end'
+                            : 'items-start'
                         }`}
                       >
-                        {msg.text}
+                        {msg.senderType !== 'SYSTEM' && (
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mb-0.5">
+                            <span className="font-semibold text-slate-300">
+                              {isSelf ? 'You' : msg.senderName}
+                            </span>
+                            <span className={`text-[9px] px-1 rounded font-bold ${
+                              msg.senderType === 'CANDIDATE'
+                                ? 'bg-blue-900/60 text-blue-300'
+                                : 'bg-purple-900/60 text-purple-300'
+                            }`}>
+                              {msg.senderType === 'CANDIDATE' ? 'Candidate' : 'Panelist'}
+                            </span>
+                          </div>
+                        )}
+                        <div
+                          className={`max-w-[85%] px-3 py-2 rounded-xl text-xs ${
+                            msg.senderType === 'SYSTEM'
+                              ? 'bg-slate-800/80 text-slate-400 text-[10px] text-center'
+                              : isSelf
+                              ? 'bg-indigo-600 text-white rounded-br-xs'
+                              : msg.senderType === 'CANDIDATE'
+                              ? 'bg-slate-800 text-slate-200 rounded-bl-xs'
+                              : 'bg-purple-950/60 border border-purple-800/50 text-purple-200 rounded-bl-xs'
+                          }`}
+                        >
+                          {msg.text}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   <div ref={chatBottomRef} />
                 </div>
 
@@ -1605,29 +2016,49 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {messages.map(msg => (
-                <div
-                  key={msg.id}
-                  className={`flex flex-col ${
-                    msg.senderType === 'CANDIDATE' ? 'items-end' : msg.senderType === 'SYSTEM' ? 'items-center' : 'items-start'
-                  }`}
-                >
-                  {msg.senderType !== 'SYSTEM' && (
-                    <span className="text-[10px] text-slate-500 mb-0.5">{msg.senderName}</span>
-                  )}
+              {messages.map(msg => {
+                const isSelf = msg.senderIdentity === myIdentity || msg.isSelf
+                return (
                   <div
-                    className={`max-w-[85%] px-3 py-2 rounded-xl text-xs ${
-                      msg.senderType === 'CANDIDATE'
-                        ? 'bg-indigo-600 text-white rounded-br-xs'
-                        : msg.senderType === 'SYSTEM'
-                        ? 'bg-slate-800/80 text-slate-400 text-[10px] text-center'
-                        : 'bg-slate-800 text-slate-200 rounded-bl-xs'
+                    key={msg.id}
+                    className={`flex flex-col ${
+                      msg.senderType === 'SYSTEM'
+                        ? 'items-center'
+                        : isSelf
+                        ? 'items-end'
+                        : 'items-start'
                     }`}
                   >
-                    {msg.text}
+                    {msg.senderType !== 'SYSTEM' && (
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mb-0.5">
+                        <span className="font-semibold text-slate-300">
+                          {isSelf ? 'You' : msg.senderName}
+                        </span>
+                        <span className={`text-[9px] px-1 rounded font-bold ${
+                          msg.senderType === 'CANDIDATE'
+                            ? 'bg-blue-900/60 text-blue-300'
+                            : 'bg-purple-900/60 text-purple-300'
+                        }`}>
+                          {msg.senderType === 'CANDIDATE' ? 'Candidate' : 'Panelist'}
+                        </span>
+                      </div>
+                    )}
+                    <div
+                      className={`max-w-[85%] px-3 py-2 rounded-xl text-xs ${
+                        msg.senderType === 'SYSTEM'
+                          ? 'bg-slate-800/80 text-slate-400 text-[10px] text-center'
+                          : isSelf
+                          ? 'bg-indigo-600 text-white rounded-br-xs'
+                          : msg.senderType === 'CANDIDATE'
+                          ? 'bg-slate-800 text-slate-200 rounded-bl-xs'
+                          : 'bg-purple-950/60 border border-purple-800/50 text-purple-200 rounded-bl-xs'
+                      }`}
+                    >
+                      {msg.text}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
               <div ref={chatBottomRef} />
             </div>
 

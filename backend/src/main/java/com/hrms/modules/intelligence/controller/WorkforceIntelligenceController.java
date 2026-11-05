@@ -35,9 +35,45 @@ public class WorkforceIntelligenceController {
     @Operation(summary = "Browse active corporate HR policies")
     @GetMapping("/policies")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<HrPolicyArticle>>> getActivePolicies(@RequestParam(required = false) String category) {
-        List<HrPolicyArticle> policies = intelligenceService.getActivePolicies(category);
+    public ResponseEntity<ApiResponse<List<HrPolicyArticle>>> getActivePolicies(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false, defaultValue = "false") boolean includeInactive) {
+        List<HrPolicyArticle> policies = includeInactive
+                ? intelligenceService.getAllPolicies(category)
+                : intelligenceService.getActivePolicies(category);
         return ResponseEntity.ok(ApiResponse.success(policies));
+    }
+
+    @Operation(summary = "Get single corporate HR policy article by ID")
+    @GetMapping("/policies/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<HrPolicyArticle>> getPolicyById(@PathVariable Long id) {
+        HrPolicyArticle article = intelligenceService.getPolicyById(id);
+        return ResponseEntity.ok(ApiResponse.success(article));
+    }
+
+    @Operation(summary = "Create corporate HR policy article")
+    @PostMapping("/policies")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<HrPolicyArticle>> createPolicy(@Valid @RequestBody HrPolicyRequest request) {
+        HrPolicyArticle created = intelligenceService.createPolicy(request);
+        return ResponseEntity.ok(ApiResponse.success("HR Policy article created successfully", created));
+    }
+
+    @Operation(summary = "Update corporate HR policy article")
+    @PutMapping("/policies/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<HrPolicyArticle>> updatePolicy(@PathVariable Long id, @Valid @RequestBody HrPolicyRequest request) {
+        HrPolicyArticle updated = intelligenceService.updatePolicy(id, request);
+        return ResponseEntity.ok(ApiResponse.success("HR Policy article updated successfully", updated));
+    }
+
+    @Operation(summary = "Deactivate/delete corporate HR policy article")
+    @DeleteMapping("/policies/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deletePolicy(@PathVariable Long id) {
+        intelligenceService.deletePolicy(id);
+        return ResponseEntity.ok(ApiResponse.success("HR Policy article deactivated successfully", null));
     }
 
     @Operation(summary = "Get workforce flight risk and attrition radar analysis")

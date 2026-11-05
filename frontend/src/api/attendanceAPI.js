@@ -6,6 +6,7 @@ export const attendanceAPI = {
   toggleBreak:          (empId)       => apiClient.post(`/v1/attendance/break-toggle?employeeId=${empId}`),
   getTodayStatus:       (empId)       => apiClient.get(`/v1/attendance/today-status?employeeId=${empId}`),
   syncBiometric:        (punches)     => apiClient.post('/v1/attendance/biometric-sync', punches),
+  simulatePunch:        (punch)       => apiClient.post('/v1/attendance/biometric/simulate-punch', punch),
   uploadBiometricCsv:   (formData)    => apiClient.post('/v1/attendance/biometric-upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   getBiometricDevices:  ()            => apiClient.get('/v1/attendance/biometric-devices'),
   saveBiometricDevice:  (data)        => apiClient.post('/v1/attendance/biometric-devices', data),

@@ -72,16 +72,24 @@ public class ReportService {
         List<Candidate> candidates = candidateRepository.findByTenantIdOrderByCreatedAtDesc(tenantId);
         List<Asset> assets = assetRepository.findByTenantId(tenantId);
 
-        long totalEmployees = employees.size();
-        long activeJobs = jobPostingRepository.countByStatus("OPEN");
-        long totalCandidates = candidates.size();
-        long totalAssets = assets.size();
-        long allocatedAssets = assets.stream().filter(a -> "ALLOCATED".equalsIgnoreCase(a.getStatus())).count();
+        long totalEmployees = (tenantId != null && !tenantId.isBlank())
+                ? employeeRepository.countByTenantId(tenantId)
+                : employees.size();
+        long activeJobs = (tenantId != null && !tenantId.isBlank())
+                ? jobPostingRepository.countByTenantIdAndStatus(tenantId, "OPEN")
+                : jobPostingRepository.countByStatus("OPEN");
+        long totalCandidates = (tenantId != null && !tenantId.isBlank())
+                ? candidateRepository.countByTenantId(tenantId)
+                : candidates.size();
+        long totalAssets = (tenantId != null && !tenantId.isBlank())
+                ? assetRepository.countByTenantId(tenantId)
+                : assets.size();
+        long allocatedAssets = (tenantId != null && !tenantId.isBlank())
+                ? assetRepository.countByTenantIdAndStatus(tenantId, "ALLOCATED")
+                : assets.stream().filter(a -> "ALLOCATED".equalsIgnoreCase(a.getStatus())).count();
         long activeCycles = cycleRepository.findByTenantIdOrderByYearDesc(tenantId).size();
 
-        BigDecimal monthlyPayroll = employees.stream()
-                .map(e -> e.getSalary() != null ? e.getSalary() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal monthlyPayroll = employeeRepository.sumSalaryByTenantId(tenantId);
 
         Map<String, Long> deptDist = employees.stream()
                 .filter(e -> e.getDepartment() != null)

@@ -22,7 +22,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.hrms.modules.leave.entity.EmployeeLeaveBalance;
+import com.hrms.modules.leave.repository.EmployeeLeaveBalanceRepository;
+
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -42,6 +46,7 @@ public class EmployeeService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final AuditService auditService;
+    private final EmployeeLeaveBalanceRepository leaveBalanceRepository;
 
     @Value("${file.upload.base-dir}")
     private String uploadBaseDir;
@@ -112,6 +117,29 @@ public class EmployeeService {
             .build();
 
         emp = employeeRepository.save(emp);
+
+        // Initialize granular statutory leave balances
+        int currentYear = LocalDate.now().getYear();
+        String tenantId = emp.getTenantId() != null ? emp.getTenantId() : TenantContext.getTenantId();
+        List<EmployeeLeaveBalance> balances = List.of(
+            EmployeeLeaveBalance.builder()
+                .employee(emp).leaveType(LeaveType.ANNUAL)
+                .allocatedDays(BigDecimal.valueOf(24.0)).usedDays(BigDecimal.ZERO)
+                .pendingDays(BigDecimal.ZERO).balanceDays(BigDecimal.valueOf(24.0))
+                .year(currentYear).build(),
+            EmployeeLeaveBalance.builder()
+                .employee(emp).leaveType(LeaveType.SICK)
+                .allocatedDays(BigDecimal.valueOf(12.0)).usedDays(BigDecimal.ZERO)
+                .pendingDays(BigDecimal.ZERO).balanceDays(BigDecimal.valueOf(12.0))
+                .year(currentYear).build(),
+            EmployeeLeaveBalance.builder()
+                .employee(emp).leaveType(LeaveType.CASUAL)
+                .allocatedDays(BigDecimal.valueOf(8.0)).usedDays(BigDecimal.ZERO)
+                .pendingDays(BigDecimal.ZERO).balanceDays(BigDecimal.valueOf(8.0))
+                .year(currentYear).build()
+        );
+        balances.forEach(b -> b.setTenantId(tenantId != null ? tenantId : "default"));
+        leaveBalanceRepository.saveAll(balances);
         emailService.sendMncWelcomeEmail(
             emp.getEmail(),
             emp.getFirstName(),

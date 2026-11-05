@@ -34,20 +34,72 @@ public class AuthController {
     @Operation(summary = "Login — returns access + refresh tokens")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @Valid @RequestBody LoginRequest req, HttpServletRequest httpReq) {
-        return ResponseEntity.ok(ApiResponse.success("Login successful", authService.login(req, httpReq)));
+        AuthResponse authResponse = authService.login(req, httpReq);
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", authResponse.getRefreshToken())
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(7 * 24 * 3600)
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(ApiResponse.success("Login successful", authResponse));
     }
 
     @PostMapping("/refresh")
     @Operation(summary = "Refresh access token (token rotation)")
-    public ResponseEntity<ApiResponse<AuthResponse>> refresh(@Valid @RequestBody RefreshTokenRequest req) {
-        return ResponseEntity.ok(ApiResponse.success("Token refreshed", authService.refreshToken(req)));
+    public ResponseEntity<ApiResponse<AuthResponse>> refresh(
+            @RequestBody(required = false) RefreshTokenRequest req,
+            @CookieValue(name = "refreshToken", required = false) String cookieRefreshToken) {
+        String tokenToRefresh = (req != null && req.getRefreshToken() != null && !req.getRefreshToken().isBlank())
+                ? req.getRefreshToken()
+                : cookieRefreshToken;
+
+        if (tokenToRefresh == null || tokenToRefresh.isBlank()) {
+            throw new com.hrms.exception.BadRequestException("Refresh token is required via cookie or request body");
+        }
+
+        RefreshTokenRequest resolvedReq = new RefreshTokenRequest();
+        resolvedReq.setRefreshToken(tokenToRefresh);
+        AuthResponse authResponse = authService.refreshToken(resolvedReq);
+
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", authResponse.getRefreshToken())
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(7 * 24 * 3600)
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(ApiResponse.success("Token refreshed", authResponse));
     }
 
     @PostMapping("/logout")
     @Operation(summary = "Logout — revoke refresh token")
-    public ResponseEntity<ApiResponse<Void>> logout(@RequestParam("refreshToken") String refreshToken) {
-        authService.logout(refreshToken);
-        return ResponseEntity.ok(ApiResponse.success("Logged out successfully"));
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @RequestParam(name = "refreshToken", required = false) String refreshToken,
+            @CookieValue(name = "refreshToken", required = false) String cookieRefreshToken) {
+        String tokenToRevoke = (refreshToken != null && !refreshToken.isBlank())
+                ? refreshToken
+                : cookieRefreshToken;
+
+        if (tokenToRevoke != null && !tokenToRevoke.isBlank()) {
+            authService.logout(tokenToRevoke);
+        }
+
+        ResponseCookie deleteCookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .path("/")
+                .maxAge(0)
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
+                .body(ApiResponse.success("Logged out successfully"));
     }
 
     @PostMapping("/logout-all")

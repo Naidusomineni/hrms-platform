@@ -12,4 +12,6 @@ public interface CandidateRepository extends JpaRepository<Candidate, Long> {
     List<Candidate> findByTenantIdOrderByCreatedAtDesc(String tenantId);
     List<Candidate> findByTenantIdAndJobPostingId(String tenantId, Long jobPostingId);
     Optional<Candidate> findByIdAndTenantId(Long id, String tenantId);
+    long countByTenantId(String tenantId);
+    long countByTenantIdAndJobPostingId(String tenantId, Long jobPostingId);
 }

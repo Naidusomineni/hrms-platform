@@ -18,4 +18,14 @@ public interface WorkforceIntelligenceService {
     ResumeMatchResultDto evaluateCandidateMatch(ResumeMatchRequest request);
 
     List<HrPolicyArticle> getActivePolicies(String category);
+
+    List<HrPolicyArticle> getAllPolicies(String category);
+
+    HrPolicyArticle getPolicyById(Long id);
+
+    HrPolicyArticle createPolicy(HrPolicyRequest request);
+
+    HrPolicyArticle updatePolicy(Long id, HrPolicyRequest request);
+
+    void deletePolicy(Long id);
 }

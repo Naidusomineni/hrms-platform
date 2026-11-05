@@ -75,8 +75,27 @@ public class InterviewSignalingService {
         return buffer.stream()
                 .filter(s -> s.getTimestamp() > sinceTimestamp)
                 .filter(s -> {
+                    // 1. Exclude signals originating from self if identity provided
+                    if (excludeSenderIdentity != null && !excludeSenderIdentity.isBlank() &&
+                        excludeSenderIdentity.equalsIgnoreCase(s.getSenderIdentity())) {
+                        return false;
+                    }
+                    // 2. Chat, heartbeats, and room presence signals should be visible to ALL participants in the room
+                    if ("CHAT".equalsIgnoreCase(s.getSignalType()) ||
+                        "JOIN".equalsIgnoreCase(s.getSignalType()) ||
+                        "LEAVE".equalsIgnoreCase(s.getSignalType()) ||
+                        "HEARTBEAT".equalsIgnoreCase(s.getSignalType())) {
+                        return true;
+                    }
+                    // 3. For directed WebRTC P2P signals (OFFER, ANSWER, ICE), deliver if targeted to self or broadcast
+                    if (s.getTargetIdentity() != null && !s.getTargetIdentity().isBlank() && !"*".equals(s.getTargetIdentity())) {
+                        if (excludeSenderIdentity != null && !excludeSenderIdentity.isBlank()) {
+                            return s.getTargetIdentity().equalsIgnoreCase(excludeSenderIdentity);
+                        }
+                    }
+                    // 4. Default role-based filtering only if identity is not specified
                     if (excludeSenderIdentity != null && !excludeSenderIdentity.isBlank()) {
-                        return !excludeSenderIdentity.equalsIgnoreCase(s.getSenderIdentity());
+                        return true;
                     }
                     return excludeSenderType == null || !excludeSenderType.equalsIgnoreCase(s.getSenderType());
                 })

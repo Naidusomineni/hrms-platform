@@ -7,7 +7,7 @@ import { Button, Badge, Card, CardHeader, CardBody, Modal, Spinner, EmptyState }
 import {
   Plus, Calendar, CheckCircle, XCircle, ChevronLeft, ChevronRight,
   Clock, MapPin, Building, Navigation, Globe, Sliders, Coffee, Play,
-  Cpu, UploadCloud, RefreshCw, FileText, CheckCircle2, AlertTriangle, ShieldCheck
+  Cpu, UploadCloud, RefreshCw, FileText, CheckCircle2, AlertTriangle, ShieldCheck, Radio
 } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isWeekend } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -76,6 +76,53 @@ const AttendancePage = () => {
   const [newDevice, setNewDevice] = useState({
     deviceCode: '', deviceName: '', ipAddress: '', location: '', isActive: true
   })
+
+  // Biometric Punch Simulator State
+  const [simulateModalOpen, setSimulateModalOpen] = useState(false)
+  const [simulatingPunch, setSimulatingPunch] = useState(false)
+  const [simulateForm, setSimulateForm] = useState({
+    employeeNumber: 'EMP-ENG-0004',
+    deviceId: '',
+    timestamp: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"),
+    punchType: 'AUTO'
+  })
+
+  const handleOpenSimulateModal = (prefillDevice = null) => {
+    setSimulateForm({
+      employeeNumber: employees[0]?.employeeNumber || 'EMP-ENG-0004',
+      deviceId: prefillDevice?.deviceCode || (devices[0]?.deviceCode || 'TURNSTILE-GATE-01'),
+      timestamp: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"),
+      punchType: 'AUTO'
+    })
+    setSimulateModalOpen(true)
+  }
+
+  const handleSimulatePunch = async (e) => {
+    e.preventDefault()
+    setSimulatingPunch(true)
+    try {
+      const res = await attendanceAPI.simulatePunch({
+        employeeNumber: simulateForm.employeeNumber.trim(),
+        deviceId: simulateForm.deviceId.trim(),
+        timestamp: simulateForm.timestamp,
+        punchType: simulateForm.punchType
+      })
+      const data = res.data?.data
+      if (data && data.failed > 0 && data.errors?.length > 0) {
+        toast.error(`Punch error: ${data.errors[0]}`)
+      } else {
+        toast.success(`Biometric punch simulated for ${simulateForm.employeeNumber}!`)
+        setSimulateModalOpen(false)
+        fetchBiometricDevices()
+        fetchTodayAttendance()
+        fetchTodayStatus()
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to simulate biometric punch')
+    } finally {
+      setSimulatingPunch(false)
+    }
+  }
 
   // Regularization Form State
   const [regDate, setRegDate] = useState(format(new Date(), 'yyyy-MM-dd'))
@@ -495,9 +542,14 @@ const AttendancePage = () => {
           )}
 
           {isAdminHR && activeTab === 'biometrics' && (
-            <Button variant="primary" onClick={() => setDeviceModalOpen(true)}>
-              <Plus size={16} /> Add Biometric Device
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" onClick={() => handleOpenSimulateModal()}>
+                <Radio size={16} /> Simulate Punch
+              </Button>
+              <Button variant="primary" onClick={() => setDeviceModalOpen(true)}>
+                <Plus size={16} /> Add Biometric Device
+              </Button>
+            </div>
           )}
 
           {isAdminHR && activeTab === 'locations' && (
@@ -938,7 +990,7 @@ const AttendancePage = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-50 border-b">
-                      {['Device Code', 'Name', 'Location', 'IP Address', 'Last Sync', 'Status'].map(h => (
+                      {['Device Code', 'Name', 'Location', 'IP Address', 'Last Sync', 'Status', 'Action'].map(h => (
                         <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
                       ))}
                     </tr>
@@ -957,6 +1009,15 @@ const AttendancePage = () => {
                           <Badge variant={d.isActive ? 'success' : 'default'}>
                             {d.isActive ? 'ONLINE' : 'OFFLINE'}
                           </Badge>
+                        </td>
+                        <td className="px-5 py-4">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenSimulateModal(d)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+                          >
+                            <Radio size={12} /> Test Punch
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -1057,6 +1118,82 @@ const AttendancePage = () => {
           <div className="flex gap-3 pt-2">
             <Button variant="secondary" className="flex-1" onClick={() => setDeviceModalOpen(false)}>Cancel</Button>
             <Button variant="primary" type="submit" className="flex-1">Save Device</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL: Simulate Biometric Punch */}
+      <Modal
+        isOpen={simulateModalOpen}
+        onClose={() => setSimulateModalOpen(false)}
+        title="Simulate Biometric Turnstile Punch"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setSimulateModalOpen(false)}>Cancel</Button>
+            <Button variant="primary" form="simulate-punch-form" type="submit" loading={simulatingPunch}>
+              Simulate Punch
+            </Button>
+          </div>
+        }
+      >
+        <form id="simulate-punch-form" onSubmit={handleSimulatePunch} className="space-y-4 text-xs">
+          <div>
+            <label className="label">Employee Number *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. EMP-ENG-0004"
+              value={simulateForm.employeeNumber}
+              onChange={(e) => setSimulateForm({ ...simulateForm, employeeNumber: e.target.value })}
+              className="input font-mono"
+            />
+            <p className="text-[11px] text-slate-400 mt-1">Must match an active employee's employee number</p>
+          </div>
+          <div>
+            <label className="label">Turnstile Device Code *</label>
+            <select
+              value={simulateForm.deviceId}
+              onChange={(e) => setSimulateForm({ ...simulateForm, deviceId: e.target.value })}
+              className="input bg-white"
+              required
+            >
+              {devices.map(d => (
+                <option key={d.id} value={d.deviceCode}>
+                  {d.deviceCode} - {d.deviceName} ({d.location || 'Fleet'})
+                </option>
+              ))}
+              {devices.length === 0 && (
+                <option value="TURNSTILE-GATE-01">TURNSTILE-GATE-01 (Default)</option>
+              )}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Punch Timestamp *</label>
+              <input
+                type="datetime-local"
+                step="1"
+                required
+                value={simulateForm.timestamp}
+                onChange={(e) => setSimulateForm({ ...simulateForm, timestamp: e.target.value })}
+                className="input"
+              />
+            </div>
+            <div>
+              <label className="label">Direction / Punch Type</label>
+              <select
+                value={simulateForm.punchType}
+                onChange={(e) => setSimulateForm({ ...simulateForm, punchType: e.target.value })}
+                className="input bg-white"
+              >
+                <option value="AUTO">Auto Detect (First = In, Second = Out)</option>
+                <option value="CHECK_IN">Check-In</option>
+                <option value="CHECK_OUT">Check-Out</option>
+              </select>
+            </div>
+          </div>
+          <div className="p-3 rounded-lg bg-indigo-50 border border-indigo-100 text-slate-600 text-[11px] leading-relaxed">
+            💡 Simulating a punch runs the same logic as real hardware REST push webhooks. The first punch marks <strong>CHECK_IN</strong> and subsequent punches calculate duration and overtime.
           </div>
         </form>
       </Modal>

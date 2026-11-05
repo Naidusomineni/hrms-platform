@@ -31,8 +31,11 @@ export default function DocumentVaultPage() {
   const fetchDocs = async () => {
     try {
       setLoading(true)
-      const empId = user?.employeeId || 2
-      const res = await documentAPI.getForEmployee(empId)
+      if (!user?.employeeId) {
+        setDocuments([])
+        return
+      }
+      const res = await documentAPI.getForEmployee(user.employeeId)
       setDocuments(res.data.data?.content || [])
     } catch (err) {
       toast.error('Failed to load documents')
@@ -43,15 +46,16 @@ export default function DocumentVaultPage() {
 
   useEffect(() => {
     fetchDocs()
-  }, [])
+  }, [user?.employeeId])
 
   const handleUpload = async (e) => {
     e.preventDefault()
+    if (!user?.employeeId) return toast.error('Employee profile not linked yet')
     if (!file) return toast.error('Please select a file to upload')
     if (!title) return toast.error('Please provide a document title')
 
     const formData = new FormData()
-    formData.append('employeeId', user?.employeeId || 2)
+    formData.append('employeeId', user.employeeId)
     formData.append('category', category)
     formData.append('title', title)
     if (docNumber) formData.append('documentNumber', docNumber)
@@ -77,10 +81,11 @@ export default function DocumentVaultPage() {
 
   const handleGenerateLetter = async (e) => {
     e.preventDefault()
+    if (!user?.employeeId) return toast.error('Employee profile not linked yet')
     try {
       setGenerating(true)
       await documentAPI.generateLetter({
-        employeeId: user?.employeeId || 2,
+        employeeId: user.employeeId,
         letterType,
         purpose,
         addressedTo

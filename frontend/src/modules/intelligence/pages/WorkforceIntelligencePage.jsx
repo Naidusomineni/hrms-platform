@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import {
   BrainCircuit,
@@ -20,15 +21,23 @@ import {
   Clock,
   Layers,
   ChevronRight,
-  Filter
+  Filter,
+  Plus,
+  Edit2,
+  Trash2,
+  BookOpen,
+  Tag
 } from 'lucide-react'
 import { intelligenceAPI } from '../../../api/intelligenceAPI'
 import { recruitmentAPI } from '../../../api/recruitmentAPI'
+import { Modal, Button, Badge } from '../../../components/common/index.jsx'
 import toast from 'react-hot-toast'
 
 export default function WorkforceIntelligencePage() {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState('copilot') // 'copilot', 'attrition', 'ats'
+  const { user } = useSelector(s => s.auth)
+  const isHrOrAdmin = ['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN'].includes(user?.role)
+  const [activeTab, setActiveTab] = useState('copilot') // 'copilot', 'attrition', 'ats', 'policies'
 
   // Copilot State
   const [messages, setMessages] = useState([
@@ -51,6 +60,22 @@ export default function WorkforceIntelligencePage() {
   const [copilotLoading, setCopilotLoading] = useState(false)
   const [policies, setPolicies] = useState([])
   const [policyCategory, setPolicyCategory] = useState('')
+
+  // Policy Management State
+  const [policySearch, setPolicySearch] = useState('')
+  const [policyModalOpen, setPolicyModalOpen] = useState(false)
+  const [editingPolicy, setEditingPolicy] = useState(null)
+  const [policyForm, setPolicyForm] = useState({
+    category: 'ATTENDANCE_LEAVE',
+    title: '',
+    summary: '',
+    content: '',
+    keywords: '',
+    actionLabel: '',
+    actionRoute: '',
+    isActive: true
+  })
+  const [savingPolicy, setSavingPolicy] = useState(false)
 
   // Attrition Risk State
   const [attritionList, setAttritionList] = useState([])
@@ -78,17 +103,80 @@ export default function WorkforceIntelligencePage() {
       loadAttritionData()
     } else if (activeTab === 'ats') {
       loadRecruitmentData()
+    } else if (activeTab === 'policies') {
+      fetchPolicies()
     }
   }, [activeTab])
 
   const fetchPolicies = async () => {
     try {
-      const res = await intelligenceAPI.getPolicies(policyCategory)
+      const res = await intelligenceAPI.getPolicies(policyCategory, true)
       if (res.data?.success) {
         setPolicies(res.data.data || [])
       }
     } catch (err) {
       console.error('Failed to fetch policies', err)
+    }
+  }
+
+  const handleOpenCreatePolicy = () => {
+    setEditingPolicy(null)
+    setPolicyForm({
+      category: 'ATTENDANCE_LEAVE',
+      title: '',
+      summary: '',
+      content: '',
+      keywords: '',
+      actionLabel: '',
+      actionRoute: '',
+      isActive: true
+    })
+    setPolicyModalOpen(true)
+  }
+
+  const handleOpenEditPolicy = (p) => {
+    setEditingPolicy(p)
+    setPolicyForm({
+      category: p.category || 'ATTENDANCE_LEAVE',
+      title: p.title || '',
+      summary: p.summary || '',
+      content: p.content || '',
+      keywords: p.keywords || '',
+      actionLabel: p.actionLabel || '',
+      actionRoute: p.actionRoute || '',
+      isActive: p.isActive !== false
+    })
+    setPolicyModalOpen(true)
+  }
+
+  const handleSavePolicy = async (e) => {
+    e.preventDefault()
+    setSavingPolicy(true)
+    try {
+      if (editingPolicy) {
+        await intelligenceAPI.updatePolicy(editingPolicy.id, policyForm)
+        toast.success('Policy article updated successfully')
+      } else {
+        await intelligenceAPI.createPolicy(policyForm)
+        toast.success('Policy article published to HR Copilot')
+      }
+      setPolicyModalOpen(false)
+      fetchPolicies()
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to save policy article')
+    } finally {
+      setSavingPolicy(false)
+    }
+  }
+
+  const handleDeletePolicy = async (id) => {
+    if (!window.confirm('Are you sure you want to deactivate this policy article?')) return
+    try {
+      await intelligenceAPI.deletePolicy(id)
+      toast.success('Policy article deactivated')
+      fetchPolicies()
+    } catch (err) {
+      toast.error('Failed to deactivate policy')
     }
   }
 
@@ -276,6 +364,17 @@ export default function WorkforceIntelligencePage() {
           >
             <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
             Candidate ATS Match
+          </button>
+          <button
+            onClick={() => setActiveTab('policies')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+              activeTab === 'policies'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <FileText className="h-3.5 w-3.5 text-blue-600" />
+            Policy Knowledge Base
           </button>
         </div>
       </div>
@@ -804,6 +903,235 @@ export default function WorkforceIntelligencePage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+      {/* ========================================================================= */}
+      {/* TAB 4: CORPORATE POLICY KNOWLEDGE BASE CMS */}
+      {/* ========================================================================= */}
+      {activeTab === 'policies' && (
+        <div className="space-y-6">
+          {/* Action Toolbar */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-3 w-full sm:w-auto flex-1">
+              <div className="relative flex-1 max-w-md">
+                <Search className="h-4 w-4 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search articles by title, keywords or summary..."
+                  value={policySearch}
+                  onChange={(e) => setPolicySearch(e.target.value)}
+                  className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-xs w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <select
+                value={policyCategory}
+                onChange={(e) => setPolicyCategory(e.target.value)}
+                className="py-2 px-3 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">All Categories</option>
+                <option value="ATTENDANCE_LEAVE">Attendance & Leaves</option>
+                <option value="COMPENSATION_PAYROLL">Compensation & Payroll</option>
+                <option value="CODE_OF_CONDUCT">Code of Conduct</option>
+                <option value="STATUTORY_BENEFITS">Statutory Benefits & Insurance</option>
+                <option value="PERFORMANCE_APPRAISAL">Performance Appraisal</option>
+                <option value="GENERAL_HR_INQUIRY">General HR Inquiry</option>
+              </select>
+            </div>
+            {isHrOrAdmin && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleOpenCreatePolicy}
+                className="w-full sm:w-auto"
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                New Policy Article
+              </Button>
+            )}
+          </div>
+
+          {/* Policy Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {policies
+              .filter(p => {
+                if (!policySearch) return true
+                const q = policySearch.toLowerCase()
+                return (
+                  p.title?.toLowerCase().includes(q) ||
+                  p.summary?.toLowerCase().includes(q) ||
+                  p.keywords?.toLowerCase().includes(q) ||
+                  p.category?.toLowerCase().includes(q)
+                )
+              })
+              .map(p => (
+                <div key={p.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:border-indigo-300 transition-all flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        {p.category?.replace(/_/g, ' ')}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {p.isActive ? (
+                          <Badge variant="success">Active</Badge>
+                        ) : (
+                          <Badge variant="default">Inactive</Badge>
+                        )}
+                        {isHrOrAdmin && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleOpenEditPolicy(p)}
+                              className="p-1 text-slate-400 hover:text-indigo-600 rounded transition-colors"
+                              title="Edit Article"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            {p.isActive && (
+                              <button
+                                onClick={() => handleDeletePolicy(p.id)}
+                                className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                                title="Deactivate Article"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <h3 className="font-bold text-slate-800 text-sm mb-1">{p.title}</h3>
+                    <p className="text-xs text-slate-500 line-clamp-3 mb-3">{p.summary}</p>
+                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 text-xs text-slate-700 line-clamp-4 font-mono leading-relaxed mb-3">
+                      {p.content}
+                    </div>
+                  </div>
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                    <span className="flex items-center gap-1 text-[11px]">
+                      <Tag className="h-3 w-3 text-slate-400" />
+                      {p.keywords ? p.keywords.split(',').slice(0, 3).join(', ') : 'No keywords'}
+                    </span>
+                    {p.actionRoute && (
+                      <span className="text-indigo-600 font-medium text-[11px] flex items-center gap-1">
+                        {p.actionLabel || 'Action'} → {p.actionRoute}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          {/* Add / Edit Policy Modal */}
+          <Modal
+            isOpen={policyModalOpen}
+            onClose={() => setPolicyModalOpen(false)}
+            title={editingPolicy ? "Edit HR Policy Article" : "Create HR Policy Article"}
+            size="lg"
+            footer={
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" onClick={() => setPolicyModalOpen(false)}>Cancel</Button>
+                <Button variant="primary" form="policy-form" type="submit" loading={savingPolicy}>
+                  {editingPolicy ? "Update Article" : "Publish Article"}
+                </Button>
+              </div>
+            }
+          >
+            <form id="policy-form" onSubmit={handleSavePolicy} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Category *</label>
+                  <select
+                    value={policyForm.category}
+                    onChange={(e) => setPolicyForm({ ...policyForm, category: e.target.value })}
+                    className="input bg-white"
+                    required
+                  >
+                    <option value="ATTENDANCE_LEAVE">Attendance & Leaves</option>
+                    <option value="COMPENSATION_PAYROLL">Compensation & Payroll</option>
+                    <option value="CODE_OF_CONDUCT">Code of Conduct</option>
+                    <option value="STATUTORY_BENEFITS">Statutory Benefits & Insurance</option>
+                    <option value="PERFORMANCE_APPRAISAL">Performance Appraisal</option>
+                    <option value="GENERAL_HR_INQUIRY">General HR Inquiry</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Policy Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Annual Privilege Leave Rollover Policy"
+                    value={policyForm.title}
+                    onChange={(e) => setPolicyForm({ ...policyForm, title: e.target.value })}
+                    className="input"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="label">Short Summary *</label>
+                <textarea
+                  rows={2}
+                  required
+                  placeholder="One or two sentences summarizing the key takeaway..."
+                  value={policyForm.summary}
+                  onChange={(e) => setPolicyForm({ ...policyForm, summary: e.target.value })}
+                  className="input"
+                />
+              </div>
+              <div>
+                <label className="label">Full Policy Article Content *</label>
+                <textarea
+                  rows={6}
+                  required
+                  placeholder="Detailed guidelines, clauses, formulas, eligibility criteria, and compliance steps..."
+                  value={policyForm.content}
+                  onChange={(e) => setPolicyForm({ ...policyForm, content: e.target.value })}
+                  className="input font-mono text-xs"
+                />
+              </div>
+              <div>
+                <label className="label">Search Keywords / Triggers</label>
+                <input
+                  type="text"
+                  placeholder="e.g. rollover, annual leave, encashment, carryover (comma separated)"
+                  value={policyForm.keywords}
+                  onChange={(e) => setPolicyForm({ ...policyForm, keywords: e.target.value })}
+                  className="input"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Action Button Label</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Apply for Leave"
+                    value={policyForm.actionLabel}
+                    onChange={(e) => setPolicyForm({ ...policyForm, actionLabel: e.target.value })}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="label">Action Button Route</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. /leaves"
+                    value={policyForm.actionRoute}
+                    onChange={(e) => setPolicyForm({ ...policyForm, actionRoute: e.target.value })}
+                    className="input"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="isActivePolicy"
+                  checked={policyForm.isActive}
+                  onChange={(e) => setPolicyForm({ ...policyForm, isActive: e.target.checked })}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <label htmlFor="isActivePolicy" className="text-xs text-slate-700 font-medium">
+                  Active (Available for AI Copilot queries & employee portal)
+                </label>
+              </div>
+            </form>
+          </Modal>
         </div>
       )}
     </div>

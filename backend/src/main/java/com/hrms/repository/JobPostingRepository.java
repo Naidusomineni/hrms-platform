@@ -12,4 +12,5 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
     Optional<JobPosting> findByIdAndTenantId(Long id, String tenantId);
     List<JobPosting> findByStatus(String status);
     Long countByStatus(String status);
+    Long countByTenantIdAndStatus(String tenantId, String status);
 }

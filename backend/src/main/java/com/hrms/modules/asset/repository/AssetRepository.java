@@ -12,4 +12,6 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
     List<Asset> findByTenantId(String tenantId);
     Optional<Asset> findByIdAndTenantId(Long id, String tenantId);
     Optional<Asset> findByTenantIdAndAssetTag(String tenantId, String assetTag);
+    long countByTenantId(String tenantId);
+    long countByTenantIdAndStatus(String tenantId, String status);
 }

@@ -96,6 +96,13 @@ public class PerformanceService {
         return toGoalDto(goal);
     }
 
+    public List<PerformanceReviewDto> getAllReviews() {
+        String tenantId = TenantContext.getTenantId();
+        return reviewRepository.findByTenantIdOrderByCreatedAtDesc(tenantId).stream()
+                .map(this::toReviewDto)
+                .collect(Collectors.toList());
+    }
+
     public List<PerformanceReviewDto> getReviewsForEmployee(Long employeeId) {
         return reviewRepository.findByEmployeeIdOrderByCreatedAtDesc(employeeId).stream()
                 .map(this::toReviewDto)

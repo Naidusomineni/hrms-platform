@@ -45,7 +45,11 @@ backend/javac_args.txt
 backend/javac_options.txt
 backend/run_cp.txt
 backend/eclipse_runtime_cp.txt
+backend/classpath.txt
+backend/jvm_args.txt
 github_*_snippet.txt
+~$*
+
 
 # Docker
 *.pid

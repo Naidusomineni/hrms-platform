@@ -4,8 +4,25 @@ export const intelligenceAPI = {
   askAssistant: (query, categoryHint) =>
     apiClient.post('/v1/intelligence/assistant/ask', { query, categoryHint }),
 
-  getPolicies: (category) =>
-    apiClient.get('/v1/intelligence/policies', { params: category ? { category } : {} }),
+  getPolicies: (category, includeInactive = false) =>
+    apiClient.get('/v1/intelligence/policies', {
+      params: {
+        ...(category ? { category } : {}),
+        ...(includeInactive ? { includeInactive: true } : {})
+      }
+    }),
+
+  getPolicyById: (id) =>
+    apiClient.get(`/v1/intelligence/policies/${id}`),
+
+  createPolicy: (data) =>
+    apiClient.post('/v1/intelligence/policies', data),
+
+  updatePolicy: (id, data) =>
+    apiClient.put(`/v1/intelligence/policies/${id}`, data),
+
+  deletePolicy: (id) =>
+    apiClient.delete(`/v1/intelligence/policies/${id}`),
 
   getAttritionRiskAnalysis: () =>
     apiClient.get('/v1/intelligence/attrition/risk-analysis'),

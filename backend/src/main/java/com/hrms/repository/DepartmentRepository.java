@@ -12,4 +12,8 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     boolean existsByCode(String code);
     @Query("SELECT d FROM Department d WHERE d.isActive = true ORDER BY d.name")
     List<Department> findAllActive();
+
+    Long countByTenantId(String tenantId);
+
+    List<Department> findByTenantId(String tenantId);
 }

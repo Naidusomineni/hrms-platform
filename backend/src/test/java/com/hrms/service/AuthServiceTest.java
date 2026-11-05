@@ -41,6 +41,7 @@ class AuthServiceTest {
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private LoginHistoryRepository loginHistoryRepository;
     @Mock private EmployeeRepository employeeRepository;
+    @Mock private DepartmentRepository departmentRepository;
     @Mock private DistributedTokenBlacklistService tokenBlacklistService;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private AuthenticationManager authenticationManager;
@@ -64,6 +65,15 @@ class AuthServiceTest {
 
         org.mockito.Mockito.lenient().when(employeeRepository.findByUserId(any())).thenReturn(Optional.empty());
         org.mockito.Mockito.lenient().when(employeeRepository.findByEmail(any())).thenReturn(Optional.empty());
+        org.mockito.Mockito.lenient().when(employeeRepository.existsByEmployeeNumber(any())).thenReturn(false);
+        org.mockito.Mockito.lenient().when(employeeRepository.save(any())).thenAnswer(i -> {
+            com.hrms.entity.Employee e = i.getArgument(0);
+            if (e != null) {
+                e.setId(10L);
+            }
+            return e;
+        });
+        org.mockito.Mockito.lenient().when(departmentRepository.findAll()).thenReturn(Collections.emptyList());
 
         mockUser = User.builder()
             .id(1L).firstName("John").lastName("Doe")

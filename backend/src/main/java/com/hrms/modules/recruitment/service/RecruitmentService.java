@@ -16,6 +16,9 @@ import com.hrms.modules.recruitment.dto.*;
 import com.hrms.modules.recruitment.entity.InterviewScorecard;
 import com.hrms.modules.recruitment.repository.CandidateRepository;
 import com.hrms.modules.recruitment.repository.InterviewScorecardRepository;
+import com.hrms.modules.leave.entity.EmployeeLeaveBalance;
+import com.hrms.modules.leave.repository.EmployeeLeaveBalanceRepository;
+import com.hrms.enums.LeaveType;
 import com.hrms.repository.DepartmentRepository;
 import com.hrms.repository.EmployeeRepository;
 import com.hrms.repository.JobPostingRepository;
@@ -40,14 +43,15 @@ public class RecruitmentService {
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
     private final EmployeeService employeeService;
+    private final EmployeeLeaveBalanceRepository leaveBalanceRepository;
     private final com.hrms.service.EmailService emailService;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     public List<JobPostingDto> getJobPostings() {
         String tenantId = TenantContext.getTenantId();
-        List<JobPosting> jobs = (tenantId != null)
+        List<JobPosting> jobs = (tenantId != null && !tenantId.isBlank())
                 ? jobPostingRepository.findByTenantId(tenantId)
-                : jobPostingRepository.findAll();
+                : jobPostingRepository.findByStatus("OPEN");
         return jobs.stream()
                 .map(this::toJobDto)
                 .collect(Collectors.toList());
@@ -94,8 +98,9 @@ public class RecruitmentService {
             job = jobPostingRepository.findById(dto.getJobPostingId()).orElse(null);
         }
         if (job == null) {
-            job = (tenantId != null ? jobPostingRepository.findByTenantId(tenantId) : jobPostingRepository.findAll())
-                    .stream().findFirst().orElse(null);
+            job = (tenantId != null && !tenantId.isBlank())
+                    ? jobPostingRepository.findByTenantId(tenantId).stream().findFirst().orElse(null)
+                    : null;
         }
 
         Candidate cand = Candidate.builder()
@@ -228,10 +233,35 @@ public class RecruitmentService {
                 .dateOfJoining(dto.getDateOfJoining())
                 .employmentStatus(EmploymentStatus.ACTIVE)
                 .salary(dto.getSalary() != null ? dto.getSalary() : cand.getExpectedCtc())
+                .leaveBalance(24)
+                .sickLeaveBalance(12)
+                .casualLeaveBalance(8)
                 .user(user)
                 .build();
         emp.setTenantId(tenantId);
         emp = employeeRepository.save(emp);
+
+        // Auto-initialize statutory leave balances
+        int currentYear = java.time.LocalDate.now().getYear();
+        for (LeaveType type : List.of(LeaveType.ANNUAL, LeaveType.SICK, LeaveType.CASUAL)) {
+            java.math.BigDecimal days = switch (type) {
+                case ANNUAL -> java.math.BigDecimal.valueOf(24.0);
+                case SICK -> java.math.BigDecimal.valueOf(12.0);
+                case CASUAL -> java.math.BigDecimal.valueOf(8.0);
+                default -> java.math.BigDecimal.valueOf(10.0);
+            };
+            EmployeeLeaveBalance bal = EmployeeLeaveBalance.builder()
+                .employee(emp)
+                .leaveType(type)
+                .allocatedDays(days)
+                .balanceDays(days)
+                .usedDays(java.math.BigDecimal.ZERO)
+                .pendingDays(java.math.BigDecimal.ZERO)
+                .year(currentYear)
+                .build();
+            bal.setTenantId(tenantId);
+            leaveBalanceRepository.save(bal);
+        }
 
         emailService.sendMncWelcomeEmail(
             emp.getEmail(),

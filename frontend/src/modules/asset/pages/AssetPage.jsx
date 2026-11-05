@@ -18,7 +18,7 @@ const categoryIcons = {
 const AssetPage = () => {
   const { user } = useSelector(s => s.auth)
   const isAdminHR = ['ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN'].includes(user?.role)
-  const empId = user?.employeeId || 1
+  const empId = user?.employeeId || null
 
   const [activeTab, setActiveTab] = useState('inventory') // 'inventory' | 'my-assets'
   const [assets, setAssets] = useState([])
@@ -49,7 +49,7 @@ const AssetPage = () => {
     try {
       const [aRes, myRes, empRes] = await Promise.all([
         assetService.getAssets(),
-        assetService.getEmployeeAssets(empId),
+        empId ? assetService.getEmployeeAssets(empId) : Promise.resolve({ data: { data: [] } }),
         isAdminHR ? employeeAPI.getAll({ size: 200 }) : Promise.resolve({ data: { data: { content: [] } } })
       ])
       setAssets(aRes.data?.data || [])

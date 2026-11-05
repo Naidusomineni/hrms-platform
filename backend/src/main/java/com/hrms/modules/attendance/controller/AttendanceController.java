@@ -72,6 +72,16 @@ public class AttendanceController {
         return ResponseEntity.ok(ApiResponse.success("Biometric sync completed", attendanceService.syncBiometricPunches(punches)));
     }
 
+    @PostMapping("/biometric/simulate-punch")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> simulateBiometricPunch(@Valid @RequestBody BiometricPunchDto punch) {
+        if (punch.getTimestamp() == null) {
+            punch.setTimestamp(java.time.LocalDateTime.now());
+        }
+        Map<String, Object> result = attendanceService.syncBiometricPunches(List.of(punch));
+        return ResponseEntity.ok(ApiResponse.success("Biometric punch simulated successfully", result));
+    }
+
     @PostMapping(value = "/biometric-upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> uploadBiometricCsv(@RequestParam("file") MultipartFile file) {

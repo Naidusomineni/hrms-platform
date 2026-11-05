@@ -509,6 +509,72 @@ public class WorkforceIntelligenceServiceImpl implements WorkforceIntelligenceSe
         return hrPolicyArticleRepository.findByTenantIdAndIsActiveTrue(tenantId);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<HrPolicyArticle> getAllPolicies(String category) {
+        String tenantId = getTenantId();
+        if (category != null && !category.isBlank()) {
+            return hrPolicyArticleRepository.findByTenantIdAndCategoryOrderByCreatedAtDesc(tenantId, category);
+        }
+        return hrPolicyArticleRepository.findByTenantIdOrderByCreatedAtDesc(tenantId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public HrPolicyArticle getPolicyById(Long id) {
+        String tenantId = getTenantId();
+        return hrPolicyArticleRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("HR Policy Article not found with id: " + id));
+    }
+
+    @Override
+    public HrPolicyArticle createPolicy(HrPolicyRequest request) {
+        String tenantId = getTenantId();
+        HrPolicyArticle article = HrPolicyArticle.builder()
+                .category(request.getCategory().trim())
+                .title(request.getTitle().trim())
+                .summary(request.getSummary().trim())
+                .content(request.getContent().trim())
+                .keywords(request.getKeywords() != null ? request.getKeywords().trim() : null)
+                .actionLabel(request.getActionLabel() != null ? request.getActionLabel().trim() : null)
+                .actionRoute(request.getActionRoute() != null ? request.getActionRoute().trim() : null)
+                .isActive(request.getIsActive() != null ? request.getIsActive() : true)
+                .build();
+        article.setTenantId(tenantId);
+        log.info("Creating new HR policy article '{}' in category '{}' for tenant '{}'", article.getTitle(), article.getCategory(), tenantId);
+        return hrPolicyArticleRepository.save(article);
+    }
+
+    @Override
+    public HrPolicyArticle updatePolicy(Long id, HrPolicyRequest request) {
+        String tenantId = getTenantId();
+        HrPolicyArticle article = hrPolicyArticleRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("HR Policy Article not found with id: " + id));
+
+        article.setCategory(request.getCategory().trim());
+        article.setTitle(request.getTitle().trim());
+        article.setSummary(request.getSummary().trim());
+        article.setContent(request.getContent().trim());
+        article.setKeywords(request.getKeywords() != null ? request.getKeywords().trim() : null);
+        article.setActionLabel(request.getActionLabel() != null ? request.getActionLabel().trim() : null);
+        article.setActionRoute(request.getActionRoute() != null ? request.getActionRoute().trim() : null);
+        if (request.getIsActive() != null) {
+            article.setIsActive(request.getIsActive());
+        }
+        log.info("Updating HR policy article '{}' (id: {}) for tenant '{}'", article.getTitle(), id, tenantId);
+        return hrPolicyArticleRepository.save(article);
+    }
+
+    @Override
+    public void deletePolicy(Long id) {
+        String tenantId = getTenantId();
+        HrPolicyArticle article = hrPolicyArticleRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("HR Policy Article not found with id: " + id));
+        article.setIsActive(false);
+        hrPolicyArticleRepository.save(article);
+        log.info("Soft-deactivated HR policy article '{}' (id: {}) for tenant '{}'", article.getTitle(), id, tenantId);
+    }
+
     private FlightRiskAnalysisDto mapToDto(FlightRiskEvaluation ev, Employee emp) {
         return FlightRiskAnalysisDto.builder()
                 .id(ev.getId())

@@ -15,6 +15,9 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     Page<LeaveRequest> findByStatusOrderByCreatedAtAsc(LeaveStatus status, Pageable pageable);
     Long countByStatus(LeaveStatus status);
 
+    @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE (:tenantId IS NULL OR lr.tenantId = :tenantId) AND lr.status = :status")
+    Long countByTenantIdAndStatus(@Param("tenantId") String tenantId, @Param("status") LeaveStatus status);
+
     @Query("""
         SELECT lr FROM LeaveRequest lr WHERE lr.employee.id = :empId
         AND lr.status NOT IN ('REJECTED','CANCELLED')

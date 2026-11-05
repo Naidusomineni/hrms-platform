@@ -16,6 +16,10 @@ public interface HrPolicyArticleRepository extends JpaRepository<HrPolicyArticle
 
     List<HrPolicyArticle> findByTenantIdAndIsActiveTrue(String tenantId);
 
+    List<HrPolicyArticle> findByTenantIdOrderByCreatedAtDesc(String tenantId);
+
+    List<HrPolicyArticle> findByTenantIdAndCategoryOrderByCreatedAtDesc(String tenantId, String category);
+
     Page<HrPolicyArticle> findByTenantIdAndIsActiveTrue(String tenantId, Pageable pageable);
 
     List<HrPolicyArticle> findByTenantIdAndCategoryAndIsActiveTrue(String tenantId, String category);

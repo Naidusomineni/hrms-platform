@@ -3,6 +3,7 @@ import axios from 'axios'
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 30000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -62,29 +63,27 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest?._retry && !isLoginEndpoint) {
       originalRequest._retry = true
       const refreshToken = localStorage.getItem('refreshToken')
-      if (refreshToken) {
-        return apiClient.post('/v1/auth/refresh', { refreshToken })
-          .then(res => {
-            const data = res.data.data  
+      return apiClient.post('/v1/auth/refresh', refreshToken ? { refreshToken } : {})
+        .then(res => {
+          const data = res.data?.data  
+          if (data?.accessToken) {
             localStorage.setItem('accessToken', data.accessToken)
-            localStorage.setItem('refreshToken', data.refreshToken)
+            if (data.refreshToken) {
+              localStorage.setItem('refreshToken', data.refreshToken)
+            }
             apiClient.defaults.headers.common['Authorization'] = `Bearer ${data.accessToken}`
             originalRequest.headers['Authorization'] = `Bearer ${data.accessToken}`
             return apiClient(originalRequest)
-          })
-          .catch(() => {
-            localStorage.removeItem('accessToken')
-            localStorage.removeItem('refreshToken')
-            localStorage.removeItem('hrms_user')
-            window.location.href = '/login'
-            return Promise.reject(error)
-          })
-      }
-      // no refresh token, clear and redirect
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('refreshToken')
-      localStorage.removeItem('hrms_user')
-      window.location.href = '/login'
+          }
+          throw new Error('Missing accessToken in refresh response')
+        })
+        .catch(() => {
+          localStorage.removeItem('accessToken')
+          localStorage.removeItem('refreshToken')
+          localStorage.removeItem('hrms_user')
+          window.location.href = '/login'
+          return Promise.reject(error)
+        })
     }
 
     return Promise.reject(error)

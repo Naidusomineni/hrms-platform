@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 const ReportsPage = () => {
   const { user } = useSelector(s => s.auth)
   const isAdminHR = ['ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN'].includes(user?.role)
-  const empId = user?.employeeId || 1
+  const empId = user?.employeeId || null
 
   const [activeTab, setActiveTab] = useState(isAdminHR ? 'analytics' : 'tax') // 'analytics' | 'tax'
   const [analytics, setAnalytics] = useState(null)
@@ -29,16 +29,18 @@ const ReportsPage = () => {
         const aRes = await reportService.getAnalytics()
         setAnalytics(aRes.data?.data || null)
       }
-      const tRes = await reportService.getTaxDeclarations(empId)
-      const list = tRes.data?.data || []
-      if (list.length > 0) {
-        setTaxData({
-          financialYear: list[0].financialYear || '2026-2027',
-          regime: list[0].regime || 'NEW',
-          declared80c: list[0].declared80c || 0,
-          declared80d: list[0].declared80d || 0,
-          declaredHra: list[0].declaredHra || 0
-        })
+      if (empId) {
+        const tRes = await reportService.getTaxDeclarations(empId)
+        const list = tRes.data?.data || []
+        if (list.length > 0) {
+          setTaxData({
+            financialYear: list[0].financialYear || '2026-2027',
+            regime: list[0].regime || 'NEW',
+            declared80c: list[0].declared80c || 0,
+            declared80d: list[0].declared80d || 0,
+            declaredHra: list[0].declaredHra || 0
+          })
+        }
       }
     } catch {
       // ignore
@@ -53,6 +55,10 @@ const ReportsPage = () => {
 
   const handleSaveTax = async (e) => {
     e.preventDefault()
+    if (!empId) {
+      toast.error('Employee profile not linked yet')
+      return
+    }
     setSavingTax(true)
     try {
       await reportService.saveTaxDeclaration({
@@ -71,8 +77,80 @@ const ReportsPage = () => {
     }
   }
 
-  const exportExcel = (title) => {
-    toast.success(`Exporting ${title} to CSV...`)
+  const exportReportsToCSV = () => {
+    if (!analytics) {
+      toast.error('No analytics data available to export')
+      return
+    }
+    const lines = []
+    lines.push('"HRMS Executive Analytics & Statutory BI Report"')
+    lines.push(`"Generated At","${new Date().toISOString()}"`)
+    lines.push(`"Tenant ID","${user?.tenantId || 'default'}"`)
+    lines.push('')
+    lines.push('"Key Metric","Value"')
+    lines.push(`"Total Employees",${analytics.totalEmployees || 0}`)
+    lines.push(`"Active Job Postings",${analytics.activeJobPostings || 0}`)
+    lines.push(`"Total Candidates In Pipeline",${analytics.totalCandidates || 0}`)
+    lines.push(`"Allocated Assets",${analytics.allocatedAssets || 0}`)
+    lines.push(`"Total Assets",${analytics.totalAssets || 0}`)
+    lines.push(`"Monthly Payroll Expense (INR)",${analytics.monthlyPayrollExpense || 0}`)
+    lines.push('')
+    lines.push('"Departmental Distribution"')
+    lines.push('"Department","Headcount","Percentage"')
+    Object.entries(analytics.departmentDistribution || {}).forEach(([dept, count]) => {
+      const pct = Math.round((count / Math.max(1, analytics.totalEmployees)) * 100)
+      lines.push(`"${dept}",${count},"${pct}%"`)
+    })
+    lines.push('')
+    lines.push('"Candidate Recruitment Pipeline"')
+    lines.push('"Stage","Candidate Count"')
+    Object.entries(analytics.candidateStageDistribution || {}).forEach(([stage, count]) => {
+      lines.push(`"${stage}",${count}`)
+    })
+    lines.push('')
+    lines.push('"Asset Custody by Category"')
+    lines.push('"Category","Count"')
+    Object.entries(analytics.assetCategoryDistribution || {}).forEach(([cat, count]) => {
+      lines.push(`"${cat}",${count}`)
+    })
+
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `hrms-executive-analytics-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast.success('Executive BI CSV report downloaded successfully')
+  }
+
+  const exportTaxDeclarationCSV = () => {
+    const lines = []
+    lines.push('"HRMS Statutory Tax Declaration (Form 16 Slabs)"')
+    lines.push(`"Financial Year","${taxData.financialYear}"`)
+    lines.push(`"Tax Regime","${taxData.regime}"`)
+    lines.push(`"Employee","${user?.fullName || 'Employee'}"`)
+    lines.push(`"Employee ID","${empId || ''}"`)
+    lines.push('')
+    lines.push('"Declaration Section","Declared Amount (INR)"')
+    lines.push(`"Section 80C (PPF, ELSS, Life Insurance, Tuition)",${taxData.declared80c}`)
+    lines.push(`"Section 80D (Health Insurance Premium)",${taxData.declared80d}`)
+    lines.push(`"Section 10(13A) House Rent Allowance (HRA)",${taxData.declaredHra}`)
+    lines.push('')
+    lines.push(`"Total Declared Exemptions",${Number(taxData.declared80c) + Number(taxData.declared80d) + Number(taxData.declaredHra)}`)
+
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tax-declaration-${taxData.financialYear}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast.success('Tax declaration CSV downloaded successfully')
   }
 
   return (
@@ -106,8 +184,13 @@ const ReportsPage = () => {
           </div>
 
           {isAdminHR && activeTab === 'analytics' && (
-            <Button variant="secondary" onClick={() => exportExcel('Executive Headcount & Payroll')}>
-              <Download size={15} /> Export Reports
+            <Button variant="secondary" onClick={exportReportsToCSV}>
+              <Download size={15} /> Export Reports (CSV)
+            </Button>
+          )}
+          {activeTab === 'tax' && (
+            <Button variant="secondary" onClick={exportTaxDeclarationCSV}>
+              <Download size={15} /> Export Declaration (CSV)
             </Button>
           )}
         </div>

@@ -58,6 +58,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final LoginHistoryRepository loginHistoryRepository;
     private final EmployeeRepository employeeRepository;
+    private final DepartmentRepository departmentRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
@@ -121,6 +122,33 @@ public class AuthService {
 
         user = userRepository.save(user);
         log.info("User registered: id={}, email={}, role={}", user.getId(), user.getEmail(), assignedRole);
+
+        // Auto-provision an Employee profile for the newly registered user
+        Department defaultDept = departmentRepository.findAll().stream().findFirst().orElse(null);
+        String empNumber;
+        do {
+            empNumber = "EMP-" + java.time.LocalDate.now().getYear() + "-" + String.format("%04d", (int)(Math.random() * 9000) + 1000);
+        } while (employeeRepository.existsByEmployeeNumber(empNumber));
+
+        Employee emp = Employee.builder()
+            .user(user)
+            .department(defaultDept)
+            .employeeNumber(empNumber)
+            .firstName(user.getFirstName())
+            .lastName(user.getLastName())
+            .email(user.getEmail())
+            .designation(user.getRole() == Role.ROLE_EMPLOYEE ? "Associate Engineer" : user.getRole().name().replace("ROLE_", ""))
+            .employmentStatus(com.hrms.enums.EmploymentStatus.ACTIVE)
+            .dateOfJoining(java.time.LocalDate.now())
+            .leaveBalance(24)
+            .sickLeaveBalance(12)
+            .casualLeaveBalance(8)
+            .deleted(false)
+            .build();
+        emp.setTenantId(user.getTenantId() != null ? user.getTenantId() : "default");
+        emp = employeeRepository.save(emp);
+        user.setEmployee(emp);
+        log.info("Auto-provisioned employee record {} for registered user {}", empNumber, user.getEmail());
 
         // Send verification email (async — won't block the response)
         emailService.sendEmailVerification(user.getEmail(), user.getFirstName(), verifyToken);
@@ -511,6 +539,34 @@ public class AuthService {
                 .orElse(null);
             if (emp != null) {
                 employeeId = emp.getId();
+            } else {
+                // Self-heal: ensure user always has an Employee profile
+                Department defaultDept = departmentRepository.findAll().stream().findFirst().orElse(null);
+                String empNumber;
+                do {
+                    empNumber = "EMP-" + java.time.LocalDate.now().getYear() + "-" + String.format("%04d", (int)(Math.random() * 9000) + 1000);
+                } while (employeeRepository.existsByEmployeeNumber(empNumber));
+
+                Employee newEmp = Employee.builder()
+                    .user(user)
+                    .department(defaultDept)
+                    .employeeNumber(empNumber)
+                    .firstName(user.getFirstName())
+                    .lastName(user.getLastName())
+                    .email(user.getEmail())
+                    .designation(user.getRole() != null ? user.getRole().name().replace("ROLE_", "") : "Employee")
+                    .employmentStatus(com.hrms.enums.EmploymentStatus.ACTIVE)
+                    .dateOfJoining(java.time.LocalDate.now())
+                    .leaveBalance(24)
+                    .sickLeaveBalance(12)
+                    .casualLeaveBalance(8)
+                    .deleted(false)
+                    .build();
+                newEmp.setTenantId(user.getTenantId() != null ? user.getTenantId() : "default");
+                newEmp = employeeRepository.save(newEmp);
+                user.setEmployee(newEmp);
+                employeeId = newEmp.getId();
+                log.info("Self-healed & auto-provisioned employee profile {} for user {}", empNumber, user.getEmail());
             }
         }
         return AuthResponse.builder()

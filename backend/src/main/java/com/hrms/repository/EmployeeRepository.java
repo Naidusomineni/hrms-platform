@@ -46,11 +46,31 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
     @Query("SELECT e.department.name, COUNT(e) FROM Employee e WHERE e.department IS NOT NULL GROUP BY e.department.name")
     List<Object[]> countByDepartment();
 
+    @Query("""
+        SELECT e.department.name, COUNT(e) FROM Employee e
+        WHERE (:tenantId IS NULL OR e.tenantId = :tenantId)
+          AND e.department IS NOT NULL
+        GROUP BY e.department.name
+        """)
+    List<Object[]> countByDepartmentForTenant(@Param("tenantId") String tenantId);
+
     @Query("SELECT e.employmentStatus, COUNT(e) FROM Employee e GROUP BY e.employmentStatus")
     List<Object[]> countByStatus();
 
     @Query("SELECT COUNT(e) FROM Employee e WHERE e.employmentStatus = 'ACTIVE'")
     Long countActive();
+
+    Long countByTenantId(String tenantId);
+
+    Long countByTenantIdAndEmploymentStatus(String tenantId, EmploymentStatus status);
+
+    @Query("""
+        SELECT COUNT(e) FROM Employee e
+        WHERE (:tenantId IS NULL OR e.tenantId = :tenantId)
+          AND (e.dateOfJoining IS NULL OR e.dateOfJoining <= :cutoff)
+          AND (e.dateOfLeaving IS NULL OR e.dateOfLeaving > :cutoff)
+        """)
+    Long countHeadcountAtDate(@Param("tenantId") String tenantId, @Param("cutoff") java.time.LocalDate cutoff);
 
     @Query("SELECT e FROM Employee e WHERE e.manager.id = :managerId")
     List<Employee> findDirectReports(@Param("managerId") Long managerId);
@@ -58,6 +78,23 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
     @Query("SELECT e FROM Employee e WHERE dayofyear(e.dateOfBirth) BETWEEN :startDay AND :endDay")
     List<Employee> findUpcomingBirthdaysBetween(@Param("startDay") int startDay, @Param("endDay") int endDay);
 
+    @Query("""
+        SELECT e FROM Employee e
+        WHERE (:tenantId IS NULL OR e.tenantId = :tenantId)
+          AND dayofyear(e.dateOfBirth) BETWEEN :startDay AND :endDay
+        """)
+    List<Employee> findUpcomingBirthdaysBetweenForTenant(@Param("tenantId") String tenantId, @Param("startDay") int startDay, @Param("endDay") int endDay);
+
     @Query("SELECT e FROM Employee e WHERE dayofyear(e.dateOfBirth) >= :startDay OR dayofyear(e.dateOfBirth) <= :endDay")
     List<Employee> findUpcomingBirthdaysWrap(@Param("startDay") int startDay, @Param("endDay") int endDay);
+
+    @Query("""
+        SELECT e FROM Employee e
+        WHERE (:tenantId IS NULL OR e.tenantId = :tenantId)
+          AND (dayofyear(e.dateOfBirth) >= :startDay OR dayofyear(e.dateOfBirth) <= :endDay)
+        """)
+    List<Employee> findUpcomingBirthdaysWrapForTenant(@Param("tenantId") String tenantId, @Param("startDay") int startDay, @Param("endDay") int endDay);
+
+    @Query("SELECT COALESCE(SUM(e.salary), 0) FROM Employee e WHERE (:tenantId IS NULL OR e.tenantId = :tenantId) AND e.deleted = false")
+    java.math.BigDecimal sumSalaryByTenantId(@Param("tenantId") String tenantId);
 }

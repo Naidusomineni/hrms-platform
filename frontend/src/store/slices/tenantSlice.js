@@ -12,6 +12,8 @@ export function applyTenantTheme(hexColor) {
   const g = parseInt(hexColor.slice(3, 5), 16)
   const b = parseInt(hexColor.slice(5, 7), 16)
 
+  root.style.setProperty('--brand-primary-rgb', `${r}, ${g}, ${b}`)
+
   const mix = (factor, target) => {
     const nr = Math.min(255, Math.max(0, Math.round(r + (target - r) * factor)))
     const ng = Math.min(255, Math.max(0, Math.round(g + (target - g) * factor)))

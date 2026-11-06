@@ -1,18 +1,19 @@
-import React, { useState, useEffect } from 'react'
-import { useSelector } from 'react-redux'
+import React, { useState, useEffect, type FormEvent } from 'react'
+import { useAppSelector } from '../../../store/hooks'
 import { helpdeskAPI } from '../../../api/helpdeskAPI'
 import { employeeAPI } from '../../../api/employeeAPI'
-import { Button, Badge, Card, CardHeader, CardBody, Spinner, EmptyState, Modal, Input, Select } from '../../../components/common/index.jsx'
+import { Button, Badge, Card, CardHeader, CardBody, Spinner, EmptyState, Modal, Input } from '../../../components/common'
+import type { SupportTicket, TicketComment, TicketPriority, TicketCategory, TicketStatus, Employee } from '../../../types'
 import {
   LifeBuoy, Plus, RefreshCw, AlertCircle, Clock, CheckCircle2,
-  AlertTriangle, ShieldAlert, MessageSquare, Send, Tag, Laptop,
-  User, Check, ChevronRight, Search, Filter, ShieldCheck, Hash
+  ShieldAlert, MessageSquare, Send, Tag,
+  User, ChevronRight, Search, ShieldCheck
 } from 'lucide-react'
-import { format, formatDistanceToNow } from 'date-fns'
+import { format } from 'date-fns'
 import { clsx } from 'clsx'
 import toast from 'react-hot-toast'
 
-const safeFormatDate = (dateVal, formatStr = 'dd-MMM HH:mm') => {
+const safeFormatDate = (dateVal: string | undefined, formatStr = 'dd-MMM HH:mm') => {
   if (!dateVal) return 'N/A'
   try {
     const d = new Date(dateVal)
@@ -22,14 +23,14 @@ const safeFormatDate = (dateVal, formatStr = 'dd-MMM HH:mm') => {
   }
 }
 
-const priorityBadge = {
+const priorityBadge: Record<string, string> = {
   CRITICAL: 'danger',
   HIGH: 'warning',
   MEDIUM: 'info',
   LOW: 'default'
 }
 
-const statusBadge = {
+const statusBadge: Record<string, string> = {
   OPEN: 'info',
   IN_PROGRESS: 'warning',
   WAITING_ON_EMPLOYEE: 'purple',
@@ -37,7 +38,7 @@ const statusBadge = {
   CLOSED: 'default'
 }
 
-const categoryLabels = {
+const categoryLabels: Record<string, string> = {
   HARDWARE: 'Hardware & Laptop',
   SOFTWARE: 'Software & Tools',
   ACCESS_VPN: 'Access & VPN',
@@ -46,48 +47,53 @@ const categoryLabels = {
   FACILITY: 'Facility & Office'
 }
 
-const HelpdeskPage = () => {
-  const { user } = useSelector(s => s.auth)
-  const isAdminOrSupport = ['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN', 'ROLE_IT_ADMIN', 'ROLE_IT_SUPPORT', 'ROLE_MANAGER'].includes(user?.role)
+const HelpdeskPage: React.FC = () => {
+  const { user } = useAppSelector(s => s.auth)
+  const isAdminOrSupport = ['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN', 'ROLE_IT_ADMIN', 'ROLE_IT_SUPPORT', 'ROLE_MANAGER'].includes(user?.role || '')
 
-  const [loading, setLoading] = useState(false)
-  const [tickets, setTickets] = useState([])
-  const [stats, setStats] = useState({ totalOpen: 0, inProgress: 0, resolved: 0, criticalCount: 0 })
-  const [filterStatus, setFilterStatus] = useState('ALL')
-  const [filterCategory, setFilterCategory] = useState('ALL')
-  const [scope, setScope] = useState(isAdminOrSupport ? 'ALL' : 'MY') // 'ALL' or 'MY'
-  const [searchQuery, setSearchQuery] = useState('')
+  const [loading, setLoading] = useState<boolean>(false)
+  const [tickets, setTickets] = useState<SupportTicket[]>([])
+  const [stats, setStats] = useState<{ totalOpen: number; inProgress: number; resolved: number; criticalCount: number }>({
+    totalOpen: 0,
+    inProgress: 0,
+    resolved: 0,
+    criticalCount: 0
+  })
+  const [filterStatus, setFilterStatus] = useState<string>('ALL')
+  const [filterCategory, setFilterCategory] = useState<string>('ALL')
+  const [scope, setScope] = useState<'ALL' | 'MY'>(isAdminOrSupport ? 'ALL' : 'MY')
+  const [searchQuery, setSearchQuery] = useState<string>('')
 
   // Modals
-  const [createModal, setCreateModal] = useState(false)
-  const [selectedTicket, setSelectedTicket] = useState(null)
-  const [detailModal, setDetailModal] = useState(false)
+  const [createModal, setCreateModal] = useState<boolean>(false)
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null)
+  const [detailModal, setDetailModal] = useState<boolean>(false)
 
   // Create Form State
-  const [employees, setEmployees] = useState([])
+  const [employees, setEmployees] = useState<Employee[]>([])
   const [formData, setFormData] = useState({
-    employeeId: user?.employeeId || '',
-    category: 'ACCESS_VPN',
-    priority: 'MEDIUM',
+    employeeId: user?.employeeId ? String(user.employeeId) : '',
+    category: 'ACCESS_VPN' as TicketCategory,
+    priority: 'MEDIUM' as TicketPriority,
     title: '',
     description: '',
     assetId: ''
   })
-  const [submitting, setSubmitting] = useState(false)
+  const [submitting, setSubmitting] = useState<boolean>(false)
 
   // Ticket Detail & Comment State
-  const [newComment, setNewComment] = useState('')
-  const [isInternalComment, setIsInternalComment] = useState(false)
-  const [submittingComment, setSubmittingComment] = useState(false)
-  const [updateStatus, setUpdateStatus] = useState('')
-  const [resolutionNotes, setResolutionNotes] = useState('')
-  const [updatingTicket, setUpdatingTicket] = useState(false)
+  const [newComment, setNewComment] = useState<string>('')
+  const [isInternalComment, setIsInternalComment] = useState<boolean>(false)
+  const [submittingComment, setSubmittingComment] = useState<boolean>(false)
+  const [updateStatus, setUpdateStatus] = useState<string>('')
+  const [resolutionNotes, setResolutionNotes] = useState<string>('')
+  const [updatingTicket, setUpdatingTicket] = useState<boolean>(false)
 
   const fetchStats = async () => {
     try {
       const res = await helpdeskAPI.getStats()
       if (res.data?.data) {
-        setStats(res.data.data)
+        setStats(res.data.data as any)
       }
     } catch {
       // stats optional
@@ -97,7 +103,7 @@ const HelpdeskPage = () => {
   const fetchTickets = async () => {
     setLoading(true)
     try {
-      let res
+      let res: any
       if (scope === 'MY' && user?.employeeId) {
         res = await helpdeskAPI.getMyTickets(user.employeeId, { page: 0, size: 50 })
       } else {
@@ -108,8 +114,8 @@ const HelpdeskPage = () => {
         })
       }
       const list = res.data?.data?.content || []
-      setTickets(list)
-    } catch (err) {
+      setTickets(Array.isArray(list) ? list : [])
+    } catch {
       toast.error('Failed to load tickets')
     } finally {
       setLoading(false)
@@ -120,7 +126,8 @@ const HelpdeskPage = () => {
     if (isAdminOrSupport) {
       try {
         const res = await employeeAPI.getAll({ page: 0, size: 100 })
-        setEmployees(res.data?.data?.content || [])
+        const raw = res.data?.data?.content || []
+        setEmployees(Array.isArray(raw) ? raw : [])
       } catch {
         // ignore
       }
@@ -136,7 +143,7 @@ const HelpdeskPage = () => {
     fetchTickets()
   }, [filterStatus, scope])
 
-  const handleCreateSubmit = async (e) => {
+  const handleCreateSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!formData.title || !formData.description) {
       toast.error('Please complete title and description')
@@ -157,12 +164,12 @@ const HelpdeskPage = () => {
         description: formData.description,
         category: formData.category,
         priority: formData.priority,
-        assetId: formData.assetId ? Number(formData.assetId) : null
+        assetId: formData.assetId ? Number(formData.assetId) : undefined
       })
       toast.success('Support ticket logged successfully')
       setCreateModal(false)
       setFormData({
-        employeeId: user?.employeeId || '',
+        employeeId: user?.employeeId ? String(user.employeeId) : '',
         category: 'ACCESS_VPN',
         priority: 'MEDIUM',
         title: '',
@@ -171,14 +178,14 @@ const HelpdeskPage = () => {
       })
       fetchTickets()
       fetchStats()
-    } catch (err) {
+    } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to create ticket')
     } finally {
       setSubmitting(false)
     }
   }
 
-  const openTicketDetail = async (ticket) => {
+  const openTicketDetail = async (ticket: SupportTicket) => {
     try {
       const res = await helpdeskAPI.getTicketById(ticket.id)
       const data = res.data?.data || ticket
@@ -194,7 +201,7 @@ const HelpdeskPage = () => {
     }
   }
 
-  const handleAddComment = async (e) => {
+  const handleAddComment = async (e: FormEvent) => {
     e.preventDefault()
     if (!newComment.trim() || !selectedTicket) return
 
@@ -205,13 +212,15 @@ const HelpdeskPage = () => {
         isInternal: isInternalComment
       })
       const comment = res.data?.data
-      setSelectedTicket(prev => ({
-        ...prev,
-        comments: [...(prev.comments || []), comment]
-      }))
+      if (comment) {
+        setSelectedTicket(prev => prev ? ({
+          ...prev,
+          comments: [...(prev.comments || []), comment]
+        }) : null)
+      }
       setNewComment('')
       toast.success('Comment added')
-    } catch (err) {
+    } catch {
       toast.error('Failed to add comment')
     } finally {
       setSubmittingComment(false)
@@ -223,14 +232,16 @@ const HelpdeskPage = () => {
     setUpdatingTicket(true)
     try {
       const res = await helpdeskAPI.updateTicket(selectedTicket.id, {
-        status: updateStatus,
+        status: updateStatus as TicketStatus,
         resolutionNotes: updateStatus === 'RESOLVED' ? resolutionNotes : selectedTicket.resolutionNotes
       })
       toast.success('Ticket updated')
-      setSelectedTicket(res.data?.data)
+      if (res.data?.data) {
+        setSelectedTicket(res.data.data)
+      }
       fetchTickets()
       fetchStats()
-    } catch (err) {
+    } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update ticket')
     } finally {
       setUpdatingTicket(false)
@@ -238,7 +249,8 @@ const HelpdeskPage = () => {
   }
 
   // Filtered tickets
-  const safeTickets = Array.isArray(tickets) ? tickets : []
+  const safeTickets: SupportTicket[] = Array.isArray(tickets) ? tickets : []
+  const safeEmployees: Employee[] = Array.isArray(employees) ? employees : []
   const filteredTickets = safeTickets.filter(t => {
     if (filterCategory !== 'ALL' && t.category !== filterCategory) return false
     if (searchQuery.trim()) {
@@ -510,10 +522,10 @@ const HelpdeskPage = () => {
         isOpen={createModal}
         onClose={() => setCreateModal(false)}
         title="Raise Enterprise Support Ticket"
-        maxWidth="max-w-xl"
+        size="lg"
       >
         <form onSubmit={handleCreateSubmit} className="space-y-4">
-          {isAdminOrSupport && employees.length > 0 && (
+          {isAdminOrSupport && safeEmployees.length > 0 && (
             <div>
               <label className="label">Requester Employee</label>
               <select
@@ -521,9 +533,9 @@ const HelpdeskPage = () => {
                 onChange={e => setFormData({ ...formData, employeeId: e.target.value })}
                 className="input bg-white text-sm"
               >
-                {employees.map(e => (
+                {safeEmployees.map(e => (
                   <option key={e.id} value={e.id}>
-                    {e.fullName} ({e.employeeNumber}) — {e.department?.name || 'Staff'}
+                    {e.fullName || `${e.firstName} ${e.lastName}`} ({e.employeeNumber}) — {e.designation || 'Staff'}
                   </option>
                 ))}
               </select>
@@ -535,7 +547,7 @@ const HelpdeskPage = () => {
               <label className="label">Category <span className="text-red-500">*</span></label>
               <select
                 value={formData.category}
-                onChange={e => setFormData({ ...formData, category: e.target.value })}
+                onChange={e => setFormData({ ...formData, category: e.target.value as TicketCategory })}
                 className="input bg-white text-sm"
               >
                 <option value="ACCESS_VPN">Access & VPN (IAM, Login, Tunnel)</option>
@@ -551,7 +563,7 @@ const HelpdeskPage = () => {
               <label className="label">Priority / SLA Target <span className="text-red-500">*</span></label>
               <select
                 value={formData.priority}
-                onChange={e => setFormData({ ...formData, priority: e.target.value })}
+                onChange={e => setFormData({ ...formData, priority: e.target.value as TicketPriority })}
                 className="input bg-white text-sm"
               >
                 <option value="CRITICAL">CRITICAL (4h Resolution SLA)</option>
@@ -594,13 +606,13 @@ const HelpdeskPage = () => {
       </Modal>
 
       {/* Ticket Detail & SLA Resolution Modal */}
-      <Modal
-        isOpen={detailModal}
-        onClose={() => setDetailModal(false)}
-        title={selectedTicket ? `Support Ticket: ${selectedTicket.ticketNumber}` : 'Ticket Details'}
-        maxWidth="max-w-3xl"
-      >
-        {selectedTicket && (
+      {selectedTicket && (
+        <Modal
+          isOpen={detailModal}
+          onClose={() => setDetailModal(false)}
+          title={`Support Ticket: ${selectedTicket.ticketNumber}`}
+          size="lg"
+        >
           <div className="space-y-6">
             {/* Header Status & Metadata */}
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-wrap items-center justify-between gap-4">
@@ -703,7 +715,7 @@ const HelpdeskPage = () => {
                 {(!selectedTicket.comments || selectedTicket.comments.length === 0) ? (
                   <p className="text-xs text-slate-400 italic">No notes or comments on this ticket yet.</p>
                 ) : (
-                  selectedTicket.comments.map(c => (
+                  selectedTicket.comments.map((c: TicketComment) => (
                     <div
                       key={c.id}
                       className={clsx(
@@ -759,8 +771,8 @@ const HelpdeskPage = () => {
               </form>
             </div>
           </div>
-        )}
-      </Modal>
+        </Modal>
+      )}
     </div>
   )
 }

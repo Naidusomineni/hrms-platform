@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react'
-import { useSelector } from 'react-redux'
-import { assetService } from '../services/assetService'
+import React, { useEffect, useState, type FormEvent, type ElementType } from 'react'
+import { useAppSelector } from '../../../store/hooks'
+import { assetAPI } from '../../../api/assetAPI'
 import { employeeAPI } from '../../../api/employeeAPI'
-import { Button, Badge, Card, CardHeader, CardBody, Modal, Spinner, EmptyState } from '../../../components/common/index.jsx'
+import { Button, Badge, Card, CardHeader, Modal, Spinner, EmptyState } from '../../../components/common'
+import type { Asset, AssetAllocation, AssetCategory, Employee } from '../../../types'
 import { Laptop, Monitor, Smartphone, Key, HardDrive, Plus, UserCheck, RotateCcw, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const categoryIcons = {
+const categoryIcons: Record<string, ElementType<{ size?: number; className?: string }>> = {
   LAPTOP: Laptop,
   MONITOR: Monitor,
   MOBILE_DEVICE: Smartphone,
@@ -15,22 +16,22 @@ const categoryIcons = {
   LICENSE: ShieldCheck
 }
 
-const AssetPage = () => {
-  const { user } = useSelector(s => s.auth)
-  const isAdminHR = ['ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN','ROLE_IT_ADMIN'].includes(user?.role)
+const AssetPage: React.FC = () => {
+  const { user } = useAppSelector(s => s.auth)
+  const isAdminHR = ['ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN','ROLE_IT_ADMIN'].includes(user?.role || '')
   const empId = user?.employeeId || null
 
-  const [activeTab, setActiveTab] = useState(isAdminHR ? 'inventory' : 'my-assets') // 'inventory' | 'my-assets'
-  const [assets, setAssets] = useState([])
-  const [myAssets, setMyAssets] = useState([])
-  const [employees, setEmployees] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<'inventory' | 'my-assets'>(isAdminHR ? 'inventory' : 'my-assets')
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [myAssets, setMyAssets] = useState<AssetAllocation[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [loading, setLoading] = useState<boolean>(false)
 
   // Add Asset Modal
-  const [assetModalOpen, setAssetModalOpen] = useState(false)
+  const [assetModalOpen, setAssetModalOpen] = useState<boolean>(false)
   const [newAsset, setNewAsset] = useState({
     assetTag: '',
-    category: 'LAPTOP',
+    category: 'LAPTOP' as AssetCategory,
     brand: '',
     model: '',
     serialNumber: '',
@@ -39,22 +40,25 @@ const AssetPage = () => {
   })
 
   // Allocate Modal
-  const [allocateModalOpen, setAllocateModalOpen] = useState(false)
-  const [selectedAsset, setSelectedAsset] = useState(null)
-  const [selectedEmpId, setSelectedEmpId] = useState('')
-  const [allocNotes, setAllocNotes] = useState('')
+  const [allocateModalOpen, setAllocateModalOpen] = useState<boolean>(false)
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
+  const [selectedEmpId, setSelectedEmpId] = useState<string>('')
+  const [allocNotes, setAllocNotes] = useState<string>('')
 
   const loadData = async () => {
     setLoading(true)
     try {
       const [aRes, myRes, empRes] = await Promise.all([
-        isAdminHR ? assetService.getAssets() : Promise.resolve({ data: { data: [] } }),
-        empId ? assetService.getEmployeeAssets(empId) : Promise.resolve({ data: { data: [] } }),
-        isAdminHR ? employeeAPI.getAll({ size: 200 }) : Promise.resolve({ data: { data: { content: [] } } })
+        isAdminHR ? assetAPI.getAssets() : Promise.resolve({ data: { data: [] as Asset[] } }),
+        empId ? assetAPI.getEmployeeAssets(empId) : Promise.resolve({ data: { data: [] as AssetAllocation[] } }),
+        isAdminHR ? employeeAPI.getAll({ size: 200 }) : Promise.resolve({ data: { data: { content: [] as Employee[] } } })
       ])
-      setAssets(Array.isArray(aRes.data?.data) ? aRes.data.data : [])
-      setMyAssets(Array.isArray(myRes.data?.data) ? myRes.data.data : [])
-      setEmployees(Array.isArray(empRes.data?.data?.content) ? empRes.data.data.content : (Array.isArray(empRes.data?.content) ? empRes.data.content : []))
+      const rawAssets = aRes.data?.data
+      const rawMyAssets = myRes.data?.data
+      const rawEmps = empRes.data?.data?.content || []
+      setAssets(Array.isArray(rawAssets) ? rawAssets : [])
+      setMyAssets(Array.isArray(rawMyAssets) ? rawMyAssets : [])
+      setEmployees(Array.isArray(rawEmps) ? rawEmps : [])
     } catch {
       // ignore
     } finally {
@@ -66,46 +70,46 @@ const AssetPage = () => {
     loadData()
   }, [empId])
 
-  const handleCreateAsset = async (e) => {
+  const handleCreateAsset = async (e: FormEvent) => {
     e.preventDefault()
     if (!newAsset.assetTag.trim() || !newAsset.brand.trim()) return
     try {
-      await assetService.createAsset({
+      await assetAPI.createAsset({
         ...newAsset,
-        cost: newAsset.cost ? parseFloat(newAsset.cost) : null
+        cost: newAsset.cost ? parseFloat(newAsset.cost) : undefined
       })
       toast.success('Asset added to inventory!')
       setAssetModalOpen(false)
       setNewAsset({ assetTag: '', category: 'LAPTOP', brand: '', model: '', serialNumber: '', cost: '', conditionStatus: 'GOOD' })
       loadData()
-    } catch (err) {
+    } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to create asset')
     }
   }
 
-  const handleOpenAllocate = (asset) => {
+  const handleOpenAllocate = (asset: Asset) => {
     setSelectedAsset(asset)
     setSelectedEmpId(employees[0]?.id ? String(employees[0].id) : '')
     setAllocNotes('')
     setAllocateModalOpen(true)
   }
 
-  const handleAllocate = async (e) => {
+  const handleAllocate = async (e: FormEvent) => {
     e.preventDefault()
     if (!selectedAsset || !selectedEmpId) return
     try {
-      await assetService.allocateAsset(selectedAsset.id, Number(selectedEmpId), allocNotes)
+      await assetAPI.allocateAsset(selectedAsset.id, Number(selectedEmpId), allocNotes)
       toast.success(`Asset ${selectedAsset.assetTag} allocated!`)
       setAllocateModalOpen(false)
       loadData()
-    } catch (err) {
+    } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to allocate asset')
     }
   }
 
-  const handleReturn = async (allocationId) => {
+  const handleReturn = async (allocationId: number) => {
     try {
-      await assetService.returnAsset(allocationId, 'Verified in good condition upon return.')
+      await assetAPI.returnAsset(allocationId, 'Verified in good condition upon return.')
       toast.success('Asset marked as returned and available in inventory.')
       loadData()
     } catch {
@@ -113,9 +117,10 @@ const AssetPage = () => {
     }
   }
 
-  const safeAssets = Array.isArray(assets) ? assets : []
-  const safeMyAssets = Array.isArray(myAssets) ? myAssets : []
-  const totalValuation = safeAssets.reduce((sum, a) => sum + (a.cost ? Number(a.cost) : 0), 0)
+  const safeAssets: Asset[] = Array.isArray(assets) ? assets : []
+  const safeMyAssets: AssetAllocation[] = Array.isArray(myAssets) ? myAssets : []
+  const safeEmployees: Employee[] = Array.isArray(employees) ? employees : []
+  const totalValuation = safeAssets.reduce((sum: number, a: Asset) => sum + (a.cost ? Number(a.cost) : 0), 0)
   const allocatedCount = safeAssets.filter(a => a.status === 'ALLOCATED').length
   const availableCount = safeAssets.filter(a => a.status === 'AVAILABLE').length
 
@@ -136,7 +141,7 @@ const AssetPage = () => {
                   activeTab === 'inventory' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
-                Asset Master ({assets.length})
+                Asset Master ({safeAssets.length})
               </button>
             )}
             <button
@@ -145,7 +150,7 @@ const AssetPage = () => {
                 activeTab === 'my-assets' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              My Issued Assets ({myAssets.length})
+              My Issued Assets ({safeMyAssets.length})
             </button>
           </div>
 
@@ -162,7 +167,7 @@ const AssetPage = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="p-4 border border-slate-200">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Assets</span>
-            <p className="text-2xl font-black text-slate-900 mt-1">{assets.length}</p>
+            <p className="text-2xl font-black text-slate-900 mt-1">{safeAssets.length}</p>
           </Card>
           <Card className="p-4 border border-slate-200">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Allocated</span>
@@ -188,7 +193,7 @@ const AssetPage = () => {
             <Card>
               <CardHeader>
                 <h3 className="font-bold text-slate-800">All Company Assets</h3>
-                <p className="text-xs text-slate-400 mt-0.5">{assets.length} items registered across all categories</p>
+                <p className="text-xs text-slate-400 mt-0.5">{safeAssets.length} items registered across all categories</p>
               </CardHeader>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -200,7 +205,7 @@ const AssetPage = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {assets.map(a => {
+                    {safeAssets.map(a => {
                       const Icon = categoryIcons[a.category] || HardDrive
                       return (
                         <tr key={a.id} className="hover:bg-slate-50 transition-colors">
@@ -252,7 +257,7 @@ const AssetPage = () => {
           {/* Tab 2: My Assigned Assets */}
           {activeTab === 'my-assets' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {myAssets.map(al => (
+              {safeMyAssets.map(al => (
                 <Card key={al.id} className="p-5 border border-slate-200">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
@@ -285,7 +290,7 @@ const AssetPage = () => {
                 </Card>
               ))}
 
-              {myAssets.length === 0 && (
+              {safeMyAssets.length === 0 && (
                 <div className="col-span-full">
                   <Card className="p-12 text-center">
                     <EmptyState icon={Laptop} title="No Assets Issued" description="Hardware or peripherals assigned to you will show up here." />
@@ -324,7 +329,7 @@ const AssetPage = () => {
               <label className="label">Category *</label>
               <select
                 value={newAsset.category}
-                onChange={e => setNewAsset({ ...newAsset, category: e.target.value })}
+                onChange={e => setNewAsset({ ...newAsset, category: e.target.value as AssetCategory })}
                 className="input bg-white"
               >
                 <option value="LAPTOP">Laptop</option>
@@ -409,9 +414,9 @@ const AssetPage = () => {
               onChange={e => setSelectedEmpId(e.target.value)}
               className="input bg-white"
             >
-              {employees.map(e => (
+              {safeEmployees.map(e => (
                 <option key={e.id} value={e.id}>
-                  {e.fullName} ({e.employeeNumber}) — {e.designation}
+                  {e.fullName || `${e.firstName} ${e.lastName}`} ({e.employeeNumber}) — {e.designation}
                 </option>
               ))}
             </select>

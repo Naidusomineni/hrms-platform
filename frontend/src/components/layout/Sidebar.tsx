@@ -1,21 +1,33 @@
-import React, { useState } from 'react'
+import React, { useState, type ElementType } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { useDispatch, useSelector } from 'react-redux'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { logoutUser } from '../../store/slices/authSlice'
 import { toggleSidebar } from '../../store/slices/uiSlice'
 import { attendanceAPI } from '../../api/attendanceAPI'
-import { Modal, Button } from '../common/index.jsx'
+import { Modal, Button } from '../common'
 import {
   LayoutDashboard, Users, Building2, Clock, CalendarDays,
-  DollarSign, User, LogOut, ChevronLeft, ChevronRight,
+  DollarSign, User, LogOut, ChevronLeft,
   Briefcase, Shield, BarChart3, CheckSquare, FileText, Send,
-  Target, Laptop, AlertCircle, XCircle, UserMinus, LifeBuoy, Megaphone, CalendarClock, BrainCircuit, Receipt, Sparkles
+  Target, Laptop, AlertCircle, XCircle, UserMinus, LifeBuoy, Megaphone, CalendarClock, BrainCircuit, Receipt
 } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
 
-const NAV_GROUPS = [
+interface NavItem {
+  path: string
+  label: string
+  icon: ElementType<{ size?: number; className?: string }>
+  roles: string[]
+}
+
+interface NavGroup {
+  title: string
+  items: NavItem[]
+}
+
+const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Overview',
     items: [
@@ -69,16 +81,16 @@ const NAV_GROUPS = [
   }
 ]
 
-const Sidebar = () => {
-  const dispatch = useDispatch()
+const Sidebar: React.FC = () => {
+  const dispatch = useAppDispatch()
   const navigate = useNavigate()
-  const { sidebarOpen } = useSelector(s => s.ui)
-  const { user } = useSelector(s => s.auth)
-  const { tenant } = useSelector(s => s.tenant)
+  const { sidebarOpen } = useAppSelector(s => s.ui)
+  const { user } = useAppSelector(s => s.auth)
+  const { tenant } = useAppSelector(s => s.tenant)
 
-  const [logoutModalOpen, setLogoutModalOpen] = useState(false)
-  const [activeShiftInfo, setActiveShiftInfo] = useState(null)
-  const [loggingOut, setLoggingOut] = useState(false)
+  const [logoutModalOpen, setLogoutModalOpen] = useState<boolean>(false)
+  const [activeShiftInfo, setActiveShiftInfo] = useState<any>(null)
+  const [loggingOut, setLoggingOut] = useState<boolean>(false)
 
   // Smart Logout Flow
   const handleLogoutClick = async () => {
@@ -117,9 +129,7 @@ const Sidebar = () => {
     try {
       if (user?.employeeId) {
         await attendanceAPI.punch({
-          employeeId: user.employeeId,
-          date: format(new Date(), 'yyyy-MM-dd'),
-          time: format(new Date(), 'HH:mm:ss'),
+          employeeId: Number(user.employeeId),
           punchType: 'CHECK_OUT',
           latitude: 0.0,
           longitude: 0.0,
@@ -136,7 +146,7 @@ const Sidebar = () => {
   }
 
   const roleLabel = user?.role?.replace('ROLE_', '') || 'USER'
-  const roleColors = {
+  const roleColors: Record<string, string> = {
     SUPER_ADMIN: 'bg-purple-500/20 text-purple-300 border border-purple-500/30',
     ADMIN: 'bg-red-500/20 text-red-300 border border-red-500/30',
     HR: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
@@ -152,7 +162,7 @@ const Sidebar = () => {
   const filteredGroups = NAV_GROUPS.map(group => ({
     ...group,
     items: group.items
-      .filter(item => item.roles.includes(user?.role))
+      .filter(item => user?.role ? item.roles.includes(user.role) : false)
       .map(item => {
         if (isEmpOnly) {
           if (item.path === '/payroll') return { ...item, label: 'My Payslips' }

@@ -1,33 +1,34 @@
-import React, { useState, useEffect } from 'react'
-import { useSelector } from 'react-redux'
+import React, { useState, useEffect, type FormEvent, type ChangeEvent } from 'react'
+import { useAppSelector } from '../../../store/hooks'
 import { documentAPI } from '../../../api/documentAPI'
 import apiClient from '../../../api/apiClient'
-import { FileText, Upload, Plus, Download, ShieldCheck, Clock, AlertTriangle, FileBadge, CheckCircle, FilePlus2 } from 'lucide-react'
+import type { DocumentResponse, DocumentCategory } from '../../../types'
+import { FileText, Upload, Download, Clock, FileBadge } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const CATEGORIES = ['ALL', 'GOVERNMENT_ID', 'ACADEMIC', 'EXPERIENCE', 'TAX', 'HR_LETTER']
 
 export default function DocumentVaultPage() {
-  const { user } = useSelector(s => s.auth)
-  const [documents, setDocuments] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('ALL')
-  const [showUploadModal, setShowUploadModal] = useState(false)
-  const [showLetterModal, setShowLetterModal] = useState(false)
+  const { user } = useAppSelector(s => s.auth)
+  const [documents, setDocuments] = useState<DocumentResponse[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [activeTab, setActiveTab] = useState<string>('ALL')
+  const [showUploadModal, setShowUploadModal] = useState<boolean>(false)
+  const [showLetterModal, setShowLetterModal] = useState<boolean>(false)
 
   // Upload Form State
-  const [file, setFile] = useState(null)
-  const [category, setCategory] = useState('GOVERNMENT_ID')
-  const [title, setTitle] = useState('')
-  const [docNumber, setDocNumber] = useState('')
-  const [expiryDate, setExpiryDate] = useState('')
-  const [uploading, setUploading] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const [category, setCategory] = useState<string>('GOVERNMENT_ID')
+  const [title, setTitle] = useState<string>('')
+  const [docNumber, setDocNumber] = useState<string>('')
+  const [expiryDate, setExpiryDate] = useState<string>('')
+  const [uploading, setUploading] = useState<boolean>(false)
 
   // HR Letter Form State
-  const [letterType, setLetterType] = useState('BONAFIDE')
-  const [purpose, setPurpose] = useState('')
-  const [addressedTo, setAddressedTo] = useState('')
-  const [generating, setGenerating] = useState(false)
+  const [letterType, setLetterType] = useState<string>('BONAFIDE')
+  const [purpose, setPurpose] = useState<string>('')
+  const [addressedTo, setAddressedTo] = useState<string>('')
+  const [generating, setGenerating] = useState<boolean>(false)
 
   const fetchDocs = async () => {
     try {
@@ -37,8 +38,9 @@ export default function DocumentVaultPage() {
         return
       }
       const res = await documentAPI.getForEmployee(user.employeeId)
-      setDocuments(res.data.data?.content || [])
-    } catch (err) {
+      const raw = res.data?.data?.content || []
+      setDocuments(Array.isArray(raw) ? raw : [])
+    } catch {
       toast.error('Failed to load documents')
     } finally {
       setLoading(false)
@@ -49,14 +51,14 @@ export default function DocumentVaultPage() {
     fetchDocs()
   }, [user?.employeeId])
 
-  const handleUpload = async (e) => {
+  const handleUpload = async (e: FormEvent) => {
     e.preventDefault()
     if (!user?.employeeId) return toast.error('Employee profile not linked yet')
     if (!file) return toast.error('Please select a file to upload')
     if (!title) return toast.error('Please provide a document title')
 
     const formData = new FormData()
-    formData.append('employeeId', user.employeeId)
+    formData.append('employeeId', String(user.employeeId))
     formData.append('category', category)
     formData.append('title', title)
     if (docNumber) formData.append('documentNumber', docNumber)
@@ -73,20 +75,20 @@ export default function DocumentVaultPage() {
       setDocNumber('')
       setExpiryDate('')
       fetchDocs()
-    } catch (err) {
+    } catch (err: any) {
       toast.error(err.response?.data?.message || 'Upload failed')
     } finally {
       setUploading(false)
     }
   }
 
-  const handleGenerateLetter = async (e) => {
+  const handleGenerateLetter = async (e: FormEvent) => {
     e.preventDefault()
     if (!user?.employeeId) return toast.error('Employee profile not linked yet')
     try {
       setGenerating(true)
       await documentAPI.generateLetter({
-        employeeId: user.employeeId,
+        employeeId: Number(user.employeeId),
         letterType,
         purpose,
         addressedTo
@@ -96,14 +98,14 @@ export default function DocumentVaultPage() {
       setPurpose('')
       setAddressedTo('')
       fetchDocs()
-    } catch (err) {
+    } catch {
       toast.error('Failed to generate HR letter')
     } finally {
       setGenerating(false)
     }
   }
 
-  const handleDownload = async (docId, fileName) => {
+  const handleDownload = async (docId: number, fileName?: string) => {
     try {
       const res = await apiClient.get(`/v1/documents/${docId}/download`, {
         responseType: 'blob'
@@ -121,7 +123,7 @@ export default function DocumentVaultPage() {
     }
   }
 
-  const safeDocs = Array.isArray(documents) ? documents : []
+  const safeDocs: DocumentResponse[] = Array.isArray(documents) ? documents : []
   const filteredDocs = activeTab === 'ALL'
     ? safeDocs
     : safeDocs.filter(d => d.category === activeTab)
@@ -212,7 +214,7 @@ export default function DocumentVaultPage() {
               </div>
 
               <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span className="text-slate-400">{(doc.fileSize / 1024).toFixed(1)} KB</span>
+                <span className="text-slate-400">{doc.fileSize ? (doc.fileSize / 1024).toFixed(1) : '0'} KB</span>
                 <button
                   type="button"
                   onClick={() => handleDownload(doc.id, doc.fileName || doc.title)}
@@ -241,7 +243,7 @@ export default function DocumentVaultPage() {
                 <label className="block font-bold text-slate-700 mb-1">Document Category</label>
                 <select
                   value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 >
                   <option value="GOVERNMENT_ID">Government ID (Passport, Aadhaar, PAN)</option>
@@ -259,7 +261,7 @@ export default function DocumentVaultPage() {
                   required
                   placeholder="e.g. Passport Copy - Front & Back"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
@@ -270,7 +272,7 @@ export default function DocumentVaultPage() {
                   type="text"
                   placeholder="e.g. Z1234567"
                   value={docNumber}
-                  onChange={(e) => setDocNumber(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setDocNumber(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
@@ -280,7 +282,7 @@ export default function DocumentVaultPage() {
                 <input
                   type="date"
                   value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setExpiryDate(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
@@ -290,7 +292,11 @@ export default function DocumentVaultPage() {
                 <input
                   type="file"
                   required
-                  onChange={(e) => setFile(e.target.files[0])}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setFile(e.target.files[0])
+                    }
+                  }}
                   className="w-full text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                 />
               </div>
@@ -330,7 +336,7 @@ export default function DocumentVaultPage() {
                 <label className="block font-bold text-slate-700 mb-1">Letter Type</label>
                 <select
                   value={letterType}
-                  onChange={(e) => setLetterType(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setLetterType(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 >
                   <option value="BONAFIDE">Bonafide Certificate / Proof of Employment</option>
@@ -346,7 +352,7 @@ export default function DocumentVaultPage() {
                   type="text"
                   placeholder="e.g. Visa Consulate, Bank Loan Officer, etc."
                   value={addressedTo}
-                  onChange={(e) => setAddressedTo(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setAddressedTo(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
@@ -357,7 +363,7 @@ export default function DocumentVaultPage() {
                   type="text"
                   placeholder="e.g. Home loan verification or travel visa"
                   value={purpose}
-                  onChange={(e) => setPurpose(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPurpose(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>

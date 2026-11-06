@@ -55,7 +55,7 @@ public class HelpdeskController {
     }
 
     @PutMapping("/tickets/{id}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_SUPPORT','ROLE_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN','ROLE_IT_SUPPORT','ROLE_MANAGER')")
     public ResponseEntity<ApiResponse<TicketResponse>> updateTicket(
             @PathVariable("id") Long id,
             @RequestBody TicketUpdateRequest req) {

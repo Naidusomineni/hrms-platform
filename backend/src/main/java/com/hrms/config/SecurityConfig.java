@@ -71,12 +71,14 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_PATHS).permitAll()
 
                         // Admin APIs
+                        .requestMatchers("/v1/admin/audit/**", "/v1/admin/users/**")
+                        .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_IT_ADMIN")
                         .requestMatchers("/v1/admin/**")
                         .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN")
 
                         // Dashboard APIs
                         .requestMatchers("/v1/dashboard/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR", "ROLE_IT_ADMIN")
 
                         // Employee self-service APIs
                         .requestMatchers(HttpMethod.GET, "/v1/employees/*").authenticated()
@@ -84,11 +86,11 @@ public class SecurityConfig {
 
                         // Employee management APIs
                         .requestMatchers("/v1/employees/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR", "ROLE_IT_ADMIN")
 
                         // Department APIs
                         .requestMatchers("/v1/departments/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR", "ROLE_IT_ADMIN")
 
                         // Notification APIs
                         .requestMatchers("/v1/notifications/**")

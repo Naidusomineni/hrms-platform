@@ -48,7 +48,7 @@ const categoryLabels = {
 
 const HelpdeskPage = () => {
   const { user } = useSelector(s => s.auth)
-  const isAdminOrSupport = ['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN', 'ROLE_IT_SUPPORT', 'ROLE_MANAGER'].includes(user?.role)
+  const isAdminOrSupport = ['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN', 'ROLE_IT_ADMIN', 'ROLE_IT_SUPPORT', 'ROLE_MANAGER'].includes(user?.role)
 
   const [loading, setLoading] = useState(false)
   const [tickets, setTickets] = useState([])

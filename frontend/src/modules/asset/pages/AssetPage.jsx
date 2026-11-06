@@ -17,7 +17,7 @@ const categoryIcons = {
 
 const AssetPage = () => {
   const { user } = useSelector(s => s.auth)
-  const isAdminHR = ['ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN'].includes(user?.role)
+  const isAdminHR = ['ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN','ROLE_IT_ADMIN'].includes(user?.role)
   const empId = user?.employeeId || null
 
   const [activeTab, setActiveTab] = useState(isAdminHR ? 'inventory' : 'my-assets') // 'inventory' | 'my-assets'

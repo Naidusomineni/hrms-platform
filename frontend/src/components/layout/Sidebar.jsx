@@ -19,52 +19,52 @@ const NAV_GROUPS = [
   {
     title: 'Overview',
     items: [
-      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
-      { path: '/announcements', label: 'Announcements', icon: Megaphone, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
+      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
+      { path: '/announcements', label: 'Announcements', icon: Megaphone, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
     ]
   },
   {
     title: 'Time & Attendance',
     items: [
-      { path: '/attendance', label: 'Attendance', icon: Clock, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
-      { path: '/shifts', label: 'Shift & Roster', icon: CalendarClock, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
-      { path: '/leaves', label: 'Leave Management', icon: CalendarDays, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
+      { path: '/attendance', label: 'Attendance', icon: Clock, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
+      { path: '/shifts', label: 'Shift & Roster', icon: CalendarClock, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
+      { path: '/leaves', label: 'Leave Management', icon: CalendarDays, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
     ]
   },
   {
     title: 'Organization',
     items: [
       { path: '/approvals', label: 'Approvals Inbox', icon: CheckSquare, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER'] },
-      { path: '/requests', label: 'My Requests', icon: Send, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
-      { path: '/employees', label: 'Employees', icon: Users, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER'] },
+      { path: '/requests', label: 'My Requests', icon: Send, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
+      { path: '/employees', label: 'Employees', icon: Users, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_IT_ADMIN'] },
       { path: '/departments', label: 'Departments', icon: Building2, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR'] },
-      { path: '/documents', label: 'Document Vault', icon: FileText, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
+      { path: '/documents', label: 'Document Vault', icon: FileText, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
     ]
   },
   {
     title: 'Talent & HR',
     items: [
       { path: '/recruitment', label: 'Recruitment / ATS', icon: Briefcase, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER'] },
-      { path: '/performance', label: 'Performance & OKR', icon: Target, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
-      { path: '/intelligence', label: 'AI HR & Insights', icon: BrainCircuit, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
+      { path: '/performance', label: 'Performance & OKR', icon: Target, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
+      { path: '/intelligence', label: 'AI HR & Insights', icon: BrainCircuit, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
       { path: '/offboarding', label: 'Offboarding & F&F', icon: UserMinus, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
     ]
   },
   {
     title: 'Finance & Ops',
     items: [
-      { path: '/payroll', label: 'Payroll', icon: DollarSign, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
-      { path: '/expenses', label: 'Expense Claims', icon: Receipt, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
-      { path: '/assets', label: 'Assets & Hardware', icon: Laptop, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
-      { path: '/helpdesk', label: 'IT Service Desk', icon: LifeBuoy, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
+      { path: '/payroll', label: 'Payroll', icon: DollarSign, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
+      { path: '/expenses', label: 'Expense Claims', icon: Receipt, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
+      { path: '/assets', label: 'Assets & Hardware', icon: Laptop, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
+      { path: '/helpdesk', label: 'IT Service Desk', icon: LifeBuoy, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
       { path: '/reports', label: 'Reports & Tax BI', icon: BarChart3, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER'] },
     ]
   },
   {
     title: 'System',
     items: [
-      { path: '/admin', label: 'Admin Panel', icon: Shield, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN'] },
-      { path: '/profile', label: 'My Profile', icon: User, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
+      { path: '/admin', label: 'Admin Panel', icon: Shield, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_IT_ADMIN'] },
+      { path: '/profile', label: 'My Profile', icon: User, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
     ]
   }
 ]
@@ -142,10 +142,12 @@ const Sidebar = () => {
     HR: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
     MANAGER: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
     EMPLOYEE: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
+    IT_ADMIN: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30',
   }
 
   // Filter groups and items by user role with tailored labels
   const isEmpOnly = user?.role === 'ROLE_EMPLOYEE'
+  const isItAdmin = user?.role === 'ROLE_IT_ADMIN'
 
   const filteredGroups = NAV_GROUPS.map(group => ({
     ...group,
@@ -158,6 +160,13 @@ const Sidebar = () => {
           if (item.path === '/intelligence') return { ...item, label: 'AI HR Copilot' }
           if (item.path === '/offboarding') return { ...item, label: 'Resignation & Exit' }
           if (item.path === '/expenses') return { ...item, label: 'My Expenses' }
+        }
+        if (isItAdmin) {
+          if (item.path === '/payroll') return { ...item, label: 'My Payslips' }
+          if (item.path === '/expenses') return { ...item, label: 'My Expenses' }
+          if (item.path === '/performance') return { ...item, label: 'My Goals' }
+          if (item.path === '/intelligence') return { ...item, label: 'AI HR Copilot' }
+          if (item.path === '/admin') return { ...item, label: 'Audit & Security Logs' }
         }
         return item
       })

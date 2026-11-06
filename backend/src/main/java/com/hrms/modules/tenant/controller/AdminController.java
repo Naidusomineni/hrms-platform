@@ -29,7 +29,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
 @Tag(name = "Admin Panel")
-@PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_SUPER_ADMIN')")
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_SUPER_ADMIN','ROLE_IT_ADMIN')")
 public class AdminController {
 
     private final UserRepository userRepository;
@@ -81,6 +81,7 @@ public class AdminController {
     }
 
     @PatchMapping("/users/{id}/role")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> updateRole(
             @PathVariable("id") Long id,
             @Valid @RequestBody AdminRoleUpdateRequest request) {
@@ -120,6 +121,7 @@ public class AdminController {
     }
 
     @PutMapping("/settings/{key}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<SystemSettingResponse>> updateSetting(
             @PathVariable("key") String key,
             @Valid @RequestBody SystemSettingRequest request) {

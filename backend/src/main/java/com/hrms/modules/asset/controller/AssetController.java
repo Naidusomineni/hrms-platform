@@ -30,14 +30,14 @@ public class AssetController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN')")
     public ResponseEntity<ApiResponse<AssetDto>> createAsset(@Valid @RequestBody AssetDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Asset registered", assetService.createAsset(dto)));
     }
 
     @PostMapping("/{id}/allocate")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN')")
     public ResponseEntity<ApiResponse<AssetAllocationDto>> allocateAsset(
             @PathVariable("id") Long id,
             @RequestParam("employeeId") Long employeeId,
@@ -47,7 +47,7 @@ public class AssetController {
     }
 
     @PostMapping("/allocations/{id}/return")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN')")
     public ResponseEntity<ApiResponse<AssetAllocationDto>> returnAsset(
             @PathVariable("id") Long id,
             @RequestParam(name = "notes", required = false) String notes) {

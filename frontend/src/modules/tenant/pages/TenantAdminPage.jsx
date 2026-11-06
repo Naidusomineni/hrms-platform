@@ -18,7 +18,9 @@ const CORPORATE_PALETTES = [
 ]
 
 const TenantAdminPage = () => {
-  const [activeTab, setActiveTab] = useState('users')
+  const { user: currentUser } = useSelector(s => s.auth)
+  const isItAdmin = currentUser?.role === 'ROLE_IT_ADMIN'
+  const [activeTab, setActiveTab] = useState(isItAdmin ? 'audit' : 'users')
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
   const [userSearch, setUserSearch] = useState('')
@@ -252,12 +254,13 @@ const TenantAdminPage = () => {
 
   const hasAuditFilters = auditSearch || auditAction || auditEntityType || auditPerformedBy
 
-  const tabs = [
+  const allTabs = [
     { key:'users', label:'User Management', icon:Users },
-    { key:'branding', label:'Company Branding', icon:Palette },
+    { key:'branding', label:'Company Branding', icon:Palette, adminOnly: true },
     { key:'audit', label:'Audit Logs', icon:Activity },
-    { key:'config', label:'System Config', icon:Settings },
+    { key:'config', label:'System Config', icon:Settings, adminOnly: true },
   ]
+  const tabs = isItAdmin ? allTabs.filter(t => !t.adminOnly) : allTabs
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -325,15 +328,17 @@ const TenantAdminPage = () => {
                               <Badge variant={u.role?.includes('ADMIN') ? 'danger' : u.role?.includes('HR') ? 'info' : 'default'}>
                                 {u.role?.replace('ROLE_','')}
                               </Badge>
-                              <select
-                                value={roleChanges[u.id] ?? u.role}
-                                onChange={e => setRoleChanges(prev => ({ ...prev, [u.id]: e.target.value }))}
-                                className="input bg-white text-xs"
-                              >
-                                {['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_MANAGER','ROLE_EMPLOYEE'].map(role => (
-                                  <option key={role} value={role}>{role.replace('ROLE_','')}</option>
-                                ))}
-                              </select>
+                              {!isItAdmin && (
+                                <select
+                                  value={roleChanges[u.id] ?? u.role}
+                                  onChange={e => setRoleChanges(prev => ({ ...prev, [u.id]: e.target.value }))}
+                                  className="input bg-white text-xs"
+                                >
+                                  {['ROLE_SUPER_ADMIN','ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN','ROLE_MANAGER','ROLE_EMPLOYEE'].map(role => (
+                                    <option key={role} value={role}>{role.replace('ROLE_','')}</option>
+                                  ))}
+                                </select>
+                              )}
                             </div>
                           </td>
                           <td className="px-5 py-4">
@@ -349,12 +354,14 @@ const TenantAdminPage = () => {
                               disabled={statusUpdating[u.id]}>
                               {u.isActive ? 'Deactivate' : 'Activate'}
                             </Button>
-                            <Button variant="secondary" size="sm"
-                              onClick={() => updateRole(u.id, roleChanges[u.id] ?? u.role)}
-                              loading={roleUpdating[u.id]}
-                              disabled={!roleChanges[u.id] || (roleChanges[u.id] === u.role) || roleUpdating[u.id]}>
-                              Update role
-                            </Button>
+                            {!isItAdmin && (
+                              <Button variant="secondary" size="sm"
+                                onClick={() => updateRole(u.id, roleChanges[u.id] ?? u.role)}
+                                loading={roleUpdating[u.id]}
+                                disabled={!roleChanges[u.id] || (roleChanges[u.id] === u.role) || roleUpdating[u.id]}>
+                                Update role
+                              </Button>
+                            )}
                           </td>
                         </tr>
                       ))}

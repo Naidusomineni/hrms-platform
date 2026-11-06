@@ -5,5 +5,6 @@ public enum Role {
     ROLE_ADMIN,        // Company admin — full HR access
     ROLE_HR,           // HR staff — manage employees, leaves, attendance
     ROLE_MANAGER,      // Department manager — view/approve their team
-    ROLE_EMPLOYEE      // Regular employee
+    ROLE_EMPLOYEE,     // Regular employee
+    ROLE_IT_ADMIN      // IT Systems, Asset inventory, and SLA Helpdesk Administrator
 }

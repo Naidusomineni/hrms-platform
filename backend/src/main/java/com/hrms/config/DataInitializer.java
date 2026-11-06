@@ -270,7 +270,45 @@ public class DataInitializer implements CommandLineRunner {
             log.info("Configured Employee record EMP-ENG-0004 for emp@hrms.com");
         });
 
-        // 5. Office Location
+        // 5. Dedicated IT Administrator User
+        if (!userRepository.existsByEmail("itadmin@hrms.com")) {
+            log.info("Provisioning dedicated IT Administrator user itadmin@hrms.com...");
+            User itUser = userRepository.save(User.builder()
+                .email("itadmin@hrms.com")
+                .password(passwordEncoder.encode("ItAdmin@123"))
+                .firstName("Suresh")
+                .lastName("Verma")
+                .role(Role.ROLE_IT_ADMIN)
+                .isActive(true)
+                .emailVerified(true)
+                .build());
+
+            Employee itEmp = employeeRepository.findByUserId(itUser.getId())
+                .or(() -> employeeRepository.findByEmail(itUser.getEmail()))
+                .orElseGet(() -> {
+                    Employee e = Employee.builder()
+                        .user(itUser)
+                        .department(engDept)
+                        .employeeNumber("EMP-IT-0005")
+                        .firstName(itUser.getFirstName())
+                        .lastName(itUser.getLastName())
+                        .email(itUser.getEmail())
+                        .designation("Lead IT Systems & Infrastructure Specialist")
+                        .employmentStatus(com.hrms.enums.EmploymentStatus.ACTIVE)
+                        .dateOfJoining(LocalDate.now())
+                        .leaveBalance(24)
+                        .sickLeaveBalance(12)
+                        .casualLeaveBalance(12)
+                        .deleted(false)
+                        .build();
+                    e.setTenantId("default");
+                    return employeeRepository.save(e);
+                });
+            configureEmployeeFinancials(itEmp, new BigDecimal("120000.00"), "State Bank of India", "309182746192", "SBIN0001234");
+            log.info("Successfully provisioned dedicated IT Administrator itadmin@hrms.com (EMP-IT-0005)");
+        }
+
+        // 6. Office Location
         if (officeLocationRepository.count() == 0) {
             OfficeLocation ol = OfficeLocation.builder()
                 .name("Headquarters - Tech Park")

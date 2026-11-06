@@ -111,7 +111,7 @@ function App() {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="offboarding" element={<OffboardingPage />} />
         <Route path="admin" element={
-          <ProtectedRoute roles={['ROLE_ADMIN','ROLE_SUPER_ADMIN']}>
+          <ProtectedRoute roles={['ROLE_ADMIN','ROLE_SUPER_ADMIN','ROLE_IT_ADMIN']}>
             <TenantAdminPage />
           </ProtectedRoute>
         } />

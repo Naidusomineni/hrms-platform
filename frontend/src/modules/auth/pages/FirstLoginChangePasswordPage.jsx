@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { authAPI } from '../../../api/authAPI'
 import { updateCurrentUser, logoutUser } from '../../../store/slices/authSlice'
-import { Input, Button, Card, CardBody, Alert } from '../../../components/common/index.jsx'
+import { Input, Button, Card, CardBody, Alert } from '../../../components/common'
 import { ShieldCheck, Lock, ArrowRight, LogOut, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 

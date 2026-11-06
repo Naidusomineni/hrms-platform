@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { notificationAPI } from '../../../api/notificationAPI'
-import { Button, Card, CardHeader, CardBody, EmptyState, Spinner } from '../../../components/common/index.jsx'
+import { Button, Card, CardHeader, CardBody, EmptyState, Spinner } from '../../../components/common'
 import { Bell, CheckCircle2, Clock, ArrowUpRight, Circle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -92,7 +92,7 @@ const NotificationPage = () => {
                       <Circle size={14} className={note.isRead ? 'text-slate-300' : 'text-emerald-500'} />
                       <div>
                         <h4 className="font-semibold text-slate-900">{note.title || 'Notification'}</h4>
-                        <p className="text-xs text-slate-400">{note.type || 'GENERAL'} · {note.createdAt ? formatDistanceToNow(new Date(note.createdAt), { addSuffix: true }) : 'Just now'}</p>
+                        <p className="text-xs text-slate-400">{note.type || 'GENERAL'} Â· {note.createdAt ? formatDistanceToNow(new Date(note.createdAt), { addSuffix: true }) : 'Just now'}</p>
                       </div>
                     </div>
                     {!note.isRead && (

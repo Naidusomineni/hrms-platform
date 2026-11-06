@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { interviewAPI } from '../../../api/interviewAPI'
-import { Button, Spinner, Card } from '../../../components/common/index.jsx'
+import { Button, Spinner, Card } from '../../../components/common'
 import {
   Video, Mic, MicOff, VideoOff, ShieldCheck, AlertTriangle,
   Clock, CheckCircle, Wifi, Monitor, User, Briefcase, Building
@@ -222,7 +222,7 @@ const CandidateLobbyPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between p-4 sm:p-6 lg:p-8">
-      {/* ── Top Header ────────────────────────────────────────────── */}
+      {/* â”€â”€ Top Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="max-w-6xl w-full mx-auto flex items-center justify-between pb-6 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-white text-lg shadow-lg">
@@ -240,7 +240,7 @@ const CandidateLobbyPage = () => {
         </div>
       </div>
 
-      {/* ── Main Content: Left Hardware Preview + Right Details ───── */}
+      {/* â”€â”€ Main Content: Left Hardware Preview + Right Details â”€â”€â”€â”€â”€ */}
       <div className="max-w-6xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 my-auto py-8">
         {/* Left: Video Preview & Pre-flight Controls (7 Cols) */}
         <div className="lg:col-span-7 space-y-4">
@@ -374,9 +374,9 @@ const CandidateLobbyPage = () => {
         </div>
       </div>
 
-      {/* ── Footer ────────────────────────────────────────────────── */}
+      {/* â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="max-w-6xl w-full mx-auto text-center text-xs text-slate-600 pt-4 border-t border-slate-900">
-        HRMS Platform Enterprise • Secure Online Video Meeting
+        HRMS Platform Enterprise â€¢ Secure Online Video Meeting
       </div>
     </div>
   )

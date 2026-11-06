@@ -4,7 +4,7 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 import { Link } from 'react-router-dom'
 import { authAPI } from '../../../api/authAPI'
-import { Input, Button, Alert } from '../../../components/common/index.jsx'
+import { Input, Button, Alert } from '../../../components/common'
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 

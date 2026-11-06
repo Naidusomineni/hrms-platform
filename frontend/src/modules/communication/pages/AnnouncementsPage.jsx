@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import { communicationAPI } from '../../../api/communicationAPI'
-import { Button, Badge, Card, CardHeader, CardBody, Spinner, EmptyState, Modal, Input, Select } from '../../../components/common/index.jsx'
+import { Button, Badge, Card, CardHeader, CardBody, Spinner, EmptyState, Modal, Input, Select } from '../../../components/common'
 import {
   Megaphone, Plus, RefreshCw, Pin, CheckCircle2, Clock, AlertTriangle,
   User, Trash2, Calendar, ShieldAlert, Sparkles, Building2, Check
@@ -236,7 +236,7 @@ const AnnouncementsPage = () => {
                         </span>
                         {item.acknowledgmentRequired && (
                           <span className="text-slate-400">
-                            • {item.totalAcknowledgments || 0} employee(s) acknowledged
+                            â€¢ {item.totalAcknowledgments || 0} employee(s) acknowledged
                           </span>
                         )}
                       </div>
@@ -314,7 +314,7 @@ const AnnouncementsPage = () => {
                         </span>
                         {item.acknowledgmentRequired && (
                           <span className="text-slate-400">
-                            • {item.totalAcknowledgments || 0} employee(s) acknowledged
+                            â€¢ {item.totalAcknowledgments || 0} employee(s) acknowledged
                           </span>
                         )}
                       </div>

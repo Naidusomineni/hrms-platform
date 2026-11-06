@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Modal, Button, Spinner } from './index.jsx'
+import { Modal, Button, Spinner } from './index'
 import { ZoomIn, ZoomOut, RotateCw, RefreshCw, Check, X, Shield, Eye } from 'lucide-react'
 
 export const ProfilePhotoCropperModal = ({

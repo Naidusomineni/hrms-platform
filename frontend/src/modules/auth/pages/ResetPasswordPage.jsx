@@ -4,7 +4,7 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { authAPI } from '../../../api/authAPI'
-import { Input, Button } from '../../../components/common/index.jsx'
+import { Input, Button } from '../../../components/common'
 import { KeyRound, CheckCircle, RefreshCw, Mail } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -163,7 +163,7 @@ const ResetPasswordPage = () => {
               </form>
 
               <Link to="/login" className="block text-center text-sm text-slate-500 hover:text-primary-600 mt-5 font-medium">
-                ← Back to Login
+                â† Back to Login
               </Link>
             </>
           )}

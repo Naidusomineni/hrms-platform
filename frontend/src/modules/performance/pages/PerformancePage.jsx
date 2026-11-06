@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { performanceService } from '../services/performanceService'
 import { employeeAPI } from '../../../api/employeeAPI'
-import { Button, Badge, Card, CardHeader, CardBody, Modal, Spinner, EmptyState } from '../../../components/common/index.jsx'
+import { Button, Badge, Card, CardHeader, CardBody, Modal, Spinner, EmptyState } from '../../../components/common'
 import { Target, Award, Plus, Calendar, CheckCircle2, TrendingUp, Sliders, Star, UserCheck, MessageSquare } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -225,7 +225,7 @@ const PerformancePage = () => {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-black text-slate-900">Performance Management & OKRs</h2>
-          <p className="text-slate-400 text-sm mt-0.5">Measurable SMART goals, quantitative key results, and 360° appraisal reviews</p>
+          <p className="text-slate-400 text-sm mt-0.5">Measurable SMART goals, quantitative key results, and 360Â° appraisal reviews</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex bg-slate-100 p-1 rounded-xl">
@@ -397,11 +397,11 @@ const PerformancePage = () => {
                       </div>
                       <div>
                         <h3 className="font-bold text-slate-900 text-base">
-                          {r.employeeName ? `${r.employeeName} — ` : ''}{r.reviewCycle} Appraisal Review
+                          {r.employeeName ? `${r.employeeName} â€” ` : ''}{r.reviewCycle} Appraisal Review
                         </h3>
                         <p className="text-xs text-slate-400">
                           Reviewer: <span className="font-semibold text-slate-600">{r.reviewerName || 'Primary Evaluator'}</span>
-                          {r.reviewPeriodStart && ` · Period: ${r.reviewPeriodStart} to ${r.reviewPeriodEnd}`}
+                          {r.reviewPeriodStart && ` Â· Period: ${r.reviewPeriodStart} to ${r.reviewPeriodEnd}`}
                         </p>
                       </div>
                     </div>
@@ -409,7 +409,7 @@ const PerformancePage = () => {
                       <div className="text-right">
                         <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400 block">Final Rating</span>
                         <span className="text-2xl font-black text-primary-600">
-                          {r.finalRating ? r.finalRating.toFixed(1) : (r.managerRating ? r.managerRating.toFixed(1) : (r.selfRating ? r.selfRating.toFixed(1) : '—'))}
+                          {r.finalRating ? r.finalRating.toFixed(1) : (r.managerRating ? r.managerRating.toFixed(1) : (r.selfRating ? r.selfRating.toFixed(1) : 'â€”'))}
                           <span className="text-xs text-slate-400 font-normal"> / 5.0</span>
                         </span>
                       </div>
@@ -442,7 +442,7 @@ const PerformancePage = () => {
                   {/* Qualitative Feedback */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-3 border-t border-slate-100 text-xs">
                     <div className="p-3.5 rounded-xl bg-slate-50 space-y-1">
-                      <span className="font-bold text-slate-700 block">🌟 Key Strengths & Accomplishments</span>
+                      <span className="font-bold text-slate-700 block">ðŸŒŸ Key Strengths & Accomplishments</span>
                       {r.strengths ? (
                         <p className="text-slate-600 leading-relaxed">{r.strengths}</p>
                       ) : (
@@ -450,7 +450,7 @@ const PerformancePage = () => {
                       )}
                     </div>
                     <div className="p-3.5 rounded-xl bg-slate-50 space-y-1">
-                      <span className="font-bold text-slate-700 block">🎯 Growth & Improvement Opportunities</span>
+                      <span className="font-bold text-slate-700 block">ðŸŽ¯ Growth & Improvement Opportunities</span>
                       {r.areasOfImprovement ? (
                         <p className="text-slate-600 leading-relaxed">{r.areasOfImprovement}</p>
                       ) : (
@@ -459,7 +459,7 @@ const PerformancePage = () => {
                     </div>
                     {r.goalsNextCycle && (
                       <div className="p-3.5 rounded-xl bg-indigo-50 border border-indigo-100 space-y-1 col-span-full">
-                        <span className="font-bold text-indigo-900 block">🚀 Strategic Objectives for Next Cycle</span>
+                        <span className="font-bold text-indigo-900 block">ðŸš€ Strategic Objectives for Next Cycle</span>
                         <p className="text-indigo-800 leading-relaxed">{r.goalsNextCycle}</p>
                       </div>
                     )}
@@ -623,7 +623,7 @@ const PerformancePage = () => {
               <option value="">-- Choose Employee --</option>
               {employees.map(emp => (
                 <option key={emp.id} value={emp.id}>
-                  {emp.fullName} ({emp.employeeNumber || `EMP-${emp.id}`}) — {emp.designation || 'Staff'}
+                  {emp.fullName} ({emp.employeeNumber || `EMP-${emp.id}`}) â€” {emp.designation || 'Staff'}
                 </option>
               ))}
             </select>

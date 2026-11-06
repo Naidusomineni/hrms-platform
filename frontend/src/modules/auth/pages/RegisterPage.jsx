@@ -5,7 +5,7 @@ import * as yup from 'yup'
 import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { registerUser } from '../../../store/slices/authSlice'
-import { Input, Button, Select } from '../../../components/common/index.jsx'
+import { Input, Button, Select } from '../../../components/common'
 import { Briefcase } from 'lucide-react'
 
 const schema = yup.object({

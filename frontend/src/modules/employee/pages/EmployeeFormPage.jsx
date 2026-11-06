@@ -5,7 +5,7 @@ import * as yup from 'yup'
 import { useNavigate, useParams } from 'react-router-dom'
 import { employeeAPI } from '../../../api/employeeAPI'
 import { departmentAPI } from '../../../api/departmentAPI'
-import { Input, Select, Button, Card, CardHeader, CardBody, Spinner, Alert } from '../../../components/common/index.jsx'
+import { Input, Select, Button, Card, CardHeader, CardBody, Spinner, Alert } from '../../../components/common'
 import { ArrowLeft, Save, User, Briefcase, MapPin, Heart, CreditCard } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useState } from 'react'
@@ -157,7 +157,7 @@ const EmployeeFormPage = () => {
             <option value="">Unassigned</option>
             {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </Select>
-          <Input {...register('salary', { setValueAs: v => v === '' ? undefined : Number(v) })} label="Monthly Salary (₹)" type="number" placeholder="75000" error={errors.salary?.message} />
+          <Input {...register('salary', { setValueAs: v => v === '' ? undefined : Number(v) })} label="Monthly Salary (â‚¹)" type="number" placeholder="75000" error={errors.salary?.message} />
           <Input 
             {...register('password')} 
             label={isEdit ? "Reset Login Password (Optional)" : "Login Password"} 
@@ -181,7 +181,7 @@ const EmployeeFormPage = () => {
           <Input {...register('emergencyContactName')} label="Contact Name" placeholder="Jane Doe" error={errors.emergencyContactName?.message} />
           <Input {...register('emergencyContactPhone')} label="Contact Phone" placeholder="9876543210" error={errors.emergencyContactPhone?.message} />
           <div className="md:col-span-2">
-            <Input {...register('emergencyContactRelation')} label="Relationship" placeholder="Spouse, Parent, Sibling…" error={errors.emergencyContactRelation?.message} />
+            <Input {...register('emergencyContactRelation')} label="Relationship" placeholder="Spouse, Parent, Siblingâ€¦" error={errors.emergencyContactRelation?.message} />
           </div>
         </Section>
 

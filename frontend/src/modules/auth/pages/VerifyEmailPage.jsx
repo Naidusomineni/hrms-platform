@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { authAPI } from '../../../api/authAPI'
-import { Spinner } from '../../../components/common/index.jsx'
+import { Spinner } from '../../../components/common'
 import { CheckCircle, XCircle } from 'lucide-react'
 
 const VerifyEmailPage = () => {

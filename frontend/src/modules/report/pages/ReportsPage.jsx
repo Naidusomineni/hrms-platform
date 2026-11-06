@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { reportService } from '../services/reportService'
-import { Button, Badge, Card, CardHeader, CardBody, Spinner, EmptyState } from '../../../components/common/index.jsx'
+import { Button, Badge, Card, CardHeader, CardBody, Spinner, EmptyState } from '../../../components/common'
 import { BarChart3, PieChart, ShieldCheck, FileSpreadsheet, Download, DollarSign, Users, Briefcase, Laptop, Receipt } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -237,7 +237,7 @@ const ReportsPage = () => {
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Monthly Payroll</span>
                     <DollarSign size={18} className="text-emerald-600" />
                   </div>
-                  <p className="text-3xl font-black text-slate-900 mt-2">₹{(analytics.monthlyPayrollExpense / 100000).toFixed(1)}L</p>
+                  <p className="text-3xl font-black text-slate-900 mt-2">â‚¹{(analytics.monthlyPayrollExpense / 100000).toFixed(1)}L</p>
                   <span className="text-[11px] text-slate-400 mt-1 block">Statutory deductions active</span>
                 </Card>
               </div>
@@ -336,7 +336,7 @@ const ReportsPage = () => {
                         }`}
                       >
                         <span className="font-bold text-slate-900 block">New Tax Regime (Default)</span>
-                        <p className="text-[11px] text-slate-500 mt-1">Concessional tax slab rates with standard ₹75,000 deduction.</p>
+                        <p className="text-[11px] text-slate-500 mt-1">Concessional tax slab rates with standard â‚¹75,000 deduction.</p>
                       </div>
 
                       <div
@@ -356,7 +356,7 @@ const ReportsPage = () => {
                       <div>
                         <div className="flex justify-between mb-1">
                           <label className="label">Section 80C (PPF, ELSS, Life Insurance)</label>
-                          <span className="text-slate-400 text-[11px]">Max Limit: ₹1,50,000</span>
+                          <span className="text-slate-400 text-[11px]">Max Limit: â‚¹1,50,000</span>
                         </div>
                         <input
                           type="number"
@@ -370,7 +370,7 @@ const ReportsPage = () => {
                       <div>
                         <div className="flex justify-between mb-1">
                           <label className="label">Section 80D (Health Insurance Premium)</label>
-                          <span className="text-slate-400 text-[11px]">Max Limit: ₹25,000</span>
+                          <span className="text-slate-400 text-[11px]">Max Limit: â‚¹25,000</span>
                         </div>
                         <input
                           type="number"

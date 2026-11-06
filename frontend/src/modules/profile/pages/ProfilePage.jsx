@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { authAPI } from '../../../api/authAPI'
 import { employeeAPI } from '../../../api/employeeAPI'
 import { updateCurrentUser, logoutUser } from '../../../store/slices/authSlice'
-import { Input, Button, Card, CardHeader, CardBody, Alert, Spinner, ProfilePhotoCropperModal } from '../../../components/common/index.jsx'
+import { Input, Button, Card, CardHeader, CardBody, Alert, Spinner, ProfilePhotoCropperModal } from '../../../components/common'
 import { User, Lock, Shield, Mail, Clock, Monitor, UploadCloud, FileText, Camera, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -283,7 +283,7 @@ const ProfilePage = () => {
                 )}
                 {employeeDetails?.departmentName && (
                   <span className="text-xs text-slate-500">
-                    • {employeeDetails.departmentName}
+                    â€¢ {employeeDetails.departmentName}
                   </span>
                 )}
                 {user?.emailVerified ? (
@@ -320,7 +320,7 @@ const ProfilePage = () => {
               <div className="p-2 bg-white rounded-lg shadow-sm border border-slate-100"><Icon size={15} className="text-slate-500"/></div>
               <div>
                 <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide">{label}</p>
-                <p className="text-sm font-semibold text-slate-800 mt-0.5">{value || '—'}</p>
+                <p className="text-sm font-semibold text-slate-800 mt-0.5">{value || 'â€”'}</p>
               </div>
             </div>
           ))}
@@ -471,7 +471,7 @@ const ProfilePage = () => {
                             {h.browser || 'Unknown Browser'} on {h.osName || 'Unknown OS'}
                           </p>
                           <p className="text-xs text-slate-400">
-                            {h.loginAt ? format(new Date(h.loginAt),'MMM d, yyyy HH:mm') : '—'} · {h.ipAddress || '—'}
+                            {h.loginAt ? format(new Date(h.loginAt),'MMM d, yyyy HH:mm') : 'â€”'} Â· {h.ipAddress || 'â€”'}
                           </p>
                         </div>
                       </div>

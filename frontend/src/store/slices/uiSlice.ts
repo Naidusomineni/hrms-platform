@@ -37,3 +37,4 @@ const uiSlice = createSlice({
 
 export const { toggleSidebar, setSidebarOpen, toggleTheme, toggleNotificationPanel } = uiSlice.actions;
 export default uiSlice.reducer;
+

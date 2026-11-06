@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { recruitmentService } from '../services/recruitmentService'
 import { interviewAPI } from '../../../api/interviewAPI'
 import { employeeAPI } from '../../../api/employeeAPI'
-import { Button, Badge, Card, CardHeader, CardBody, Modal, Spinner, EmptyState } from '../../../components/common/index.jsx'
+import { Button, Badge, Card, CardHeader, CardBody, Modal, Spinner, EmptyState } from '../../../components/common'
 import {
   Users, Briefcase, Plus, UserPlus, CheckCircle, ChevronRight, FileText,
   DollarSign, Star, ArrowRight, Video, Calendar, Copy, Clock, ShieldCheck,
@@ -150,7 +150,7 @@ const RecruitmentPage = () => {
     }
   }
 
-  // ── Video Interview Actions ─────────────────────────────────────
+  // â”€â”€ Video Interview Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const openScheduleModal = (cand) => {
     setSchedulingCandidate(cand)
     const suggestedRound = cand.stage === 'INTERVIEW_ROUND_2' ? 'Technical Round 2 (Final)' : 'Technical Round 1'
@@ -184,7 +184,7 @@ const RecruitmentPage = () => {
       }
 
       await interviewAPI.scheduleInterview(payload)
-      toast.success(`🎉 Video interview scheduled with panel! Direct guest & evaluator links generated.`)
+      toast.success(`ðŸŽ‰ Video interview scheduled with panel! Direct guest & evaluator links generated.`)
       setScheduleModalOpen(false)
       loadData()
     } catch (err) {
@@ -197,7 +197,7 @@ const RecruitmentPage = () => {
   const handleCopyGuestLink = (meetingLink) => {
     if (!meetingLink) return
     navigator.clipboard.writeText(meetingLink)
-    toast.success('📋 Candidate guest link copied! Open in incognito or new window to test as candidate.')
+    toast.success('ðŸ“‹ Candidate guest link copied! Open in incognito or new window to test as candidate.')
   }
 
   const handleOpenConvert = (cand) => {
@@ -216,7 +216,7 @@ const RecruitmentPage = () => {
     if (!activeCandidate) return
     try {
       await recruitmentService.convertToEmployee(activeCandidate.id, convertData)
-      toast.success(`🎉 ${activeCandidate.name} has been successfully converted into active Employee!`)
+      toast.success(`ðŸŽ‰ ${activeCandidate.name} has been successfully converted into active Employee!`)
       setConvertModalOpen(false)
       loadData()
     } catch (err) {
@@ -273,7 +273,7 @@ const RecruitmentPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in pb-16">
-      {/* ── Top Header ────────────────────────────────────────────── */}
+      {/* â”€â”€ Top Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex items-center justify-between flex-wrap gap-4 border-b border-slate-200 pb-4">
         <div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
@@ -327,7 +327,7 @@ const RecruitmentPage = () => {
         </div>
       </div>
 
-      {/* ── Collapsible Testing & Workflow Helper Banner ─────────── */}
+      {/* â”€â”€ Collapsible Testing & Workflow Helper Banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showGuide && (
         <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-lg border border-slate-800 relative transition-all">
           <div className="flex items-start justify-between gap-4">
@@ -335,7 +335,7 @@ const RecruitmentPage = () => {
               <span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg flex items-center gap-1.5 text-xs font-black uppercase tracking-wider">
                 <Sparkles size={14} className="text-amber-400" /> Interactive Workflow & Testing Guide
               </span>
-              <span className="text-xs text-slate-400 hidden sm:inline">• How to use & test the system</span>
+              <span className="text-xs text-slate-400 hidden sm:inline">â€¢ How to use & test the system</span>
             </div>
             <button
               onClick={() => setShowGuide(false)}
@@ -401,12 +401,12 @@ const RecruitmentPage = () => {
         </div>
       ) : (
         <>
-          {/* ═══════════════════════════════════════════════════════════ */}
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {/* TAB 1: CANDIDATE PIPELINE (TABLE / DIRECTORY & BOARD)        */}
-          {/* ═══════════════════════════════════════════════════════════ */}
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === 'pipeline' && (
             <div className="space-y-4">
-              {/* ── Interactive Stage Funnel Filter Tabs (NO HORIZONTAL SCROLL TO HIRE!) ── */}
+              {/* â”€â”€ Interactive Stage Funnel Filter Tabs (NO HORIZONTAL SCROLL TO HIRE!) â”€â”€ */}
               <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-2xs">
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                   <button
@@ -453,7 +453,7 @@ const RecruitmentPage = () => {
                 </div>
               </div>
 
-              {/* ── Search, Role Filter & View Toggle Bar ──────────────── */}
+              {/* â”€â”€ Search, Role Filter & View Toggle Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
               <div className="flex items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 flex-wrap">
                 <div className="flex items-center gap-2.5 flex-1 min-w-[280px]">
                   <div className="relative flex-1 max-w-sm">
@@ -511,9 +511,9 @@ const RecruitmentPage = () => {
                 </div>
               </div>
 
-              {/* ═══════════════════════════════════════════════════════ */}
+              {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
               {/* VIEW 1: CLEAN CONSOLIDATED TABLE DIRECTORY (DEFAULT)    */}
-              {/* ═══════════════════════════════════════════════════════ */}
+              {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
               {viewMode === 'table' && (
                 <Card className="border border-slate-200 overflow-hidden shadow-2xs">
                   {filteredCandidates.length === 0 ? (
@@ -643,7 +643,7 @@ const RecruitmentPage = () => {
                                         className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all"
                                         title="Convert candidate into active employee with credentials"
                                       >
-                                        🎉 1-Click Onboard
+                                        ðŸŽ‰ 1-Click Onboard
                                       </button>
                                     )}
 
@@ -674,9 +674,9 @@ const RecruitmentPage = () => {
                 </Card>
               )}
 
-              {/* ═══════════════════════════════════════════════════════ */}
+              {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
               {/* VIEW 2: COMPACT KANBAN BOARD VIEW                       */}
-              {/* ═══════════════════════════════════════════════════════ */}
+              {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
               {viewMode === 'board' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5 overflow-x-auto pb-4">
                   {PIPELINE_STAGES.map(stage => {
@@ -768,7 +768,7 @@ const RecruitmentPage = () => {
                                       onClick={() => handleOpenConvert(cand)}
                                       className="w-full py-1.5 text-[10px] font-black rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center justify-center gap-1 cursor-pointer"
                                     >
-                                      🎉 1-Click Onboard
+                                      ðŸŽ‰ 1-Click Onboard
                                     </button>
                                   )}
 
@@ -805,9 +805,9 @@ const RecruitmentPage = () => {
             </div>
           )}
 
-          {/* ═══════════════════════════════════════════════════════════ */}
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {/* TAB 2: LIVE VIDEO INTERVIEWS DIRECTORY                      */}
-          {/* ═══════════════════════════════════════════════════════════ */}
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === 'interviews' && (
             <Card className="border border-slate-200 overflow-hidden shadow-2xs">
               <CardHeader className="py-4 flex items-center justify-between flex-wrap gap-2">
@@ -864,7 +864,7 @@ const RecruitmentPage = () => {
                             {inv.interviewerName}
                           </td>
                           <td className="px-4 py-3.5 text-xs text-slate-600">
-                            {inv.scheduledStart ? format(new Date(inv.scheduledStart), 'dd MMM yyyy, hh:mm a') : '—'}
+                            {inv.scheduledStart ? format(new Date(inv.scheduledStart), 'dd MMM yyyy, hh:mm a') : 'â€”'}
                           </td>
                           <td className="px-4 py-3.5 text-center">
                             <Badge variant={inv.integrityStatus === 'CLEAN' ? 'success' : 'danger'} className="text-[10px]">
@@ -907,9 +907,9 @@ const RecruitmentPage = () => {
             </Card>
           )}
 
-          {/* ═══════════════════════════════════════════════════════════ */}
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {/* TAB 3: JOB REQUISITIONS                                     */}
-          {/* ═══════════════════════════════════════════════════════════ */}
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === 'jobs' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {jobs.map(j => (
@@ -935,7 +935,7 @@ const RecruitmentPage = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400">Budget:</span>
-                      <span className="font-bold text-primary-600">₹{(j.salaryMin / 100000).toFixed(1)}L - ₹{(j.salaryMax / 100000).toFixed(1)}L</span>
+                      <span className="font-bold text-primary-600">â‚¹{(j.salaryMin / 100000).toFixed(1)}L - â‚¹{(j.salaryMax / 100000).toFixed(1)}L</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400">Active Candidates:</span>
@@ -949,7 +949,7 @@ const RecruitmentPage = () => {
         </>
       )}
 
-      {/* ── Modal: Schedule Video Interview ───────────────────────── */}
+      {/* â”€â”€ Modal: Schedule Video Interview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Modal
         isOpen={scheduleModalOpen}
         onClose={() => setScheduleModalOpen(false)}
@@ -960,7 +960,7 @@ const RecruitmentPage = () => {
           <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-900 flex items-center justify-between">
             <div>
               <p className="font-bold">{schedulingCandidate?.name}</p>
-              <p className="text-[11px] text-indigo-700">{schedulingCandidate?.email} • {schedulingCandidate?.jobPostingTitle || 'General'}</p>
+              <p className="text-[11px] text-indigo-700">{schedulingCandidate?.email} â€¢ {schedulingCandidate?.jobPostingTitle || 'General'}</p>
             </div>
             <span className="text-[10px] uppercase font-extrabold bg-indigo-200 text-indigo-900 px-2 py-0.5 rounded-full">
               {schedulingCandidate?.stage?.replace('_', ' ')}
@@ -990,7 +990,7 @@ const RecruitmentPage = () => {
               <option value="">Select Lead Interviewer...</option>
               {employees.map(emp => (
                 <option key={emp.id} value={emp.id}>
-                  {emp.fullName} ({emp.employeeNumber}) — {emp.designation || 'Engineering'}
+                  {emp.fullName} ({emp.employeeNumber}) â€” {emp.designation || 'Engineering'}
                 </option>
               ))}
             </select>
@@ -1018,7 +1018,7 @@ const RecruitmentPage = () => {
                   .filter(emp => emp.id !== Number(interviewForm.interviewerId) && !interviewForm.panelistIds.includes(emp.id))
                   .map(emp => (
                     <option key={emp.id} value={emp.id}>
-                      {emp.fullName} ({emp.employeeNumber}) — {emp.designation || 'Engineering'}
+                      {emp.fullName} ({emp.employeeNumber}) â€” {emp.designation || 'Engineering'}
                     </option>
                   ))}
               </select>

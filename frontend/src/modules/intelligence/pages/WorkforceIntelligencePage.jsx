@@ -31,7 +31,7 @@ import {
 } from 'lucide-react'
 import { intelligenceAPI } from '../../../api/intelligenceAPI'
 import { recruitmentAPI } from '../../../api/recruitmentAPI'
-import { Modal, Button, Badge } from '../../../components/common/index.jsx'
+import { Modal, Button, Badge } from '../../../components/common'
 import toast from 'react-hot-toast'
 
 export default function WorkforceIntelligencePage() {
@@ -1064,7 +1064,7 @@ export default function WorkforceIntelligencePage() {
                     </span>
                     {p.actionRoute && (
                       <span className="text-indigo-600 font-medium text-[11px] flex items-center gap-1">
-                        {p.actionLabel || 'Action'} → {p.actionRoute}
+                        {p.actionLabel || 'Action'} â†’ {p.actionRoute}
                       </span>
                     )}
                   </div>
@@ -1243,7 +1243,7 @@ export default function WorkforceIntelligencePage() {
                     {docFile ? (
                       <div>
                         <p className="font-semibold text-slate-800 text-sm">{docFile.name}</p>
-                        <p className="text-[11px] text-slate-500">{(docFile.size / 1024).toFixed(1)} KB — Ready to extract</p>
+                        <p className="text-[11px] text-slate-500">{(docFile.size / 1024).toFixed(1)} KB â€” Ready to extract</p>
                       </div>
                     ) : (
                       <div>

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { useForm } from 'react-hook-form'
 import { departmentAPI } from '../../../api/departmentAPI'
-import { Button, Input, Card, CardHeader, CardBody, Modal, Badge, Spinner, EmptyState, ConfirmDialog } from '../../../components/common/index.jsx'
+import { Button, Input, Card, CardHeader, CardBody, Modal, Badge, Spinner, EmptyState, ConfirmDialog } from '../../../components/common'
 import { Plus, Edit2, Trash2, Building2, Users, MapPin, DollarSign } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -104,7 +104,7 @@ const DepartmentPage = () => {
                 {dept.budget && (
                   <div className="flex items-center gap-2 text-sm text-slate-500">
                     <DollarSign size={13} className="text-emerald-500 shrink-0"/>
-                    <span className="font-semibold text-emerald-600">₹{Number(dept.budget).toLocaleString('en-IN')}</span>
+                    <span className="font-semibold text-emerald-600">â‚¹{Number(dept.budget).toLocaleString('en-IN')}</span>
                   </div>
                 )}
               </div>
@@ -139,10 +139,10 @@ const DepartmentPage = () => {
           </div>
           <div>
             <label className="label">Description</label>
-            <textarea {...register('description')} rows={3} placeholder="Brief description…"
+            <textarea {...register('description')} rows={3} placeholder="Brief descriptionâ€¦"
               className="input resize-none" />
           </div>
-          <Input {...register('budget')} label="Annual Budget (₹)" type="number" placeholder="5000000" />
+          <Input {...register('budget')} label="Annual Budget (â‚¹)" type="number" placeholder="5000000" />
         </form>
       </Modal>
 

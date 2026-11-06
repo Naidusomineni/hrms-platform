@@ -6,7 +6,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { loginUser } from '../../../store/slices/authSlice'
 import { attendanceAPI } from '../../../api/attendanceAPI'
-import { Button, Alert } from '../../../components/common/index.jsx'
+import { Button, Alert } from '../../../components/common'
 import {
   Eye, EyeOff, ShieldCheck, Lock, Building2, Laptop
 } from 'lucide-react'
@@ -289,9 +289,9 @@ const LoginPage = () => {
           <span className="flex items-center gap-1">
             <ShieldCheck size={13} className="text-emerald-600" /> SOC-2 Type II
           </span>
-          <span>•</span>
+          <span>â€¢</span>
           <span>256-Bit TLS</span>
-          <span>•</span>
+          <span>â€¢</span>
           <span>ISO 27001 Certified</span>
         </div>
         <p className="text-[11px] text-slate-400">

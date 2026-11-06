@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { interviewAPI } from '../../../api/interviewAPI'
 import { employeeAPI } from '../../../api/employeeAPI'
-import { Button, Badge, Spinner, Card } from '../../../components/common/index.jsx'
+import { Button, Badge, Spinner, Card } from '../../../components/common'
 import {
   Video, Mic, MicOff, VideoOff, ScreenShare, PhoneOff, ShieldCheck,
   AlertTriangle, Star, CheckCircle, FileText, Code, Check, ArrowRight,
@@ -927,7 +927,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                 }
               ]
             })
-            toast(`💬 ${chatSender}: ${chatText}`, { duration: 4000 })
+            toast(`ðŸ’¬ ${chatSender}: ${chatText}`, { duration: 4000 })
           }
         }
       } catch (pollErr) {
@@ -1142,7 +1142,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
     }
   }
 
-  // ── Interviewer Live Scorecard Actions ───────────────────────────
+  // â”€â”€ Interviewer Live Scorecard Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleSaveScorecard = async () => {
     if (!session) return
     setSavingScorecard(true)
@@ -1207,7 +1207,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col overflow-hidden">
-      {/* ── Top Corporate Status Bar ───────────────────────────────── */}
+      {/* â”€â”€ Top Corporate Status Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <header className="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md px-5 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black text-sm tracking-wider text-white shadow-xs">
@@ -1325,7 +1325,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         </div>
       </header>
 
-      {/* ── Main Corporate SaaS Split View Container ───────────────── */}
+      {/* â”€â”€ Main Corporate SaaS Split View Container â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Video Stage (60% for interviewer, 100% when collapsed or for candidate) */}
         <div className={`flex flex-col flex-1 p-3.5 bg-slate-950 transition-all duration-300 ${
@@ -1650,7 +1650,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                 </div>
 
                 {scorecardView === 'panel' ? (
-                  /* ── Panel Consensus & Collaborative Ratings View ── */
+                  /* â”€â”€ Panel Consensus & Collaborative Ratings View â”€â”€ */
                   <div className="space-y-4">
                     <div className="p-3.5 bg-indigo-950/40 border border-indigo-800/60 rounded-xl">
                       <div className="flex items-center justify-between mb-2">
@@ -1707,11 +1707,11 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                           <div className="grid grid-cols-2 gap-2 text-[11px]">
                             <div className="flex items-center justify-between bg-slate-900 px-2 py-1 rounded">
                               <span className="text-slate-400">Technical:</span>
-                              <span className="font-bold text-amber-400">★ {sc.technicalRating}/5</span>
+                              <span className="font-bold text-amber-400">â˜… {sc.technicalRating}/5</span>
                             </div>
                             <div className="flex items-center justify-between bg-slate-900 px-2 py-1 rounded">
                               <span className="text-slate-400">Communication:</span>
-                              <span className="font-bold text-amber-400">★ {sc.communicationRating}/5</span>
+                              <span className="font-bold text-amber-400">â˜… {sc.communicationRating}/5</span>
                             </div>
                           </div>
 
@@ -1748,9 +1748,9 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                     </div>
                   </div>
                 ) : (
-                  /* ── Current Evaluator Scorecard Form ── */
+                  /* â”€â”€ Current Evaluator Scorecard Form â”€â”€ */
                   <>
-                    {/* 🛡️ Candidate Integrity & Anti-Proxy Telemetry Monitor */}
+                    {/* ðŸ›¡ï¸ Candidate Integrity & Anti-Proxy Telemetry Monitor */}
                     <div className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
@@ -1766,7 +1766,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                       <div className="grid grid-cols-2 gap-2 text-[11px]">
                         <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
                           <p className="text-slate-500 text-[10px]">Webcam Hardware</p>
-                          <p className="font-bold text-slate-200 mt-0.5">Physical Hardware ✅</p>
+                          <p className="font-bold text-slate-200 mt-0.5">Physical Hardware âœ…</p>
                         </div>
                         <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
                           <p className="text-slate-500 text-[10px]">Tab Blur Telemetry</p>
@@ -1946,11 +1946,11 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
                       <p className="text-slate-500 text-[10px]">Email</p>
-                      <p className="font-semibold text-slate-200">{session?.candidateEmail || '—'}</p>
+                      <p className="font-semibold text-slate-200">{session?.candidateEmail || 'â€”'}</p>
                     </div>
                     <div>
                       <p className="text-slate-500 text-[10px]">Phone</p>
-                      <p className="font-semibold text-slate-200">{session?.candidatePhone || '—'}</p>
+                      <p className="font-semibold text-slate-200">{session?.candidatePhone || 'â€”'}</p>
                     </div>
                   </div>
                 </div>
@@ -1999,7 +1999,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         )}
       </div>
 
-      {/* ── Mobile / Candidate In-Call Chat Modal ─────────────────── */}
+      {/* â”€â”€ Mobile / Candidate In-Call Chat Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {isGuest && showMobileChat && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end sm:justify-center sm:items-center p-3">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md h-[70vh] flex flex-col overflow-hidden shadow-2xl">
@@ -2081,7 +2081,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         </div>
       )}
 
-      {/* ── Modal: Complete Interview & Advance Pipeline ─────────── */}
+      {/* â”€â”€ Modal: Complete Interview & Advance Pipeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {!isGuest && completeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 text-white space-y-4 shadow-2xl">
@@ -2123,7 +2123,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
         </div>
       )}
 
-      {/* ── Modal: Invite Co-Interviewer to Live Call ─────────── */}
+      {/* â”€â”€ Modal: Invite Co-Interviewer to Live Call â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {!isGuest && inviteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 text-white space-y-4 shadow-2xl">
@@ -2156,7 +2156,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                   <option value="">-- Choose Colleague to Join --</option>
                   {employeesList.map(emp => (
                     <option key={emp.id} value={emp.id}>
-                      {emp.fullName || `${emp.firstName} ${emp.lastName}`} ({emp.designation || 'Staff'} • {emp.email})
+                      {emp.fullName || `${emp.firstName} ${emp.lastName}`} ({emp.designation || 'Staff'} â€¢ {emp.email})
                     </option>
                   ))}
                 </select>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Card, CardHeader, CardBody, Badge, Spinner, EmptyState, Button, Input, SearchInput, Pagination } from '../../../components/common/index.jsx'
+import { Card, CardHeader, CardBody, Badge, Spinner, EmptyState, Button, Input, SearchInput, Pagination } from '../../../components/common'
 import { Shield, Users, Settings, Key, Activity, Search, Palette, Building2, Upload, Trash2, Check, RefreshCw, Eye } from 'lucide-react'
 import { tenantService } from '../services/tenantService'
 import { updateTenantBrandingThunk, uploadTenantLogoThunk } from '../../../store/slices/tenantSlice'
@@ -294,7 +294,7 @@ const TenantAdminPage = () => {
                 <p className="text-xs text-slate-400 mt-0.5">Manage user accounts, roles, and access</p>
               </div>
               <div className="flex items-center gap-2 w-full max-w-sm">
-                <SearchInput value={userSearch} onChange={e => setUserSearch(e.target.value)} placeholder="Search users…" />
+                <SearchInput value={userSearch} onChange={e => setUserSearch(e.target.value)} placeholder="Search usersâ€¦" />
                 <Button variant="secondary" size="sm" onClick={() => fetchUsers(0, userSearch)}><Search size={16} /></Button>
               </div>
             </div>
@@ -475,7 +475,7 @@ const TenantAdminPage = () => {
                     </p>
                     {logoFile && (
                       <p className="text-xs text-emerald-600 font-medium">
-                        ✓ Selected file: {logoFile.name} (will be saved when clicking Save Corporate Branding)
+                        âœ“ Selected file: {logoFile.name} (will be saved when clicking Save Corporate Branding)
                       </p>
                     )}
                   </div>
@@ -680,7 +680,7 @@ const TenantAdminPage = () => {
                 <p className="text-sm text-slate-400 mt-0.5">Recent administrative activity and system changes</p>
               </div>
               <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
-                <SearchInput value={auditSearch} onChange={e => setAuditSearch(e.target.value)} placeholder="Search audit logs…" className="min-w-[220px]" />
+                <SearchInput value={auditSearch} onChange={e => setAuditSearch(e.target.value)} placeholder="Search audit logsâ€¦" className="min-w-[220px]" />
                 <select value={auditAction} onChange={e => setAuditAction(e.target.value)} className="input bg-white text-sm max-w-[180px]">
                   <option value="">All actions</option>
                   <option value="USER_ROLE_UPDATE">User Role Change</option>

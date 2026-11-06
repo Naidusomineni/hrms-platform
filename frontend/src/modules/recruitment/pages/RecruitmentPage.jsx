@@ -184,7 +184,7 @@ const RecruitmentPage = () => {
       }
 
       await interviewAPI.scheduleInterview(payload)
-      toast.success(`ðŸŽ‰ Video interview scheduled with panel! Direct guest & evaluator links generated.`)
+      toast.success('Video interview scheduled with panel! Direct guest & evaluator links generated.')
       setScheduleModalOpen(false)
       loadData()
     } catch (err) {
@@ -197,7 +197,7 @@ const RecruitmentPage = () => {
   const handleCopyGuestLink = (meetingLink) => {
     if (!meetingLink) return
     navigator.clipboard.writeText(meetingLink)
-    toast.success('ðŸ“‹ Candidate guest link copied! Open in incognito or new window to test as candidate.')
+    toast.success('Candidate guest link copied! Open in incognito or new window to test as candidate.')
   }
 
   const handleOpenConvert = (cand) => {
@@ -216,7 +216,7 @@ const RecruitmentPage = () => {
     if (!activeCandidate) return
     try {
       await recruitmentService.convertToEmployee(activeCandidate.id, convertData)
-      toast.success(`ðŸŽ‰ ${activeCandidate.name} has been successfully converted into active Employee!`)
+      toast.success(`${activeCandidate.name} has been successfully converted into active Employee!`)
       setConvertModalOpen(false)
       loadData()
     } catch (err) {
@@ -335,7 +335,7 @@ const RecruitmentPage = () => {
               <span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg flex items-center gap-1.5 text-xs font-black uppercase tracking-wider">
                 <Sparkles size={14} className="text-amber-400" /> Interactive Workflow & Testing Guide
               </span>
-              <span className="text-xs text-slate-400 hidden sm:inline">â€¢ How to use & test the system</span>
+              <span className="text-xs text-slate-400 hidden sm:inline">• How to use & test the system</span>
             </div>
             <button
               onClick={() => setShowGuide(false)}
@@ -580,7 +580,7 @@ const RecruitmentPage = () => {
                                     <select
                                       value={cand.stage}
                                       onChange={e => handleStageChange(cand.id, e.target.value)}
-                                      className="input text-xs py-1 px-2.5 bg-slate-50 border-slate-200 font-bold text-slate-800 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors"
+                                      className="input text-xs py-1 px-2.5 bg-slate-50 border-slate-200 font-bold text-slate-800 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors min-w-[155px]"
                                     >
                                       {PIPELINE_STAGES.map(s => (
                                         <option key={s.key} value={s.key}>{s.label}</option>
@@ -594,8 +594,8 @@ const RecruitmentPage = () => {
                                   {candInterview ? (
                                     <div className="space-y-1.5">
                                       <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center gap-1">
-                                          <Video size={11} /> {candInterview.roundName}
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200/80 text-indigo-700 inline-flex items-center gap-1 max-w-[210px] truncate" title={candInterview.roundName}>
+                                          <Video size={11} className="shrink-0 text-indigo-600" /> <span className="truncate">{candInterview.roundName}</span>
                                         </span>
                                         <Badge variant={candInterview.status === 'COMPLETED' ? 'success' : 'primary'} className="text-[9px]">
                                           {candInterview.status}
@@ -640,10 +640,10 @@ const RecruitmentPage = () => {
                                     {isOfferPending && (
                                       <button
                                         onClick={() => handleOpenConvert(cand)}
-                                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all"
+                                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs hover:shadow-sm transition-all cursor-pointer"
                                         title="Convert candidate into active employee with credentials"
                                       >
-                                        ðŸŽ‰ 1-Click Onboard
+                                        <UserPlus size={13} className="shrink-0" /> 1-Click Onboard
                                       </button>
                                     )}
 
@@ -766,9 +766,9 @@ const RecruitmentPage = () => {
                                   {stage.key === 'OFFER_PENDING' && (
                                     <button
                                       onClick={() => handleOpenConvert(cand)}
-                                      className="w-full py-1.5 text-[10px] font-black rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center justify-center gap-1 cursor-pointer"
+                                      className="w-full py-1.5 text-[10px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
                                     >
-                                      ðŸŽ‰ 1-Click Onboard
+                                      <UserPlus size={12} className="shrink-0" /> 1-Click Onboard
                                     </button>
                                   )}
 
@@ -864,7 +864,7 @@ const RecruitmentPage = () => {
                             {inv.interviewerName}
                           </td>
                           <td className="px-4 py-3.5 text-xs text-slate-600">
-                            {inv.scheduledStart ? format(new Date(inv.scheduledStart), 'dd MMM yyyy, hh:mm a') : 'â€”'}
+                            {inv.scheduledStart ? format(new Date(inv.scheduledStart), 'dd MMM yyyy, hh:mm a') : '—'}
                           </td>
                           <td className="px-4 py-3.5 text-center">
                             <Badge variant={inv.integrityStatus === 'CLEAN' ? 'success' : 'danger'} className="text-[10px]">
@@ -935,7 +935,7 @@ const RecruitmentPage = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400">Budget:</span>
-                      <span className="font-bold text-primary-600">â‚¹{(j.salaryMin / 100000).toFixed(1)}L - â‚¹{(j.salaryMax / 100000).toFixed(1)}L</span>
+                      <span className="font-bold text-primary-600">₹{(j.salaryMin / 100000).toFixed(1)}L - ₹{(j.salaryMax / 100000).toFixed(1)}L</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400">Active Candidates:</span>
@@ -960,7 +960,7 @@ const RecruitmentPage = () => {
           <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-900 flex items-center justify-between">
             <div>
               <p className="font-bold">{schedulingCandidate?.name}</p>
-              <p className="text-[11px] text-indigo-700">{schedulingCandidate?.email} â€¢ {schedulingCandidate?.jobPostingTitle || 'General'}</p>
+              <p className="text-[11px] text-indigo-700">{schedulingCandidate?.email} • {schedulingCandidate?.jobPostingTitle || 'General'}</p>
             </div>
             <span className="text-[10px] uppercase font-extrabold bg-indigo-200 text-indigo-900 px-2 py-0.5 rounded-full">
               {schedulingCandidate?.stage?.replace('_', ' ')}
@@ -990,7 +990,7 @@ const RecruitmentPage = () => {
               <option value="">Select Lead Interviewer...</option>
               {employees.map(emp => (
                 <option key={emp.id} value={emp.id}>
-                  {emp.fullName} ({emp.employeeNumber}) â€” {emp.designation || 'Engineering'}
+                  {emp.fullName} ({emp.employeeNumber}) — {emp.designation || 'Engineering'}
                 </option>
               ))}
             </select>
@@ -1018,7 +1018,7 @@ const RecruitmentPage = () => {
                   .filter(emp => emp.id !== Number(interviewForm.interviewerId) && !interviewForm.panelistIds.includes(emp.id))
                   .map(emp => (
                     <option key={emp.id} value={emp.id}>
-                      {emp.fullName} ({emp.employeeNumber}) â€” {emp.designation || 'Engineering'}
+                      {emp.fullName} ({emp.employeeNumber}) — {emp.designation || 'Engineering'}
                     </option>
                   ))}
               </select>

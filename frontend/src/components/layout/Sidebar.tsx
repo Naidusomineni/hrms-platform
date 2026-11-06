@@ -91,6 +91,7 @@ const Sidebar: React.FC = () => {
   const [logoutModalOpen, setLogoutModalOpen] = useState<boolean>(false)
   const [activeShiftInfo, setActiveShiftInfo] = useState<any>(null)
   const [loggingOut, setLoggingOut] = useState<boolean>(false)
+  const [avatarError, setAvatarError] = useState<boolean>(false)
 
   // Smart Logout Flow
   const handleLogoutClick = async () => {
@@ -309,12 +310,12 @@ const Sidebar: React.FC = () => {
           user && (
             <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-slate-800/70 border border-slate-750">
               <div className="w-8 h-8 rounded-lg overflow-hidden bg-primary-600 flex items-center justify-center font-bold text-xs shrink-0 text-white border border-slate-700">
-                {user.profilePicture ? (
+                {user.profilePicture && !avatarError ? (
                   <img
                     src={user.profilePicture}
                     alt={user.fullName || 'User'}
                     className="w-full h-full object-cover"
-                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    onError={() => setAvatarError(true)}
                   />
                 ) : (
                   <span>{user.fullName?.charAt(0) || 'U'}</span>
@@ -337,12 +338,12 @@ const Sidebar: React.FC = () => {
               title={`${user.fullName} (${roleLabel})`}
               onClick={() => navigate('/profile')}
             >
-              {user.profilePicture ? (
+              {user.profilePicture && !avatarError ? (
                 <img
                   src={user.profilePicture}
                   alt={user.fullName || 'User'}
                   className="w-full h-full object-cover"
-                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  onError={() => setAvatarError(true)}
                 />
               ) : (
                 <span>{user.fullName?.charAt(0) || 'U'}</span>

@@ -92,7 +92,7 @@ const NotificationPage = () => {
                       <Circle size={14} className={note.isRead ? 'text-slate-300' : 'text-emerald-500'} />
                       <div>
                         <h4 className="font-semibold text-slate-900">{note.title || 'Notification'}</h4>
-                        <p className="text-xs text-slate-400">{note.type || 'GENERAL'} Â· {note.createdAt ? formatDistanceToNow(new Date(note.createdAt), { addSuffix: true }) : 'Just now'}</p>
+                        <p className="text-xs text-slate-400">{note.type || 'GENERAL'} · {note.createdAt ? formatDistanceToNow(new Date(note.createdAt), { addSuffix: true }) : 'Just now'}</p>
                       </div>
                     </div>
                     {!note.isRead && (

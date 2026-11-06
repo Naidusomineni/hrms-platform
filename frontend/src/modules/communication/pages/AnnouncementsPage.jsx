@@ -236,7 +236,7 @@ const AnnouncementsPage = () => {
                         </span>
                         {item.acknowledgmentRequired && (
                           <span className="text-slate-400">
-                            â€¢ {item.totalAcknowledgments || 0} employee(s) acknowledged
+                            • {item.totalAcknowledgments || 0} employee(s) acknowledged
                           </span>
                         )}
                       </div>
@@ -314,7 +314,7 @@ const AnnouncementsPage = () => {
                         </span>
                         {item.acknowledgmentRequired && (
                           <span className="text-slate-400">
-                            â€¢ {item.totalAcknowledgments || 0} employee(s) acknowledged
+                            • {item.totalAcknowledgments || 0} employee(s) acknowledged
                           </span>
                         )}
                       </div>

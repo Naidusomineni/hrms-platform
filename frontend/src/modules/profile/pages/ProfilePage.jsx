@@ -283,7 +283,7 @@ const ProfilePage = () => {
                 )}
                 {employeeDetails?.departmentName && (
                   <span className="text-xs text-slate-500">
-                    â€¢ {employeeDetails.departmentName}
+                    • {employeeDetails.departmentName}
                   </span>
                 )}
                 {user?.emailVerified ? (
@@ -320,7 +320,7 @@ const ProfilePage = () => {
               <div className="p-2 bg-white rounded-lg shadow-sm border border-slate-100"><Icon size={15} className="text-slate-500"/></div>
               <div>
                 <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide">{label}</p>
-                <p className="text-sm font-semibold text-slate-800 mt-0.5">{value || 'â€”'}</p>
+                <p className="text-sm font-semibold text-slate-800 mt-0.5">{value || '—'}</p>
               </div>
             </div>
           ))}
@@ -471,7 +471,7 @@ const ProfilePage = () => {
                             {h.browser || 'Unknown Browser'} on {h.osName || 'Unknown OS'}
                           </p>
                           <p className="text-xs text-slate-400">
-                            {h.loginAt ? format(new Date(h.loginAt),'MMM d, yyyy HH:mm') : 'â€”'} Â· {h.ipAddress || 'â€”'}
+                            {h.loginAt ? format(new Date(h.loginAt),'MMM d, yyyy HH:mm') : '—'} · {h.ipAddress || '—'}
                           </p>
                         </div>
                       </div>

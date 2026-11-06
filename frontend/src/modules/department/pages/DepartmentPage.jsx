@@ -104,7 +104,7 @@ const DepartmentPage = () => {
                 {dept.budget && (
                   <div className="flex items-center gap-2 text-sm text-slate-500">
                     <DollarSign size={13} className="text-emerald-500 shrink-0"/>
-                    <span className="font-semibold text-emerald-600">â‚¹{Number(dept.budget).toLocaleString('en-IN')}</span>
+                    <span className="font-semibold text-emerald-600">₹{Number(dept.budget).toLocaleString('en-IN')}</span>
                   </div>
                 )}
               </div>
@@ -139,10 +139,10 @@ const DepartmentPage = () => {
           </div>
           <div>
             <label className="label">Description</label>
-            <textarea {...register('description')} rows={3} placeholder="Brief descriptionâ€¦"
+            <textarea {...register('description')} rows={3} placeholder="Brief description…"
               className="input resize-none" />
           </div>
-          <Input {...register('budget')} label="Annual Budget (â‚¹)" type="number" placeholder="5000000" />
+          <Input {...register('budget')} label="Annual Budget (₹)" type="number" placeholder="5000000" />
         </form>
       </Modal>
 

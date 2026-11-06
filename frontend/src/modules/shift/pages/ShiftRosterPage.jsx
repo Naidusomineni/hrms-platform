@@ -350,7 +350,7 @@ const ShiftRosterPage = () => {
                 </Button>
 
                 <span className="font-bold text-sm text-slate-800">
-                  {format(currentWeekStart, 'dd MMM yyyy')} â€” {format(addDays(currentWeekStart, 6), 'dd MMM yyyy')}
+                  {format(currentWeekStart, 'dd MMM yyyy')} — {format(addDays(currentWeekStart, 6), 'dd MMM yyyy')}
                 </span>
 
                 <Button
@@ -420,7 +420,7 @@ const ShiftRosterPage = () => {
                     <tr key={empId} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3 px-4 sticky left-0 bg-white border-r border-slate-200 z-10 shadow-2xs">
                         <p className="font-bold text-slate-800">{empData.employeeName}</p>
-                        <p className="text-[10px] text-slate-400">{empData.employeeNumber} â€¢ {empData.departmentName || 'General'}</p>
+                        <p className="text-[10px] text-slate-400">{empData.employeeNumber} • {empData.departmentName || 'General'}</p>
                       </td>
 
                       {weekDays.map(day => {
@@ -445,7 +445,7 @@ const ShiftRosterPage = () => {
                                 )}
                               </div>
                             ) : (
-                              <span className="text-slate-300 font-mono text-xs">â€”</span>
+                              <span className="text-slate-300 font-mono text-xs">—</span>
                             )}
                           </td>
                         )
@@ -580,7 +580,7 @@ const ShiftRosterPage = () => {
                           Requested swap with {swap.targetEmployeeName} for {swap.swapDate}
                         </p>
                         <p className="text-slate-500 mt-0.5">
-                          Peer: <strong className="text-slate-700">{swap.peerStatus}</strong> â€¢ Manager: <strong className="text-slate-700">{swap.managerStatus}</strong>
+                          Peer: <strong className="text-slate-700">{swap.peerStatus}</strong> • Manager: <strong className="text-slate-700">{swap.managerStatus}</strong>
                         </p>
                       </div>
                       <Badge variant={swap.status === 'APPROVED' ? 'success' : (swap.status === 'REJECTED' ? 'danger' : 'warning')}>
@@ -661,7 +661,7 @@ const ShiftRosterPage = () => {
                     className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                   />
                   <span className="font-semibold text-slate-800">{e.fullName}</span>
-                  <span className="text-slate-400">({e.employeeNumber}) â€” {e.department?.name || 'Staff'}</span>
+                  <span className="text-slate-400">({e.employeeNumber}) — {e.department?.name || 'Staff'}</span>
                 </label>
               ))}
             </div>
@@ -679,7 +679,7 @@ const ShiftRosterPage = () => {
               <option value="">Select Shift Definition...</option>
               {shifts.map(s => (
                 <option key={s.id} value={s.id}>
-                  {s.name} ({s.shiftCode}) â€¢ {s.startTime} - {s.endTime}
+                  {s.name} ({s.shiftCode}) • {s.startTime} - {s.endTime}
                 </option>
               ))}
             </select>
@@ -746,7 +746,7 @@ const ShiftRosterPage = () => {
                     }))
               ).map(e => (
                 <option key={e.id} value={e.id}>
-                  {e.fullName} {e.employeeNumber ? `(${e.employeeNumber})` : ''} â€” {e.department?.name || 'Staff'}
+                  {e.fullName} {e.employeeNumber ? `(${e.employeeNumber})` : ''} — {e.department?.name || 'Staff'}
                 </option>
               ))}
             </select>

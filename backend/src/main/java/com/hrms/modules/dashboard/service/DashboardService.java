@@ -40,9 +40,15 @@ public class DashboardService {
                 ? departmentRepository.countByTenantId(tenantId)
                 : departmentRepository.count();
 
-        long presentToday = attendanceRepository.countByTenantIdAndDateAndStatus(tenantId, today, AttendanceStatus.PRESENT);
-        long absentToday  = attendanceRepository.countByTenantIdAndDateAndStatus(tenantId, today, AttendanceStatus.ABSENT);
+        long presentOnly = attendanceRepository.countByTenantIdAndDateAndStatus(tenantId, today, AttendanceStatus.PRESENT);
+        long lateArrival = attendanceRepository.countByTenantIdAndDateAndStatus(tenantId, today, AttendanceStatus.LATE_ARRIVAL);
+        long workFromHome = attendanceRepository.countByTenantIdAndDateAndStatus(tenantId, today, AttendanceStatus.WORK_FROM_HOME);
+        long halfDay = attendanceRepository.countByTenantIdAndDateAndStatus(tenantId, today, AttendanceStatus.HALF_DAY);
+        long presentToday = presentOnly + lateArrival + workFromHome + halfDay;
+
         long onLeaveToday = attendanceRepository.countByTenantIdAndDateAndStatus(tenantId, today, AttendanceStatus.ON_LEAVE);
+        long explicitAbsent = attendanceRepository.countByTenantIdAndDateAndStatus(tenantId, today, AttendanceStatus.ABSENT);
+        long absentToday = explicitAbsent > 0 ? explicitAbsent : Math.max(0, activeEmp - presentToday - onLeaveToday);
         long pendingLeaves = leaveRepository.countByTenantIdAndStatus(tenantId, LeaveStatus.PENDING);
         long openJobs = (tenantId != null && !tenantId.isBlank())
                 ? jobPostingRepository.countByTenantIdAndStatus(tenantId, "OPEN")

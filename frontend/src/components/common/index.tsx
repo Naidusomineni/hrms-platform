@@ -163,36 +163,85 @@ export interface StatCardProps {
   value: ReactNode
   icon?: ElementType<{ size?: number; className?: string }>
   gradient?: string
+  badgeColor?: string
   trend?: number | null
   subtitle?: string
   onClick?: () => void
 }
 
-export const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, gradient='gradient-primary', trend, subtitle, onClick }) => (
-  <div
-    className={clsx('relative overflow-hidden rounded-2xl p-6 text-white cursor-pointer group', gradient)}
-    onClick={onClick}
-  >
-    <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-    <div className="relative">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-medium text-white/80">{title}</p>
+export const StatCard: React.FC<StatCardProps> = ({
+  title,
+  value,
+  icon: Icon,
+  gradient,
+  badgeColor = 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800/60',
+  trend,
+  subtitle,
+  onClick
+}) => {
+  // If explicitly requested with a legacy gradient class
+  if (gradient) {
+    return (
+      <div
+        className={clsx('relative overflow-hidden rounded-2xl p-6 text-white cursor-pointer group', gradient)}
+        onClick={onClick}
+      >
+        <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="relative">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-white/80">{title}</p>
+            {Icon && (
+              <div className="p-2.5 bg-white/20 rounded-xl">
+                <Icon size={20} className="text-white" />
+              </div>
+            )}
+          </div>
+          <p className="text-3xl font-black mb-1">{value ?? '—'}</p>
+          {subtitle && <p className="text-xs text-white/70">{subtitle}</p>}
+          {trend != null && (
+            <p className="text-xs font-medium mt-2">
+              {trend > 0 ? '↑' : '↓'} {Math.abs(trend)}% vs last month
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Refined Corporate SaaS Style
+  return (
+    <div
+      className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-5 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer group flex flex-col justify-between"
+      onClick={onClick}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          {title}
+        </span>
         {Icon && (
-          <div className="p-2.5 bg-white/20 rounded-xl">
-            <Icon size={20} className="text-white" />
+          <div className={clsx('w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60 transition-transform group-hover:scale-105', badgeColor)}>
+            <Icon size={18} />
           </div>
         )}
       </div>
-      <p className="text-3xl font-black mb-1">{value ?? '—'}</p>
-      {subtitle && <p className="text-xs text-white/70">{subtitle}</p>}
-      {trend != null && (
-        <p className="text-xs font-medium mt-2">
-          {trend > 0 ? '↑' : '↓'} {Math.abs(trend)}% vs last month
+      <div className="mt-3">
+        <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          {value ?? '—'}
         </p>
-      )}
+        {subtitle && (
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+            {subtitle}
+          </p>
+        )}
+        {trend != null && (
+          <p className={clsx("text-xs font-semibold mt-2 flex items-center gap-1", trend >= 0 ? "text-emerald-600" : "text-rose-600")}>
+            {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}% <span className="text-slate-400 font-normal">vs last month</span>
+          </p>
+        )}
+      </div>
     </div>
-  </div>
-)
+  )
+}
 
 // ── Modal ───────────────────────────────────────────────────────
 export interface ModalProps {

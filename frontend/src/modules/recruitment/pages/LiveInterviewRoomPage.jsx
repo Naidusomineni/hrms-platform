@@ -927,7 +927,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                 }
               ]
             })
-            toast(`ðŸ’¬ ${chatSender}: ${chatText}`, { duration: 4000 })
+            toast(`${chatSender}: ${chatText}`, { duration: 4000 })
           }
         }
       } catch (pollErr) {
@@ -1750,7 +1750,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                 ) : (
                   /* â”€â”€ Current Evaluator Scorecard Form â”€â”€ */
                   <>
-                    {/* ðŸ›¡ï¸ Candidate Integrity & Anti-Proxy Telemetry Monitor */}
+                    {/* Candidate Integrity & Anti-Proxy Telemetry Monitor */}
                     <div className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
@@ -1946,11 +1946,11 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
                       <p className="text-slate-500 text-[10px]">Email</p>
-                      <p className="font-semibold text-slate-200">{session?.candidateEmail || 'â€”'}</p>
+                      <p className="font-semibold text-slate-200">{session?.candidateEmail || '—'}</p>
                     </div>
                     <div>
                       <p className="text-slate-500 text-[10px]">Phone</p>
-                      <p className="font-semibold text-slate-200">{session?.candidatePhone || 'â€”'}</p>
+                      <p className="font-semibold text-slate-200">{session?.candidatePhone || '—'}</p>
                     </div>
                   </div>
                 </div>
@@ -2156,7 +2156,7 @@ const LiveInterviewRoomPage = ({ isGuest = false }) => {
                   <option value="">-- Choose Colleague to Join --</option>
                   {employeesList.map(emp => (
                     <option key={emp.id} value={emp.id}>
-                      {emp.fullName || `${emp.firstName} ${emp.lastName}`} ({emp.designation || 'Staff'} â€¢ {emp.email})
+                      {emp.fullName || `${emp.firstName} ${emp.lastName}`} ({emp.designation || 'Staff'} • {emp.email})
                     </option>
                   ))}
                 </select>

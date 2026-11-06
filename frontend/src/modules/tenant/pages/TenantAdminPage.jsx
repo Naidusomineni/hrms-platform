@@ -294,7 +294,7 @@ const TenantAdminPage = () => {
                 <p className="text-xs text-slate-400 mt-0.5">Manage user accounts, roles, and access</p>
               </div>
               <div className="flex items-center gap-2 w-full max-w-sm">
-                <SearchInput value={userSearch} onChange={e => setUserSearch(e.target.value)} placeholder="Search usersâ€¦" />
+                <SearchInput value={userSearch} onChange={e => setUserSearch(e.target.value)} placeholder="Search users…" />
                 <Button variant="secondary" size="sm" onClick={() => fetchUsers(0, userSearch)}><Search size={16} /></Button>
               </div>
             </div>
@@ -680,7 +680,7 @@ const TenantAdminPage = () => {
                 <p className="text-sm text-slate-400 mt-0.5">Recent administrative activity and system changes</p>
               </div>
               <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
-                <SearchInput value={auditSearch} onChange={e => setAuditSearch(e.target.value)} placeholder="Search audit logsâ€¦" className="min-w-[220px]" />
+                <SearchInput value={auditSearch} onChange={e => setAuditSearch(e.target.value)} placeholder="Search audit logs…" className="min-w-[220px]" />
                 <select value={auditAction} onChange={e => setAuditAction(e.target.value)} className="input bg-white text-sm max-w-[180px]">
                   <option value="">All actions</option>
                   <option value="USER_ROLE_UPDATE">User Role Change</option>

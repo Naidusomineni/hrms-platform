@@ -289,9 +289,9 @@ const LoginPage = () => {
           <span className="flex items-center gap-1">
             <ShieldCheck size={13} className="text-emerald-600" /> SOC-2 Type II
           </span>
-          <span>â€¢</span>
+          <span>•</span>
           <span>256-Bit TLS</span>
-          <span>â€¢</span>
+          <span>•</span>
           <span>ISO 27001 Certified</span>
         </div>
         <p className="text-[11px] text-slate-400">

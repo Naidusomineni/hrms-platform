@@ -1243,7 +1243,7 @@ export default function WorkforceIntelligencePage() {
                     {docFile ? (
                       <div>
                         <p className="font-semibold text-slate-800 text-sm">{docFile.name}</p>
-                        <p className="text-[11px] text-slate-500">{(docFile.size / 1024).toFixed(1)} KB â€” Ready to extract</p>
+                        <p className="text-[11px] text-slate-500">{(docFile.size / 1024).toFixed(1)} KB — Ready to extract</p>
                       </div>
                     ) : (
                       <div>

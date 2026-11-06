@@ -376,7 +376,7 @@ const CandidateLobbyPage = () => {
 
       {/* â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="max-w-6xl w-full mx-auto text-center text-xs text-slate-600 pt-4 border-t border-slate-900">
-        HRMS Platform Enterprise â€¢ Secure Online Video Meeting
+        HRMS Platform Enterprise • Secure Online Video Meeting
       </div>
     </div>
   )

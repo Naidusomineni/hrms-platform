@@ -111,7 +111,7 @@ const EmployeeDetailPage = () => {
             <InfoRow icon={Briefcase} label="Job Title" value={emp.jobTitle} />
             <InfoRow icon={Calendar} label="Date of Joining" value={emp.dateOfJoining ? format(new Date(emp.dateOfJoining),'MMMM d, yyyy') : null} />
             {isAdminHR && emp.salary && (
-              <InfoRow icon={CreditCard} label="Salary" value={`â‚¹ ${Number(emp.salary).toLocaleString('en-IN')}/month`} />
+              <InfoRow icon={CreditCard} label="Salary" value={`₹ ${Number(emp.salary).toLocaleString('en-IN')}/month`} />
             )}
             <InfoRow icon={User} label="Manager" value={emp.managerName} />
           </CardBody>
@@ -121,7 +121,7 @@ const EmployeeDetailPage = () => {
           <CardHeader><div className="flex items-center gap-2"><MapPin size={16} className="text-primary-600" /><h3 className="font-bold text-slate-800">Address</h3></div></CardHeader>
           <CardBody>
             <p className="text-sm text-slate-600 leading-relaxed">
-              {[emp.address, emp.city, emp.state, emp.pincode, emp.country].filter(Boolean).join(', ') || 'â€”'}
+              {[emp.address, emp.city, emp.state, emp.pincode, emp.country].filter(Boolean).join(', ') || '—'}
             </p>
           </CardBody>
         </Card>
@@ -138,9 +138,9 @@ const EmployeeDetailPage = () => {
 
       <div className="card bg-slate-50 p-4">
         <div className="flex flex-wrap gap-6 text-xs text-slate-400">
-          <span>Created: {emp.createdAt ? format(new Date(emp.createdAt),'MMM d, yyyy HH:mm') : 'â€”'}</span>
-          <span>Updated: {emp.updatedAt ? format(new Date(emp.updatedAt),'MMM d, yyyy HH:mm') : 'â€”'}</span>
-          <span>By: {emp.createdBy || 'â€”'}</span>
+          <span>Created: {emp.createdAt ? format(new Date(emp.createdAt),'MMM d, yyyy HH:mm') : '—'}</span>
+          <span>Updated: {emp.updatedAt ? format(new Date(emp.updatedAt),'MMM d, yyyy HH:mm') : '—'}</span>
+          <span>By: {emp.createdBy || '—'}</span>
         </div>
       </div>
     </div>

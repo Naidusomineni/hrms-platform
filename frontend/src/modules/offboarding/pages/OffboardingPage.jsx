@@ -321,10 +321,10 @@ const OffboardingPage = () => {
                     >
                       <td className="px-5 py-4">
                         <p className="font-bold text-slate-900">{sep.employeeName}</p>
-                        <p className="text-xs text-slate-400 font-mono">{sep.employeeNumber} â€¢ {sep.departmentName || 'Staff'}</p>
+                        <p className="text-xs text-slate-400 font-mono">{sep.employeeNumber} • {sep.departmentName || 'Staff'}</p>
                       </td>
                       <td className="px-5 py-4 text-slate-600 font-medium">{sep.resignationDate}</td>
-                      <td className="px-5 py-4 text-slate-600">{sep.requestedLastWorkingDay || 'â€”'}</td>
+                      <td className="px-5 py-4 text-slate-600">{sep.requestedLastWorkingDay || '—'}</td>
                       <td className="px-5 py-4 font-semibold text-slate-800">{sep.approvedLastWorkingDay || 'Pending'}</td>
                       <td className="px-5 py-4 text-xs font-semibold text-slate-600">{sep.separationType}</td>
                       <td className="px-5 py-4">
@@ -391,7 +391,7 @@ const OffboardingPage = () => {
                     {selectedSeparation.employeeName} ({selectedSeparation.employeeNumber})
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Designation: <strong>{selectedSeparation.designation}</strong> â€¢ Last Working Day: <strong>{selectedSeparation.approvedLastWorkingDay || selectedSeparation.requestedLastWorkingDay}</strong>
+                    Designation: <strong>{selectedSeparation.designation}</strong> • Last Working Day: <strong>{selectedSeparation.approvedLastWorkingDay || selectedSeparation.requestedLastWorkingDay}</strong>
                   </p>
                 </div>
 
@@ -472,7 +472,7 @@ const OffboardingPage = () => {
                         <div className="flex justify-between text-slate-600">
                           <span>Pending Dues / Penalties:</span>
                           <strong className={Number(c.pendingDues || 0) > 0 ? 'text-red-600' : 'text-slate-800'}>
-                            â‚¹{Number(c.pendingDues || 0).toLocaleString('en-IN')}
+                            ₹{Number(c.pendingDues || 0).toLocaleString('en-IN')}
                           </strong>
                         </div>
                         <p className="text-slate-500 text-[11px] italic">
@@ -514,17 +514,17 @@ const OffboardingPage = () => {
                           Statutory Terminal Compensation
                         </span>
                         <h3 className="text-xl font-black text-slate-900 mt-1">
-                          Settlement Computation â€” {settlementData.employeeName} ({settlementData.employeeNumber})
+                          Settlement Computation — {settlementData.employeeName} ({settlementData.employeeNumber})
                         </h3>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          Tenure Served: <strong>{settlementData.tenureYears} Years</strong> â€¢ Last Basic: <strong>â‚¹{Number(settlementData.lastDrawnBasic).toLocaleString('en-IN')}</strong>
+                          Tenure Served: <strong>{settlementData.tenureYears} Years</strong> • Last Basic: <strong>₹{Number(settlementData.lastDrawnBasic).toLocaleString('en-IN')}</strong>
                         </p>
                       </div>
 
                       <div className="text-right">
                         <span className="text-xs text-slate-400 block">Net Terminal Payout</span>
                         <span className="text-3xl font-black text-emerald-700">
-                          â‚¹{Number(settlementData.netPayableAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          ₹{Number(settlementData.netPayableAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
                         <span className="text-[10px] text-slate-400 block">Status: {settlementData.status}</span>
                       </div>
@@ -548,7 +548,7 @@ const OffboardingPage = () => {
                             <p className="text-xs text-slate-400">Calculated for worked days in departure month</p>
                           </div>
                           <span className="font-bold text-slate-900">
-                            â‚¹{Number(settlementData.proratedSalaryAmount).toLocaleString('en-IN')}
+                            ₹{Number(settlementData.proratedSalaryAmount).toLocaleString('en-IN')}
                           </span>
                         </div>
 
@@ -560,7 +560,7 @@ const OffboardingPage = () => {
                             <p className="text-xs text-slate-400">Formula: (Unutilized Leaves Ã— Basic) / 30</p>
                           </div>
                           <span className="font-bold text-slate-900">
-                            â‚¹{Number(settlementData.leaveEncashmentAmount).toLocaleString('en-IN')}
+                            ₹{Number(settlementData.leaveEncashmentAmount).toLocaleString('en-IN')}
                           </span>
                         </div>
 
@@ -576,14 +576,14 @@ const OffboardingPage = () => {
                             </p>
                           </div>
                           <span className="font-bold text-slate-900">
-                            â‚¹{Number(settlementData.gratuityAmount).toLocaleString('en-IN')}
+                            ₹{Number(settlementData.gratuityAmount).toLocaleString('en-IN')}
                           </span>
                         </div>
 
                         <div className="flex justify-between items-center py-2">
                           <p className="font-bold text-emerald-800">Total Gross Payable</p>
                           <p className="font-black text-emerald-800 text-base">
-                            â‚¹{(Number(settlementData.proratedSalaryAmount) + Number(settlementData.leaveEncashmentAmount) + Number(settlementData.gratuityAmount)).toLocaleString('en-IN')}
+                            ₹{(Number(settlementData.proratedSalaryAmount) + Number(settlementData.leaveEncashmentAmount) + Number(settlementData.gratuityAmount)).toLocaleString('en-IN')}
                           </p>
                         </div>
                       </CardBody>
@@ -604,7 +604,7 @@ const OffboardingPage = () => {
                             <p className="text-xs text-slate-400">Aggregated from IT & Finance clearance NOCs</p>
                           </div>
                           <span className="font-bold text-rose-600">
-                            -â‚¹{Number(settlementData.assetRecoveryDuction).toLocaleString('en-IN')}
+                            -₹{Number(settlementData.assetRecoveryDuction).toLocaleString('en-IN')}
                           </span>
                         </div>
 
@@ -614,7 +614,7 @@ const OffboardingPage = () => {
                             <p className="text-xs text-slate-400">Waiver applied or unserved notice days</p>
                           </div>
                           <span className="font-bold text-rose-600">
-                            -â‚¹{Number(settlementData.noticePayRecovery).toLocaleString('en-IN')}
+                            -₹{Number(settlementData.noticePayRecovery).toLocaleString('en-IN')}
                           </span>
                         </div>
 
@@ -624,14 +624,14 @@ const OffboardingPage = () => {
                             <p className="text-xs text-slate-400">Final financial year withholding tax</p>
                           </div>
                           <span className="font-bold text-rose-600">
-                            -â‚¹{Number(settlementData.statutoryDeductions).toLocaleString('en-IN')}
+                            -₹{Number(settlementData.statutoryDeductions).toLocaleString('en-IN')}
                           </span>
                         </div>
 
                         <div className="flex justify-between items-center py-2">
                           <p className="font-bold text-rose-700">Total Deductions & Recoveries</p>
                           <p className="font-black text-rose-700 text-base">
-                            -â‚¹{(Number(settlementData.assetRecoveryDuction) + Number(settlementData.noticePayRecovery) + Number(settlementData.statutoryDeductions)).toLocaleString('en-IN')}
+                            -₹{(Number(settlementData.assetRecoveryDuction) + Number(settlementData.noticePayRecovery) + Number(settlementData.statutoryDeductions)).toLocaleString('en-IN')}
                           </p>
                         </div>
                       </CardBody>
@@ -754,7 +754,7 @@ const OffboardingPage = () => {
                 onChange={e => setResignationForm(f => ({ ...f, employeeId: e.target.value }))}
                 className="input bg-white text-xs"
               >
-                <option value="">Select employeeâ€¦</option>
+                <option value="">Select employee…</option>
                 {employees.map(e => (
                   <option key={e.id} value={e.id}>{e.fullName} ({e.employeeNumber})</option>
                 ))}

@@ -53,9 +53,9 @@ const DashboardPage: React.FC = () => {
           </CardHeader>
           <CardBody>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <StatCard title="My Profile" value={user?.fullName || 'Profile'} icon={User} gradient="gradient-primary" onClick={() => navigate('/profile')} />
-              <StatCard title="Attendance" value="View records" icon={Clock} gradient="gradient-success" onClick={() => navigate('/attendance')} />
-              <StatCard title="Leave" value="Apply / track" icon={CalendarDays} gradient="gradient-warning" onClick={() => navigate('/leaves')} />
+              <StatCard title="My Profile" value={user?.fullName || 'Profile'} icon={User} badgeColor="bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200" onClick={() => navigate('/profile')} />
+              <StatCard title="Attendance" value="View records" icon={Clock} badgeColor="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200" onClick={() => navigate('/attendance')} />
+              <StatCard title="Leave" value="Apply / track" icon={CalendarDays} badgeColor="bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200" onClick={() => navigate('/leaves')} />
             </div>
           </CardBody>
         </div>
@@ -82,22 +82,32 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Welcome Banner */}
-      <div className="gradient-primary rounded-2xl p-6 text-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10" style={{backgroundImage:'radial-gradient(circle at 2px 2px,white 1px,transparent 0)',backgroundSize:'32px 32px'}} />
-        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Corporate Executive Welcome Header */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/90 dark:border-slate-800 shadow-xs relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-black">{greeting()}, {user?.fullName?.split(' ')[0]}! 👋</h2>
-            <p className="text-blue-200 mt-1">{format(new Date(),'EEEE, MMMM do yyyy')}</p>
-          </div>
-          <div className="flex gap-3">
-            <div className="bg-white/15 rounded-xl px-4 py-2 text-center border border-white/20">
-              <p className="text-2xl font-black">{stats?.activeEmployees || 0}</p>
-              <p className="text-xs text-blue-200">Active Staff</p>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold border border-emerald-200/80 dark:border-emerald-800/60 uppercase tracking-wider">
+                Executive Command Center
+              </span>
+              <span className="text-xs text-slate-300 dark:text-slate-600">•</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{format(new Date(), 'EEEE, MMMM do, yyyy')}</span>
             </div>
-            <div className="bg-white/15 rounded-xl px-4 py-2 text-center border border-white/20">
-              <p className="text-2xl font-black">{stats?.pendingLeaveRequests || 0}</p>
-              <p className="text-xs text-blue-200">Pending Leaves</p>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mt-1.5 tracking-tight">
+              {greeting()}, {user?.fullName || 'Administrator'}
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Enterprise operations telemetry and organizational KPIs across departments.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="bg-slate-50 dark:bg-slate-800/80 rounded-xl px-4 py-2.5 text-center border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+              <p className="text-xl font-extrabold text-slate-900 dark:text-white leading-none">{stats?.activeEmployees || 0}</p>
+              <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wider">Active Staff</p>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-800/80 rounded-xl px-4 py-2.5 text-center border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+              <p className="text-xl font-extrabold text-amber-600 dark:text-amber-400 leading-none">{stats?.pendingLeaveRequests || 0}</p>
+              <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wider">Pending Leaves</p>
             </div>
           </div>
         </div>
@@ -105,17 +115,38 @@ const DashboardPage: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard title="Total Employees" value={stats?.totalEmployees ?? '—'}
-          icon={Users} gradient="gradient-primary" subtitle="All registered employees"
-          onClick={() => navigate('/employees')} />
-        <StatCard title="Departments" value={stats?.totalDepartments ?? '—'}
-          icon={Building2} gradient="gradient-purple" subtitle="Active departments"
-          onClick={() => navigate('/departments')} />
-        <StatCard title="Present Today" value={stats?.presentToday ?? '—'}
-          icon={UserCheck} gradient="gradient-success" subtitle={`Absent: ${stats?.absentToday ?? 0}`} />
-        <StatCard title="Pending Leaves" value={stats?.pendingLeaveRequests ?? '—'}
-          icon={CalendarDays} gradient="gradient-warning" subtitle="Awaiting review"
-          onClick={() => navigate('/leaves')} />
+        <StatCard
+          title="Total Employees"
+          value={stats?.totalEmployees ?? '—'}
+          icon={Users}
+          badgeColor="bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200/80 dark:border-blue-800"
+          subtitle="All registered employee records"
+          onClick={() => navigate('/employees')}
+        />
+        <StatCard
+          title="Departments"
+          value={stats?.totalDepartments ?? '—'}
+          icon={Building2}
+          badgeColor="bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border-purple-200/80 dark:border-purple-800"
+          subtitle="Active operational units"
+          onClick={() => navigate('/departments')}
+        />
+        <StatCard
+          title="Present Today"
+          value={stats?.presentToday ?? 0}
+          icon={UserCheck}
+          badgeColor="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200/80 dark:border-emerald-800"
+          subtitle={`Absent: ${stats?.absentToday ?? 0} • On Leave: ${stats?.onLeaveToday ?? 0}`}
+          onClick={() => navigate('/attendance')}
+        />
+        <StatCard
+          title="Pending Leaves"
+          value={stats?.pendingLeaveRequests ?? 0}
+          icon={CalendarDays}
+          badgeColor="bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200/80 dark:border-amber-800"
+          subtitle="Awaiting manager sign-off"
+          onClick={() => navigate('/leaves')}
+        />
       </div>
 
       {/* Charts Row */}

@@ -372,8 +372,8 @@ public class PayrollService {
         List<PayrollSlip> slips = payrollSlipRepository.findByTenantIdAndMonthAndYear(tenantId, month, year);
         List<BankDisbursementDto> list = new ArrayList<>();
         for (PayrollSlip slip : slips) {
-            // Include approved or paid slips for disbursement
-            if (slip.getStatus() != PayrollStatus.APPROVED && slip.getStatus() != PayrollStatus.PAID) {
+            // Exclude failed slips
+            if (slip.getStatus() == PayrollStatus.FAILED) {
                 continue;
             }
             Employee emp = slip.getEmployee();

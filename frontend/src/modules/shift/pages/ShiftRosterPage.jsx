@@ -84,6 +84,7 @@ const ShiftRosterPage = () => {
   }
 
   const fetchEmployees = async () => {
+    if (!isAdminOrHR && !isManager) return
     try {
       const res = await employeeAPI.getAll({ page: 0, size: 100 })
       setEmployees(res.data?.data?.content || [])
@@ -733,9 +734,19 @@ const ShiftRosterPage = () => {
               required
             >
               <option value="">Select Peer Employee...</option>
-              {employees.filter(e => e.id !== user?.employeeId).map(e => (
+              {(employees.length > 0
+                ? employees.filter(e => e.id !== user?.employeeId)
+                : Object.entries(employeeRosterMap)
+                    .filter(([empId]) => Number(empId) !== Number(user?.employeeId))
+                    .map(([empId, info]) => ({
+                      id: Number(empId),
+                      fullName: info.employeeName,
+                      employeeNumber: info.employeeNumber,
+                      department: { name: info.departmentName || 'Colleague' }
+                    }))
+              ).map(e => (
                 <option key={e.id} value={e.id}>
-                  {e.fullName} ({e.employeeNumber}) — {e.department?.name || 'Staff'}
+                  {e.fullName} {e.employeeNumber ? `(${e.employeeNumber})` : ''} — {e.department?.name || 'Staff'}
                 </option>
               ))}
             </select>

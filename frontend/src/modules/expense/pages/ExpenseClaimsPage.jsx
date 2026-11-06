@@ -94,22 +94,27 @@ const ExpenseClaimsPage = () => {
     setLoading(true)
     try {
       if (activeTab === 'my_claims') {
-        if (!currentEmployee?.id) return
-        const res = await expenseAPI.getMyExpenseClaims(currentEmployee.id, { size: 50 })
-        setClaims(res.data?.content || res.data || [])
+        const empId = currentEmployee?.id || user?.employeeId
+        if (!empId) return
+        const res = await expenseAPI.getMyExpenseClaims(empId, { size: 50 })
+        const raw = res.data?.data?.content || res.data?.data || res.data?.content || []
+        setClaims(Array.isArray(raw) ? raw : [])
       } else if (activeTab === 'manager_queue') {
         const res = await expenseAPI.getAllExpenseClaims({ status: 'SUBMITTED', size: 50 })
-        setClaims(res.data?.content || res.data || [])
+        const raw = res.data?.data?.content || res.data?.data || res.data?.content || []
+        setClaims(Array.isArray(raw) ? raw : [])
       } else if (activeTab === 'finance_queue') {
         const res = await expenseAPI.getAllExpenseClaims({ status: 'MANAGER_APPROVED', size: 50 })
-        setClaims(res.data?.content || res.data || [])
+        const raw = res.data?.data?.content || res.data?.data || res.data?.content || []
+        setClaims(Array.isArray(raw) ? raw : [])
       }
     } catch (err) {
       toast.error('Failed to load expense claims')
+      setClaims([])
     } finally {
       setLoading(false)
     }
-  }, [activeTab, currentEmployee])
+  }, [activeTab, currentEmployee, user])
 
   useEffect(() => {
     if (currentEmployee) {
@@ -125,8 +130,14 @@ const ExpenseClaimsPage = () => {
       return
     }
 
+    const empId = currentEmployee?.id || user?.employeeId
+    if (!empId) {
+      toast.error('Employee profile not loaded')
+      return
+    }
+
     try {
-      await expenseAPI.submitExpenseClaim(currentEmployee.id, {
+      await expenseAPI.submitExpenseClaim(empId, {
         category: formData.category,
         title: formData.title,
         amount: parseFloat(formData.amount),
@@ -179,8 +190,11 @@ const ExpenseClaimsPage = () => {
     }
   }
 
+  // Safe array fallback
+  const safeClaims = Array.isArray(claims) ? claims : []
+
   // Filtered claims
-  const filteredClaims = claims.filter(c => {
+  const filteredClaims = safeClaims.filter(c => {
     const matchesSearch = search === '' || 
       c.claimNumber?.toLowerCase().includes(search.toLowerCase()) ||
       c.title?.toLowerCase().includes(search.toLowerCase()) ||
@@ -190,8 +204,8 @@ const ExpenseClaimsPage = () => {
   })
 
   // KPI Calculations
-  const totalAmount = claims.reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0)
-  const approvedCount = claims.filter(c => ['MANAGER_APPROVED', 'FINANCE_APPROVED', 'DISBURSED'].includes(c.status)).length
+  const totalAmount = safeClaims.reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0)
+  const approvedCount = safeClaims.filter(c => ['MANAGER_APPROVED', 'FINANCE_APPROVED', 'DISBURSED'].includes(c.status)).length
 
   return (
     <div className="space-y-6">

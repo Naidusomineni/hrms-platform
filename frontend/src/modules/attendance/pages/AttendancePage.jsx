@@ -478,8 +478,9 @@ const AttendancePage = () => {
   }
 
   const daysInMonth = eachDayOfInterval({ start: startOfMonth(viewMonth), end: endOfMonth(viewMonth) })
-  const byDate = monthlyData.reduce((acc, a) => { acc[a.date] = a; return acc }, {})
-  const summary = monthlyData.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc }, {})
+  const safeMonthlyData = Array.isArray(monthlyData) ? monthlyData : []
+  const byDate = safeMonthlyData.reduce((acc, a) => { acc[a.date] = a; return acc }, {})
+  const summary = safeMonthlyData.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc }, {})
 
   const prevMonth = () => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1))
   const nextMonth = () => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1))

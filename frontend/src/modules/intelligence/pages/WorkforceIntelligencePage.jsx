@@ -381,28 +381,32 @@ export default function WorkforceIntelligencePage() {
             <Bot className="h-3.5 w-3.5 text-indigo-600" />
             AI HR Copilot
           </button>
-          <button
-            onClick={() => setActiveTab('attrition')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
-              activeTab === 'attrition'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-            Attrition Risk Radar
-          </button>
-          <button
-            onClick={() => setActiveTab('ats')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
-              activeTab === 'ats'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-            Candidate ATS Match
-          </button>
+          {isHrOrAdmin && (
+            <button
+              onClick={() => setActiveTab('attrition')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                activeTab === 'attrition'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
+              Attrition Risk Radar
+            </button>
+          )}
+          {isHrOrAdmin && (
+            <button
+              onClick={() => setActiveTab('ats')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                activeTab === 'ats'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+              Candidate ATS Match
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('policies')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import { documentAPI } from '../../../api/documentAPI'
+import apiClient from '../../../api/apiClient'
 import { FileText, Upload, Plus, Download, ShieldCheck, Clock, AlertTriangle, FileBadge, CheckCircle, FilePlus2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -102,6 +103,24 @@ export default function DocumentVaultPage() {
     }
   }
 
+  const handleDownload = async (docId, fileName) => {
+    try {
+      const res = await apiClient.get(`/v1/documents/${docId}/download`, {
+        responseType: 'blob'
+      })
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', fileName || `document_${docId}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      toast.error('Failed to download document')
+    }
+  }
+
   const safeDocs = Array.isArray(documents) ? documents : []
   const filteredDocs = activeTab === 'ALL'
     ? safeDocs
@@ -194,15 +213,14 @@ export default function DocumentVaultPage() {
 
               <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                 <span className="text-slate-400">{(doc.fileSize / 1024).toFixed(1)} KB</span>
-                <a
-                  href={`http://localhost:8080/api/v1/documents/${doc.id}/download`}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => handleDownload(doc.id, doc.fileName || doc.title)}
                   className="inline-flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-800"
                 >
                   <Download size={14} />
                   Download
-                </a>
+                </button>
               </div>
             </div>
           ))}

@@ -73,8 +73,9 @@
 | Technology | Version | Purpose |
 |-----------|---------|---------|
 | React | 18.3.1 | UI component library |
-| Vite | 5.4.21 | Build tool & fast Hot Module Replacement |
-| Redux Toolkit | 2.2.3 | Global state management |
+| TypeScript | 5.8 | Compile-time type safety, domain models & typed API contracts |
+| Vite | 5.4.21 | Build tool & fast Hot Module Replacement with TS/JSX hybrid support |
+| Redux Toolkit | 2.2.3 | Global state management with typed hooks (`useAppSelector`, `useAppDispatch`) |
 | React Router | 6.22 | Client-side SPA routing & route guards |
 | Axios | 1.6.8 | HTTP client with automatic JWT refresh interceptor |
 | Tailwind CSS | 3.4.3 | Tier-1 corporate styling system |
@@ -483,8 +484,9 @@ All API endpoints are prefixed with `/api/v1/` and resolve organization multi-te
 | **Super Admin** | `superadmin@hrms.com` | `SuperAdmin@123` | Multi-tenant governance & billing |
 | **Admin** | `admin@hrms.com` | `Admin@123` | Full enterprise administration |
 | **HR Manager** | `hr@hrms.com` | `Hr@123` | Employees, payroll, recruitment, offboarding |
-| **Department Manager** | `manager@hrms.com` | `Manager@123` | Approvals, roster matrix, shift swaps |
-| **Employee** | `employee@hrms.com` | `Employee@123` | Self-service, attendance, shift swaps, leave |
+| **IT Administrator** | `itadmin@hrms.com` | `ItAdmin@123` | IT hardware inventory, serial tracking, service desk ticketing SLA |
+| **Department Manager** | `manager@hrms.com` | `Manager@123` | Approvals, roster matrix, shift swaps, expense review |
+| **Employee** | `emp@hrms.com` | `Emp@123` | Self-service, attendance, shift swaps, leave, expense submission |
 
 *Default Tenant Identifier: `default` (select on login portal or pass via `X-Tenant-ID: default`).*
 
@@ -596,6 +598,25 @@ hrms-platform/
 ---
 
 ## 🧪 Testing <a name="testing"></a>
+
+### Frontend Static & Type Verification
+```bash
+cd frontend
+# 1. Type-check TypeScript layer (0 errors target)
+npm run type-check
+
+# 2. Production Vite bundle build
+npm run build
+
+# 3. Playwright browser E2E test
+npm run test:e2e
+```
+
+### Full-Stack End-to-End API Integration Suite (Automated)
+Execute against the running backend to verify all 21 core domain endpoints across 4 distinct personas (Admin, Manager, Employee, IT Admin):
+```bash
+node scripts/e2e-suite.js
+```
 
 ### Backend Unit Tests (Maven)
 ```powershell

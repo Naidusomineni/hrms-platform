@@ -41,6 +41,7 @@ const deptLabels = {
 
 const OffboardingPage = () => {
   const { user } = useSelector(s => s.auth)
+  const { tenant } = useSelector(s => s.tenant)
   const isAdminHR = ['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN'].includes(user?.role)
 
   const [activeTab, setActiveTab] = useState('separations') // 'separations' | 'clearance' | 'settlement' | 'documents'
@@ -198,7 +199,7 @@ const OffboardingPage = () => {
   // PDF Generators
   const handleDownloadRelieving = (sep) => {
     try {
-      const fname = generateRelievingLetter(sep)
+      const fname = generateRelievingLetter(sep, tenant)
       toast.success(`Downloaded ${fname}`)
     } catch (err) {
       toast.error('Failed to generate Relieving Letter: ' + err.message)
@@ -207,7 +208,7 @@ const OffboardingPage = () => {
 
   const handleDownloadExperience = (sep) => {
     try {
-      const fname = generateExperienceLetter(sep)
+      const fname = generateExperienceLetter(sep, tenant)
       toast.success(`Downloaded ${fname}`)
     } catch (err) {
       toast.error('Failed to generate Experience Certificate: ' + err.message)
@@ -216,7 +217,7 @@ const OffboardingPage = () => {
 
   const handleDownloadFnF = (settlement) => {
     try {
-      const fname = generateFnFSettlementStatement(settlement)
+      const fname = generateFnFSettlementStatement(settlement, tenant)
       toast.success(`Downloaded ${fname}`)
     } catch (err) {
       toast.error('Failed to generate F&F Statement: ' + err.message)

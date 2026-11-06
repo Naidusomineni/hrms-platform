@@ -479,7 +479,7 @@ export function generateFnFSettlementStatement(settlement = {}, org = {}) {
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(7.5)
   doc.setTextColor(...cNavy)
-  doc.text('For HRMS ENTERPRISE PLATFORM PVT. LTD.', 132, footerY + 6)
+  doc.text(`For ${company.name}`, 132, footerY + 6)
 
   doc.setFont('helvetica', 'italic')
   doc.setFontSize(7.5)

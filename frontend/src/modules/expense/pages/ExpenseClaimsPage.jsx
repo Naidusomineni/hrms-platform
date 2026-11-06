@@ -67,14 +67,20 @@ const ExpenseClaimsPage = () => {
   // Load employee profile
   useEffect(() => {
     const fetchCurrentEmp = async () => {
+      if (user?.employeeId) {
+        setCurrentEmployee({
+          id: user.employeeId,
+          fullName: user.name || user.email,
+          email: user.email,
+          employeeNumber: user.employeeNumber
+        })
+        return
+      }
       try {
-        const res = await employeeAPI.getAll({ size: 100 })
-        const empList = res.data?.content || res.data || []
-        const matched = empList.find(e => e.email === user?.email || e.user?.email === user?.email)
-        if (matched) {
-          setCurrentEmployee(matched)
-        } else if (empList.length > 0) {
-          setCurrentEmployee(empList[0])
+        const res = await employeeAPI.getMyProfile()
+        const emp = res.data?.data || res.data
+        if (emp?.id) {
+          setCurrentEmployee(emp)
         }
       } catch (err) {
         console.error('Failed to load employee reference:', err)

@@ -37,6 +37,7 @@ const monthNames = [
 
 const PayrollPage = () => {
   const { user } = useSelector(s => s.auth)
+  const { tenant } = useSelector(s => s.tenant)
   const isAdminHR = ['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN'].includes(user?.role)
 
   const currentDate = new Date()
@@ -404,7 +405,7 @@ const PayrollPage = () => {
         department: { name: slip.departmentName },
         designation: slip.designation
       }
-      const fname = generatePayslipPdf(slip, emp)
+      const fname = generatePayslipPdf(slip, emp, tenant)
       toast.success(`Downloaded ${fname}`)
     } catch (err) {
       toast.error('Failed to generate payslip PDF: ' + err.message)

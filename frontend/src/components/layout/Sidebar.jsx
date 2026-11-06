@@ -57,7 +57,7 @@ const NAV_GROUPS = [
       { path: '/expenses', label: 'Expense Claims', icon: Receipt, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
       { path: '/assets', label: 'Assets & Hardware', icon: Laptop, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
       { path: '/helpdesk', label: 'IT Service Desk', icon: LifeBuoy, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
-      { path: '/reports', label: 'Reports & Tax BI', icon: BarChart3, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
+      { path: '/reports', label: 'Reports & Tax BI', icon: BarChart3, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER'] },
     ]
   },
   {
@@ -144,10 +144,23 @@ const Sidebar = () => {
     EMPLOYEE: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
   }
 
-  // Filter groups and items by user role
+  // Filter groups and items by user role with tailored labels
+  const isEmpOnly = user?.role === 'ROLE_EMPLOYEE'
+
   const filteredGroups = NAV_GROUPS.map(group => ({
     ...group,
-    items: group.items.filter(item => item.roles.includes(user?.role))
+    items: group.items
+      .filter(item => item.roles.includes(user?.role))
+      .map(item => {
+        if (isEmpOnly) {
+          if (item.path === '/payroll') return { ...item, label: 'My Payslips' }
+          if (item.path === '/assets') return { ...item, label: 'My Assets' }
+          if (item.path === '/intelligence') return { ...item, label: 'AI HR Copilot' }
+          if (item.path === '/offboarding') return { ...item, label: 'Resignation & Exit' }
+          if (item.path === '/expenses') return { ...item, label: 'My Expenses' }
+        }
+        return item
+      })
   })).filter(group => group.items.length > 0)
 
   // Clean company display name (avoid awkward truncation)

@@ -20,7 +20,7 @@ const AssetPage = () => {
   const isAdminHR = ['ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN'].includes(user?.role)
   const empId = user?.employeeId || null
 
-  const [activeTab, setActiveTab] = useState('inventory') // 'inventory' | 'my-assets'
+  const [activeTab, setActiveTab] = useState(isAdminHR ? 'inventory' : 'my-assets') // 'inventory' | 'my-assets'
   const [assets, setAssets] = useState([])
   const [myAssets, setMyAssets] = useState([])
   const [employees, setEmployees] = useState([])
@@ -48,7 +48,7 @@ const AssetPage = () => {
     setLoading(true)
     try {
       const [aRes, myRes, empRes] = await Promise.all([
-        assetService.getAssets(),
+        isAdminHR ? assetService.getAssets() : Promise.resolve({ data: { data: [] } }),
         empId ? assetService.getEmployeeAssets(empId) : Promise.resolve({ data: { data: [] } }),
         isAdminHR ? employeeAPI.getAll({ size: 200 }) : Promise.resolve({ data: { data: { content: [] } } })
       ])

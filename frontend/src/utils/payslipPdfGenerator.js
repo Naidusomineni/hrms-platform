@@ -76,17 +76,20 @@ export function generatePayslipPdf(slip = {}, employee = {}, org = {}) {
   const cSubtleBg = [248, 250, 252]  // #f8fafc
 
   // 1. Corporate MNC Header (Clean White Letterhead)
+  const orgLegalName = (org?.name || org?.companyName || 'HRMS Enterprise Platform').toUpperCase()
+  const orgAddress = org?.address || 'Corporate Office & Enterprise Operations Centre'
+
   // Left: Corporate Legal Identity
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(14)
   doc.setTextColor(...cNavy)
-  doc.text('HRMS ENTERPRISE PLATFORM PVT. LTD.', 14, 18)
+  doc.text(orgLegalName, 14, 18)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7.5)
   doc.setTextColor(...cSlateMuted)
-  doc.text('Corporate Office: Technology Hub, Sector 62, Cyber City, Madhapur, Hyderabad - 500081, India', 14, 23)
-  doc.text('CIN: U72200TG2020PTC145689 | PAN: AAACB1234F | TAN: HYDH01234A | PF EST: HYD0045892', 14, 27.5)
+  doc.text(orgAddress, 14, 23)
+  doc.text('Corporate Tax Identity Verified | Digitally Signed Payroll Engine Record', 14, 27.5)
 
   // Right: Document Title & Confidentiality
   doc.setFont('helvetica', 'bold')
@@ -310,7 +313,7 @@ export function generatePayslipPdf(slip = {}, employee = {}, org = {}) {
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(7.5)
   doc.setTextColor(...cNavy)
-  doc.text('For HRMS ENTERPRISE PLATFORM PVT. LTD.', 132, footerY + 6)
+  doc.text(`For ${orgLegalName}`, 132, footerY + 6)
 
   doc.setFont('helvetica', 'italic')
   doc.setFontSize(7.5)

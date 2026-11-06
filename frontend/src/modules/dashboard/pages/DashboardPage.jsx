@@ -14,7 +14,7 @@ const statusBadge = { ACTIVE:'success', PROBATION:'warning', ON_LEAVE:'info', TE
 const DashboardPage = () => {
   const { user } = useSelector(s => s.auth)
   const navigate = useNavigate()
-  const isAdminHR = ['ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN'].includes(user?.role)
+  const isAdminHR = ['ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN','ROLE_IT_ADMIN'].includes(user?.role)
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(isAdminHR)
 

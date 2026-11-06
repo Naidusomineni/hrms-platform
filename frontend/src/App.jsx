@@ -95,9 +95,17 @@ function App() {
         <Route path="leaves" element={<LeavePage />} />
         <Route path="documents" element={<DocumentVaultPage />} />
         <Route path="employees" element={<EmployeeListPage />} />
-        <Route path="employees/new" element={<EmployeeFormPage />} />
+        <Route path="employees/new" element={
+          <ProtectedRoute roles={['ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN']}>
+            <EmployeeFormPage />
+          </ProtectedRoute>
+        } />
         <Route path="employees/:id" element={<EmployeeDetailPage />} />
-        <Route path="employees/:id/edit" element={<EmployeeFormPage />} />
+        <Route path="employees/:id/edit" element={
+          <ProtectedRoute roles={['ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN']}>
+            <EmployeeFormPage />
+          </ProtectedRoute>
+        } />
         <Route path="departments" element={<DepartmentPage />} />
         <Route path="payroll" element={<PayrollPage />} />
         <Route path="expenses" element={<ExpenseClaimsPage />} />

@@ -47,7 +47,7 @@ const NAV_GROUPS = [
       { path: '/recruitment', label: 'Recruitment / ATS', icon: Briefcase, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER'] },
       { path: '/performance', label: 'Performance & OKR', icon: Target, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
       { path: '/intelligence', label: 'AI HR & Insights', icon: BrainCircuit, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
-      { path: '/offboarding', label: 'Offboarding & F&F', icon: UserMinus, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE'] },
+      { path: '/offboarding', label: 'Offboarding & F&F', icon: UserMinus, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
     ]
   },
   {
@@ -166,6 +166,7 @@ const Sidebar = () => {
           if (item.path === '/expenses') return { ...item, label: 'My Expenses' }
           if (item.path === '/performance') return { ...item, label: 'My Goals' }
           if (item.path === '/intelligence') return { ...item, label: 'AI HR Copilot' }
+          if (item.path === '/offboarding') return { ...item, label: 'Resignation & Exit' }
           if (item.path === '/admin') return { ...item, label: 'Audit & Security Logs' }
         }
         return item

@@ -29,3 +29,4 @@ export const leaveAPI = {
   triggerAccrual: () =>
     apiClient.post<ApiResponse<void>>('/v1/leaves/accrual/run'),
 };
+

@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { useSelector } from 'react-redux'
+import { useAppSelector } from '../../../store/hooks'
 import { useForm } from 'react-hook-form'
 import { attendanceAPI } from '../../../api/attendanceAPI'
 import { employeeAPI } from '../../../api/employeeAPI'
-import { Button, Badge, Card, CardHeader, CardBody, Modal, Spinner, EmptyState } from '../../../components/common/index.jsx'
+import { Button, Badge, Card, CardHeader, CardBody, Modal, Spinner, EmptyState } from '../../../components/common'
 import {
   Plus, Calendar, CheckCircle, XCircle, ChevronLeft, ChevronRight,
   Clock, MapPin, Building, Navigation, Globe, Sliders, Coffee, Play,
@@ -13,7 +13,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isWeekend
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
 
-const statusDot = {
+const statusDot: Record<string, string> = {
   PRESENT: 'bg-emerald-500',
   ABSENT: 'bg-red-500',
   HALF_DAY: 'bg-amber-500',
@@ -23,7 +23,7 @@ const statusDot = {
   LATE_ARRIVAL: 'bg-orange-500'
 }
 
-const statusBadge = {
+const statusBadge: Record<string, 'success' | 'danger' | 'warning' | 'info' | 'purple' | 'default'> = {
   PRESENT: 'success',
   ABSENT: 'danger',
   HALF_DAY: 'warning',
@@ -33,9 +33,9 @@ const statusBadge = {
   LATE_ARRIVAL: 'warning'
 }
 
-const AttendancePage = () => {
-  const { user } = useSelector(s => s.auth)
-  const isAdminHR = ['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN'].includes(user?.role)
+const AttendancePage: React.FC = () => {
+  const { user } = useAppSelector(s => s.auth)
+  const isAdminHR = ['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN'].includes(user?.role || '')
 
   const [activeTab, setActiveTab] = useState('attendance') // 'attendance' | 'locations' | 'biometrics'
   const [monthlyData, setMonthlyData] = useState([])
@@ -114,7 +114,6 @@ const AttendancePage = () => {
         toast.success(`Biometric punch simulated for ${simulateForm.employeeNumber}!`)
         setSimulateModalOpen(false)
         fetchBiometricDevices()
-        fetchTodayAttendance()
         fetchTodayStatus()
       }
     } catch (err) {
@@ -406,7 +405,7 @@ const AttendancePage = () => {
         address: newOffice.address.trim(),
         latitude: parseFloat(newOffice.latitude),
         longitude: parseFloat(newOffice.longitude),
-        radiusMeters: parseInt(newOffice.radiusMeters, 10) || 250,
+        radiusMeters: Number(newOffice.radiusMeters) || 250,
         ipWhitelist: newOffice.ipWhitelist.trim() || null,
         isActive: newOffice.isActive
       })
@@ -438,8 +437,8 @@ const AttendancePage = () => {
     }
   }
 
-  const { register, handleSubmit, reset } = useForm({
-    defaultValues: { date: format(new Date(), 'yyyy-MM-dd'), status: 'PRESENT' }
+  const { register, handleSubmit, reset } = useForm<any>({
+    defaultValues: { employeeId: '', date: format(new Date(), 'yyyy-MM-dd'), status: 'PRESENT' }
   })
 
   useEffect(() => {
@@ -830,7 +829,7 @@ const AttendancePage = () => {
                         {Object.entries(summary).map(([status, count]) => (
                           <span key={status} className="flex items-center gap-1.5 text-xs text-slate-500">
                             <span className={clsx('w-2 h-2 rounded-full', statusDot[status] || 'bg-slate-400')} />
-                            {status.replace('_', ' ')}: <strong>{count}</strong>
+                            {status.replace('_', ' ')}: <strong>{String(count)}</strong>
                           </span>
                         ))}
                       </div>
@@ -1257,7 +1256,7 @@ const AttendancePage = () => {
               max="5000"
               required
               value={newOffice.radiusMeters}
-              onChange={e => setNewOffice(o => ({ ...o, radiusMeters: e.target.value }))}
+              onChange={e => setNewOffice(o => ({ ...o, radiusMeters: Number(e.target.value) || 0 }))}
               className="input bg-white"
             />
           </div>

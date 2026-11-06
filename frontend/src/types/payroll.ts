@@ -1,4 +1,4 @@
-export type PayrollStatus = 'DRAFT' | 'PROCESSED' | 'APPROVED' | 'PAID';
+export type PayrollStatus = 'DRAFT' | 'PROCESSING' | 'PROCESSED' | 'APPROVED' | 'PAID' | 'FAILED';
 
 export interface PayrollSlip {
   id: number;

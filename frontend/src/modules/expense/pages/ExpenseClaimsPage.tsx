@@ -79,7 +79,7 @@ const ExpenseClaimsPage: React.FC = () => {
       if (user?.employeeId) {
         setCurrentEmployee({
           id: Number(user.employeeId),
-          fullName: user.name || user.email,
+          fullName: user.fullName || user.email,
           email: user.email,
           employeeNumber: user.employeeNumber
         })

@@ -28,7 +28,7 @@ export interface Employee {
   jobTitle?: string;
   dateOfJoining?: string;
   dateOfLeaving?: string;
-  employmentStatus: 'PROBATION' | 'ACTIVE' | 'RESIGNED' | 'TERMINATED' | 'ON_LEAVE';
+  employmentStatus: 'PROBATION' | 'ACTIVE' | 'RESIGNED' | 'TERMINATED' | 'ON_LEAVE' | 'INACTIVE' | 'NOTICE_PERIOD';
   shiftType?: string;
   salary?: number;
   panNumber?: string;

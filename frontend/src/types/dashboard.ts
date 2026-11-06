@@ -18,3 +18,4 @@ export interface DashboardStats {
   recentHires?: (Partial<Employee> & { id: number; fullName?: string; departmentName?: string })[];
   upcomingBirthdays?: { name: string; department?: string; dateOfBirth?: string }[];
 }
+

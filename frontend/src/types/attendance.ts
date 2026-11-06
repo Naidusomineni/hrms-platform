@@ -1,4 +1,11 @@
-export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'ON_LEAVE' | 'HALF_DAY';
+export type AttendanceStatus =
+  | 'PRESENT'
+  | 'ABSENT'
+  | 'ON_LEAVE'
+  | 'HALF_DAY'
+  | 'WORK_FROM_HOME'
+  | 'HOLIDAY'
+  | 'LATE_ARRIVAL';
 
 export interface AttendanceRecord {
   id: number;
@@ -14,6 +21,8 @@ export interface AttendanceRecord {
   latitude?: number;
   longitude?: number;
   isGeofenceCompliant?: boolean;
+  geofenceStatus?: string;
+  workMode?: string;
 }
 
 export interface TodayAttendanceStatus {
@@ -24,5 +33,6 @@ export interface TodayAttendanceStatus {
   totalBreakMinutes?: number;
   status?: AttendanceStatus;
   isOnBreak?: boolean;
+  workMode?: string;
+  breakMinutes?: number;
 }
-

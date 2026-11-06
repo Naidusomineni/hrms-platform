@@ -2,14 +2,26 @@ import apiClient from './apiClient'
 import type { ApiResponse, AttendanceRecord, TodayAttendanceStatus } from '../types'
 
 export const attendanceAPI = {
-  punch: (data: { employeeId: number | string; punchType: string; latitude?: number; longitude?: number; remarks?: string }) =>
+  punch: (data: {
+    employeeId: number | string;
+    punchType?: string;
+    latitude?: number;
+    longitude?: number;
+    remarks?: string;
+    date?: string;
+    time?: string;
+    workMode?: string;
+    officeLocationId?: number | string;
+  }) =>
     apiClient.post<ApiResponse<AttendanceRecord>>('/v1/attendance/punch', data),
 
   autoLoginPunch: (empId: number | string, mode = 'OFFICE') =>
     apiClient.post<ApiResponse<AttendanceRecord>>(`/v1/attendance/auto-login-punch?employeeId=${empId}&workMode=${mode}`),
 
   toggleBreak: (empId: number | string) =>
-    apiClient.post<ApiResponse<{ isOnBreak: boolean; breakStartTime?: string }>>(`/v1/attendance/break-toggle?employeeId=${empId}`),
+    apiClient.post<ApiResponse<{ isOnBreak: boolean; breakStartTime?: string; breakMinutes?: number }>>(
+      `/v1/attendance/break-toggle?employeeId=${empId}`
+    ),
 
   getTodayStatus: (empId: number | string) =>
     apiClient.get<ApiResponse<TodayAttendanceStatus>>(`/v1/attendance/today-status?employeeId=${empId}`),

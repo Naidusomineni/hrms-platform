@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { useSelector } from 'react-redux'
+import { useAppSelector } from '../../../store/hooks'
 import { payrollAPI } from '../../../api/payrollAPI'
 import { employeeAPI } from '../../../api/employeeAPI'
-import { Button, Badge, Card, CardHeader, CardBody, Spinner, EmptyState, Modal } from '../../../components/common/index.jsx'
+import { Button, Badge, Card, CardHeader, CardBody, Spinner, EmptyState, Modal } from '../../../components/common'
 import {
   DollarSign, Play, FileText, TrendingUp, Download, Building, Users,
   CheckCircle, ArrowDownToLine, RefreshCw, Edit3, Check, Search,
@@ -11,8 +11,9 @@ import {
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import { generatePayslipPdf } from '../../../utils/payslipPdfGenerator'
+import { PayrollSlip, PayrollSummary, Employee } from '../../../types'
 
-const statusBadgeVariant = {
+const statusBadgeVariant: Record<string, 'warning' | 'info' | 'primary' | 'success' | 'danger'> = {
   DRAFT: 'warning',
   PROCESSING: 'warning',
   PROCESSED: 'info',
@@ -21,7 +22,7 @@ const statusBadgeVariant = {
   FAILED: 'danger'
 }
 
-const statusBadgeLabels = {
+const statusBadgeLabels: Record<string, string> = {
   DRAFT: 'Draft / Review Pending',
   PROCESSING: 'Calculating',
   PROCESSED: 'Draft / Calculated',
@@ -35,10 +36,10 @@ const monthNames = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ]
 
-const PayrollPage = () => {
-  const { user } = useSelector(s => s.auth)
-  const { tenant } = useSelector(s => s.tenant)
-  const isAdminHR = ['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN'].includes(user?.role)
+const PayrollPage: React.FC = () => {
+  const { user } = useAppSelector(s => s.auth)
+  const { tenant } = useAppSelector(s => s.tenant)
+  const isAdminHR = ['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN'].includes(user?.role || '')
 
   const currentDate = new Date()
   const currentYear = currentDate.getFullYear()
@@ -159,7 +160,7 @@ const PayrollPage = () => {
     if (resetPage) setPage(0)
 
     try {
-      const params = {
+      const params: Record<string, unknown> = {
         month: selectedMonth,
         year: selectedYear,
         page: targetPage,
@@ -216,7 +217,7 @@ const PayrollPage = () => {
     setBatchCalculating(true)
     try {
       const res = await payrollAPI.processAll(selectedMonth, selectedYear)
-      const data = res.data?.data || {}
+      const data = (res.data?.data as any) || {}
       toast.success(`Draft payroll generated for ${data.processedCount || 0} employees! Ready for HR review.`)
       setBatchCalculateModal(false)
       fetchSummary()
@@ -336,13 +337,14 @@ const PayrollPage = () => {
     setApprovingAll(true)
     try {
       const res = await payrollAPI.approveAllPayroll(selectedMonth, selectedYear)
-      const data = res.data?.data || {}
+      const data = (res.data?.data as any) || {}
       toast.success(`Successfully approved ${data.approvedCount || 0} payslips! Staff notified via email.`)
       setApproveAllModal(false)
       fetchSummary()
       fetchRegister()
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to batch approve payroll')
+    } catch (err: unknown) {
+      const errorMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(errorMsg || 'Failed to batch approve payroll')
     } finally {
       setApprovingAll(false)
     }
@@ -350,20 +352,21 @@ const PayrollPage = () => {
 
   // ── Disbursement Actions ──────────────────────────────────────────
   const handleMarkBatchPaid = async () => {
-    setMarkingPaid(true)
+    setMarkPaid(true)
     try {
       const ref = paymentRef.trim() || `DISB-${selectedYear}${String(selectedMonth).padStart(2, '0')}-001`
       const res = await payrollAPI.markPaid(selectedMonth, selectedYear, ref)
-      const data = res.data?.data || {}
-      toast.success(`Marked ${data.paidCount || 0} slips as Disbursed (Ref: ${data.paymentReference})`)
+      const data = (res.data?.data as any) || {}
+      toast.success(`Marked ${data.paidCount || 0} slips as Disbursed (Ref: ${data.paymentReference || ref})`)
       setMarkPaidModal(false)
       setPaymentRef('')
       fetchSummary()
       fetchRegister()
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to mark payroll as paid')
+    } catch (err: unknown) {
+      const errorMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(errorMsg || 'Failed to mark payroll as paid')
     } finally {
-      setMarkingPaid(false)
+      setMarkPaid(false)
     }
   }
 
@@ -412,7 +415,12 @@ const PayrollPage = () => {
     }
   }
 
-  const selectedEmployeeObj = employees.find(e => String(e.id) === String(selectedEmpId))
+  const safeRegisterSlips = Array.isArray(registerSlips) ? registerSlips : []
+  const safeIndividualSlips = Array.isArray(individualSlips) ? individualSlips : []
+  const safeEmployees = Array.isArray(employees) ? employees : []
+  const safeBankBatchData = Array.isArray(bankBatchData) ? bankBatchData : []
+
+  const selectedEmployeeObj = safeEmployees.find(e => String(e.id) === String(selectedEmpId))
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
@@ -702,7 +710,7 @@ const PayrollPage = () => {
                 <Spinner size="lg" />
                 <p className="text-xs text-slate-500 font-medium">Loading corporate payroll register...</p>
               </div>
-            ) : registerSlips.length === 0 ? (
+            ) : safeRegisterSlips.length === 0 ? (
               <div className="py-16">
                 <EmptyState
                   icon={DollarSign}
@@ -726,7 +734,7 @@ const PayrollPage = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {registerSlips.map(slip => {
+                    {safeRegisterSlips.map(slip => {
                       const bonus = Number(slip.bonus || 0)
                       const overtime = Number(slip.overtimeAmount || 0)
                       const deductionAdj = Number(slip.deductionsAdjustment || 0)
@@ -917,9 +925,9 @@ const PayrollPage = () => {
                   className="input bg-white max-w-md text-sm font-semibold"
                 >
                   <option value="">Select an employee…</option>
-                  {employees.map(e => (
+                  {safeEmployees.map(e => (
                     <option key={e.id} value={e.id}>
-                      {e.fullName} ({e.employeeNumber}) — {e.department?.name || 'Staff'}
+                      {e.fullName} ({e.employeeNumber}) — {(e as any).department?.name || e.departmentName || 'Staff'}
                     </option>
                   ))}
                 </select>
@@ -946,7 +954,7 @@ const PayrollPage = () => {
 
               {individualLoading ? (
                 <div className="py-12"><Spinner size="lg" /></div>
-              ) : individualSlips.length === 0 ? (
+              ) : safeIndividualSlips.length === 0 ? (
                 <div className="py-12">
                   <EmptyState
                     icon={DollarSign}
@@ -969,7 +977,7 @@ const PayrollPage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {individualSlips.map(slip => (
+                      {safeIndividualSlips.map(slip => (
                         <tr key={slip.id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="px-5 py-4">
                             <p className="font-bold text-slate-800">{monthNames[slip.month - 1]} {slip.year}</p>
@@ -1136,7 +1144,7 @@ const PayrollPage = () => {
                     step="500"
                     placeholder="0"
                     value={adjustmentForm.bonus}
-                    onChange={e => setAdjustmentForm(f => ({ ...f, bonus: e.target.value }))}
+                    onChange={e => setAdjustmentForm(f => ({ ...f, bonus: Number(e.target.value) || 0 }))}
                     className="input bg-white text-sm"
                   />
                   <p className="text-[10px] text-slate-500 mt-1">Festival gifts, performance awards, milestone incentives</p>
@@ -1150,7 +1158,7 @@ const PayrollPage = () => {
                     step="500"
                     placeholder="0"
                     value={adjustmentForm.overtimeAmount}
-                    onChange={e => setAdjustmentForm(f => ({ ...f, overtimeAmount: e.target.value }))}
+                    onChange={e => setAdjustmentForm(f => ({ ...f, overtimeAmount: Number(e.target.value) || 0 }))}
                     className="input bg-white text-sm"
                   />
                   <p className="text-[10px] text-slate-500 mt-1">Extra shifts, project overtime, backdated salary arrears</p>
@@ -1171,7 +1179,7 @@ const PayrollPage = () => {
                     step="500"
                     placeholder="0"
                     value={adjustmentForm.deductionsAdjustment}
-                    onChange={e => setAdjustmentForm(f => ({ ...f, deductionsAdjustment: e.target.value }))}
+                    onChange={e => setAdjustmentForm(f => ({ ...f, deductionsAdjustment: Number(e.target.value) || 0 }))}
                     className="input bg-white text-sm"
                   />
                   <p className="text-[10px] text-slate-500 mt-1">Salary advance installment, laptop damage, policy fines</p>
@@ -1303,9 +1311,9 @@ const PayrollPage = () => {
               className="input bg-white"
             >
               <option value="">Select employee...</option>
-              {employees.map(e => (
+              {safeEmployees.map(e => (
                 <option key={e.id} value={e.id}>
-                  {e.fullName} ({e.employeeNumber}) — {e.department?.name || 'Staff'}
+                  {e.fullName} ({e.employeeNumber}) — {(e as any).department?.name || e.departmentName || 'Staff'}
                 </option>
               ))}
             </select>
@@ -1448,7 +1456,7 @@ const PayrollPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {bankBatchData.map((d, i) => (
+                  {safeBankBatchData.map((d: any, i: number) => (
                     <tr key={i} className="hover:bg-slate-50">
                       <td className="p-2.5">
                         <div className="font-semibold text-slate-800">{d.employeeName}</div>

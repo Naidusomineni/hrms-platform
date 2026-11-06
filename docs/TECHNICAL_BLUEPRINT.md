@@ -162,20 +162,20 @@ hrms-platform-main/
 │   │   │   └── layout/                               # MainLayout.tsx, Sidebar.tsx, Topbar.tsx
 │   │   ├── modules/                                  # 17 Modular UI Modules:
 │   │   │   ├── asset/pages/                          # AssetPage.tsx (Master Inventory & Issued Assets)
-│   │   │   ├── attendance/pages/                     # AttendancePage (GPS punch card, break timer, logs)
+│   │   │   ├── attendance/pages/                     # AttendancePage.tsx (GPS punch card, break timer, logs)
 │   │   │   ├── auth/pages/                           # LoginPage, RegisterPage, MFA Verification
 │   │   │   ├── communication/pages/                  # AnnouncementsPage
 │   │   │   ├── dashboard/pages/                      # DashboardPage.tsx (Role-tailored KPI widgets)
 │   │   │   ├── department/pages/                     # DepartmentPage
 │   │   │   ├── document/pages/                       # DocumentVaultPage.tsx (Authenticated blob streaming)
-│   │   │   ├── employee/pages/                       # EmployeeListPage, EmployeeDetailPage, EmployeeFormPage
+│   │   │   ├── employee/pages/                       # EmployeeListPage.tsx, EmployeeDetailPage, EmployeeFormPage
 │   │   │   ├── expense/pages/                        # ExpenseClaimsPage.tsx (Strict typed claims & review)
 │   │   │   ├── helpdesk/pages/                       # HelpdeskPage.tsx (SLA timers, ticket conversation modal)
 │   │   │   ├── intelligence/pages/                   # WorkforceIntelligencePage (AI Copilot, Policy RAG)
 │   │   │   ├── leave/pages/                          # LeavePage.tsx (Leave balances, apply modal, approvals)
 │   │   │   ├── notification/pages/                   # NotificationPage
 │   │   │   ├── offboarding/pages/                    # OffboardingPage (Resignation, clearances, F&F, letters)
-│   │   │   ├── payroll/pages/                        # PayrollPage (Register console, slip PDF download)
+│   │   │   ├── payroll/pages/                        # PayrollPage.tsx (Register console, slip PDF download)
 │   │   │   ├── performance/pages/                    # PerformancePage (OKRs, appraisals, cycles)
 │   │   │   ├── recruitment/pages/                    # RecruitmentPage, LiveInterviewRoomPage (WebRTC)
 │   │   │   ├── report/pages/                         # ReportsPage (BI charts, salary spend graphs)
@@ -188,7 +188,7 @@ hrms-platform-main/
 │   │   ├── store/                                    # Redux Toolkit centralized state slices:
 │   │   │   ├── store.ts                              # Strongly typed RootState & AppDispatch
 │   │   │   ├── hooks.ts                              # useAppDispatch & useAppSelector typed hooks
-│   │   │   └── slices/                               # authSlice, tenantSlice, uiSlice
+│   │   │   └── slices/                               # authSlice.ts, tenantSlice.ts, uiSlice.ts
 │   │   ├── styles/                                   # Tailwind CSS custom themes & global utility classes
 │   │   ├── utils/                                    # PDF generators (payslipPdfGenerator, letterGenerator)
 │   │   ├── App.tsx                                   # React Router DOM v6 typed route registry

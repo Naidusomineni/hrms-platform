@@ -12,3 +12,6 @@ export const store = configureStore({
   middleware: (getDefault) => getDefault({ serializableCheck: { ignoredActions: ['auth/loginSuccess'] } }),
   devTools: import.meta.env.DEV,
 })
+
+export type RootState = ReturnType<typeof store.getState>
+export type AppDispatch = typeof store.dispatch

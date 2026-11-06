@@ -52,9 +52,9 @@ const AssetPage = () => {
         empId ? assetService.getEmployeeAssets(empId) : Promise.resolve({ data: { data: [] } }),
         isAdminHR ? employeeAPI.getAll({ size: 200 }) : Promise.resolve({ data: { data: { content: [] } } })
       ])
-      setAssets(aRes.data?.data || [])
-      setMyAssets(myRes.data?.data || [])
-      setEmployees(empRes.data?.data?.content || [])
+      setAssets(Array.isArray(aRes.data?.data) ? aRes.data.data : [])
+      setMyAssets(Array.isArray(myRes.data?.data) ? myRes.data.data : [])
+      setEmployees(Array.isArray(empRes.data?.data?.content) ? empRes.data.data.content : (Array.isArray(empRes.data?.content) ? empRes.data.content : []))
     } catch {
       // ignore
     } finally {
@@ -113,9 +113,11 @@ const AssetPage = () => {
     }
   }
 
-  const totalValuation = assets.reduce((sum, a) => sum + (a.cost ? Number(a.cost) : 0), 0)
-  const allocatedCount = assets.filter(a => a.status === 'ALLOCATED').length
-  const availableCount = assets.filter(a => a.status === 'AVAILABLE').length
+  const safeAssets = Array.isArray(assets) ? assets : []
+  const safeMyAssets = Array.isArray(myAssets) ? myAssets : []
+  const totalValuation = safeAssets.reduce((sum, a) => sum + (a.cost ? Number(a.cost) : 0), 0)
+  const allocatedCount = safeAssets.filter(a => a.status === 'ALLOCATED').length
+  const availableCount = safeAssets.filter(a => a.status === 'AVAILABLE').length
 
   return (
     <div className="space-y-6 animate-fade-in">

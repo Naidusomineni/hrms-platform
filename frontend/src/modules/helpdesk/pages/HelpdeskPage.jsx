@@ -238,7 +238,8 @@ const HelpdeskPage = () => {
   }
 
   // Filtered tickets
-  const filteredTickets = tickets.filter(t => {
+  const safeTickets = Array.isArray(tickets) ? tickets : []
+  const filteredTickets = safeTickets.filter(t => {
     if (filterCategory !== 'ALL' && t.category !== filterCategory) return false
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()

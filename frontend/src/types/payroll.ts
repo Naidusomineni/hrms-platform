@@ -44,3 +44,4 @@ export interface PayrollSummary {
   paidNet: number;
   totalNet: number;
 }
+

@@ -1,17 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { useSelector } from 'react-redux'
+import React, { useState, useEffect, useCallback, type FormEvent } from 'react'
+import { useAppSelector } from '../../../store/hooks'
 import { expenseAPI } from '../../../api/expenseAPI'
 import { employeeAPI } from '../../../api/employeeAPI'
-import { Button, Badge, Card, CardHeader, CardBody, Spinner, EmptyState, Modal, Input } from '../../../components/common/index.jsx'
+import { Button, Card, CardBody, Spinner, EmptyState, Modal } from '../../../components/common'
+import type { ExpenseClaim, ExpenseCategory } from '../../../types'
 import {
-  Receipt, Plus, RefreshCw, CheckCircle2, XCircle, Clock,
-  FileText, ShieldCheck, DollarSign, Filter, Search, Eye, AlertCircle
+  Receipt, Plus, RefreshCw, CheckCircle2,
+  FileText, ShieldCheck, DollarSign, Search, Eye
 } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
 
-const categoryLabels = {
+const categoryLabels: Record<string, string> = {
   TRAVEL: 'Travel & Cab',
   MEALS: 'Client Meals',
   INTERNET_WFH: 'Internet & Broadband',
@@ -21,7 +22,7 @@ const categoryLabels = {
   OTHER: 'General Expense'
 }
 
-const statusBadgeMap = {
+const statusBadgeMap: Record<string, { label: string; color: string }> = {
   SUBMITTED: { label: 'Submitted', color: 'bg-amber-50 text-amber-700 border-amber-200' },
   MANAGER_APPROVED: { label: 'Manager Approved', color: 'bg-blue-50 text-blue-700 border-blue-200' },
   FINANCE_APPROVED: { label: 'Finance Approved', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
@@ -29,29 +30,37 @@ const statusBadgeMap = {
   REJECTED: { label: 'Rejected', color: 'bg-rose-50 text-rose-700 border-rose-200' }
 }
 
-const ExpenseClaimsPage = () => {
-  const { user } = useSelector(s => s.auth)
-  const isManager = ['ROLE_MANAGER', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN'].includes(user?.role)
-  const isFinanceOrHR = ['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN'].includes(user?.role)
+interface CurrentEmployeeRef {
+  id: number
+  fullName: string
+  email?: string
+  employeeNumber?: string
+  departmentName?: string
+}
 
-  const [activeTab, setActiveTab] = useState('my_claims') // 'my_claims' | 'manager_queue' | 'finance_queue'
-  const [loading, setLoading] = useState(false)
-  const [claims, setClaims] = useState([])
-  const [currentEmployee, setCurrentEmployee] = useState(null)
+const ExpenseClaimsPage: React.FC = () => {
+  const { user } = useAppSelector(s => s.auth)
+  const isManager = ['ROLE_MANAGER', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN'].includes(user?.role || '')
+  const isFinanceOrHR = ['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN'].includes(user?.role || '')
+
+  const [activeTab, setActiveTab] = useState<'my_claims' | 'manager_queue' | 'finance_queue'>('my_claims')
+  const [loading, setLoading] = useState<boolean>(false)
+  const [claims, setClaims] = useState<ExpenseClaim[]>([])
+  const [currentEmployee, setCurrentEmployee] = useState<CurrentEmployeeRef | null>(null)
 
   // Filters
-  const [search, setSearch] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('')
+  const [search, setSearch] = useState<string>('')
+  const [selectedCategory, setSelectedCategory] = useState<string>('')
 
   // Modals
-  const [createModal, setCreateModal] = useState(false)
-  const [reviewModal, setReviewModal] = useState(false)
-  const [detailsModal, setDetailsModal] = useState(false)
-  const [selectedClaim, setSelectedClaim] = useState(null)
+  const [createModal, setCreateModal] = useState<boolean>(false)
+  const [reviewModal, setReviewModal] = useState<boolean>(false)
+  const [detailsModal, setDetailsModal] = useState<boolean>(false)
+  const [selectedClaim, setSelectedClaim] = useState<ExpenseClaim | null>(null)
 
   // Form states
   const [formData, setFormData] = useState({
-    category: 'INTERNET_WFH',
+    category: 'INTERNET_WFH' as ExpenseCategory,
     title: '',
     amount: '',
     expenseDate: format(new Date(), 'yyyy-MM-dd'),
@@ -69,7 +78,7 @@ const ExpenseClaimsPage = () => {
     const fetchCurrentEmp = async () => {
       if (user?.employeeId) {
         setCurrentEmployee({
-          id: user.employeeId,
+          id: Number(user.employeeId),
           fullName: user.name || user.email,
           email: user.email,
           employeeNumber: user.employeeNumber
@@ -78,9 +87,14 @@ const ExpenseClaimsPage = () => {
       }
       try {
         const res = await employeeAPI.getMyProfile()
-        const emp = res.data?.data || res.data
+        const emp = res.data?.data
         if (emp?.id) {
-          setCurrentEmployee(emp)
+          setCurrentEmployee({
+            id: emp.id,
+            fullName: `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.email,
+            email: emp.email,
+            employeeNumber: emp.employeeNumber
+          })
         }
       } catch (err) {
         console.error('Failed to load employee reference:', err)
@@ -97,18 +111,18 @@ const ExpenseClaimsPage = () => {
         const empId = currentEmployee?.id || user?.employeeId
         if (!empId) return
         const res = await expenseAPI.getMyExpenseClaims(empId, { size: 50 })
-        const raw = res.data?.data?.content || res.data?.data || res.data?.content || []
+        const raw = res.data?.data?.content || []
         setClaims(Array.isArray(raw) ? raw : [])
       } else if (activeTab === 'manager_queue') {
         const res = await expenseAPI.getAllExpenseClaims({ status: 'SUBMITTED', size: 50 })
-        const raw = res.data?.data?.content || res.data?.data || res.data?.content || []
+        const raw = res.data?.data?.content || []
         setClaims(Array.isArray(raw) ? raw : [])
       } else if (activeTab === 'finance_queue') {
         const res = await expenseAPI.getAllExpenseClaims({ status: 'MANAGER_APPROVED', size: 50 })
-        const raw = res.data?.data?.content || res.data?.data || res.data?.content || []
+        const raw = res.data?.data?.content || []
         setClaims(Array.isArray(raw) ? raw : [])
       }
-    } catch (err) {
+    } catch {
       toast.error('Failed to load expense claims')
       setClaims([])
     } finally {
@@ -123,7 +137,7 @@ const ExpenseClaimsPage = () => {
   }, [currentEmployee, activeTab, fetchClaims])
 
   // Handle Submit Claim
-  const handleSubmitClaim = async (e) => {
+  const handleSubmitClaim = async (e: FormEvent) => {
     e.preventDefault()
     if (!formData.title || !formData.amount || !formData.expenseDate) {
       toast.error('Please complete all required fields')
@@ -157,13 +171,13 @@ const ExpenseClaimsPage = () => {
         receiptUrl: ''
       })
       fetchClaims()
-    } catch (err) {
+    } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to submit expense claim')
     }
   }
 
   // Handle Review (Manager or Finance)
-  const handleReviewSubmit = async (e) => {
+  const handleReviewSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!selectedClaim) return
 
@@ -185,27 +199,27 @@ const ExpenseClaimsPage = () => {
       setSelectedClaim(null)
       setReviewForm({ action: 'APPROVE', remarks: '' })
       fetchClaims()
-    } catch (err) {
+    } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to process claim review')
     }
   }
 
   // Safe array fallback
-  const safeClaims = Array.isArray(claims) ? claims : []
+  const safeClaims: ExpenseClaim[] = Array.isArray(claims) ? claims : []
 
   // Filtered claims
-  const filteredClaims = safeClaims.filter(c => {
+  const filteredClaims = safeClaims.filter((c: ExpenseClaim) => {
     const matchesSearch = search === '' || 
-      c.claimNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      c.title?.toLowerCase().includes(search.toLowerCase()) ||
-      c.employeeName?.toLowerCase().includes(search.toLowerCase())
+      (c.claimNumber && c.claimNumber.toLowerCase().includes(search.toLowerCase())) ||
+      (c.title && c.title.toLowerCase().includes(search.toLowerCase())) ||
+      (c.employeeName && c.employeeName.toLowerCase().includes(search.toLowerCase()))
     const matchesCat = selectedCategory === '' || c.category === selectedCategory
     return matchesSearch && matchesCat
   })
 
   // KPI Calculations
-  const totalAmount = safeClaims.reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0)
-  const approvedCount = safeClaims.filter(c => ['MANAGER_APPROVED', 'FINANCE_APPROVED', 'DISBURSED'].includes(c.status)).length
+  const totalAmount = safeClaims.reduce((acc: number, c: ExpenseClaim) => acc + (parseFloat(String(c.amount)) || 0), 0)
+  const approvedCount = safeClaims.filter((c: ExpenseClaim) => ['MANAGER_APPROVED', 'FINANCE_APPROVED', 'DISBURSED'].includes(c.status)).length
 
   return (
     <div className="space-y-6">
@@ -248,7 +262,7 @@ const ExpenseClaimsPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Claims</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">{claims.length}</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{safeClaims.length}</p>
               </div>
               <div className="p-2.5 bg-slate-100 rounded-lg text-slate-700">
                 <FileText className="w-5 h-5" />
@@ -325,9 +339,9 @@ const ExpenseClaimsPage = () => {
             )}
           >
             Manager Review Queue
-            {activeTab === 'manager_queue' && claims.length > 0 && (
+            {activeTab === 'manager_queue' && safeClaims.length > 0 && (
               <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-800 rounded-full font-semibold">
-                {claims.length}
+                {safeClaims.length}
               </span>
             )}
           </button>
@@ -344,9 +358,9 @@ const ExpenseClaimsPage = () => {
             )}
           >
             Finance Disbursement Audit
-            {activeTab === 'finance_queue' && claims.length > 0 && (
+            {activeTab === 'finance_queue' && safeClaims.length > 0 && (
               <span className="px-1.5 py-0.5 text-xs bg-indigo-100 text-indigo-800 rounded-full font-semibold">
-                {claims.length}
+                {safeClaims.length}
               </span>
             )}
           </button>
@@ -446,7 +460,7 @@ const ExpenseClaimsPage = () => {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right font-medium text-slate-900">
-                        ₹ {parseFloat(claim.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹ {parseFloat(String(claim.amount)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">
                         {claim.expenseDate ? format(new Date(claim.expenseDate), 'dd MMM yyyy') : '—'}
@@ -507,7 +521,7 @@ const ExpenseClaimsPage = () => {
               <label className="block text-xs font-medium text-slate-700 uppercase mb-1">Expense Category</label>
               <select
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value as ExpenseCategory })}
                 className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
               >
                 {Object.entries(categoryLabels).map(([k, v]) => (
@@ -588,8 +602,8 @@ const ExpenseClaimsPage = () => {
           <form onSubmit={handleReviewSubmit} className="space-y-4">
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-xs space-y-1">
               <p><span className="font-semibold text-slate-700">Employee:</span> {selectedClaim.employeeName} ({selectedClaim.employeeNumber})</p>
-              <p><span className="font-semibold text-slate-700">Category:</span> {categoryLabels[selectedClaim.category]}</p>
-              <p><span className="font-semibold text-slate-700">Amount:</span> ₹ {parseFloat(selectedClaim.amount).toLocaleString('en-IN')}</p>
+              <p><span className="font-semibold text-slate-700">Category:</span> {categoryLabels[selectedClaim.category] || selectedClaim.category}</p>
+              <p><span className="font-semibold text-slate-700">Amount:</span> ₹ {parseFloat(String(selectedClaim.amount)).toLocaleString('en-IN')}</p>
               <p><span className="font-semibold text-slate-700">Title:</span> {selectedClaim.title}</p>
             </div>
 
@@ -668,11 +682,11 @@ const ExpenseClaimsPage = () => {
               </div>
               <div>
                 <span className="text-slate-500">Category:</span>
-                <p className="font-semibold text-slate-800">{categoryLabels[selectedClaim.category]}</p>
+                <p className="font-semibold text-slate-800">{categoryLabels[selectedClaim.category] || selectedClaim.category}</p>
               </div>
               <div>
                 <span className="text-slate-500">Amount:</span>
-                <p className="font-semibold text-slate-900 text-sm">₹ {parseFloat(selectedClaim.amount).toLocaleString('en-IN')}</p>
+                <p className="font-semibold text-slate-900 text-sm">₹ {parseFloat(String(selectedClaim.amount)).toLocaleString('en-IN')}</p>
               </div>
             </div>
 

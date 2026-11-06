@@ -56,3 +56,4 @@ export const attendanceAPI = {
   getByDate: (date: string) =>
     apiClient.get<ApiResponse<AttendanceRecord[]>>('/v1/attendance/date', { params: { date } }),
 }
+

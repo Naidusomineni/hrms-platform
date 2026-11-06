@@ -14,3 +14,4 @@ export const authAPI = {
   changePassword: (userId: number, data: any) => apiClient.post<ApiResponse<void>>(`/v1/auth/change-password?userId=${userId}`, data),
   getLoginHistory: (userId: number) => apiClient.get<ApiResponse<any>>(`/v1/auth/login-history?userId=${userId}`),
 }
+

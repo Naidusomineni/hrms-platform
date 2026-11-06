@@ -53,7 +53,8 @@ const NotificationPage = () => {
     }
   }
 
-  const unreadCount = notifications.filter(n => !n.isRead).length
+  const safeNotifications = Array.isArray(notifications) ? notifications : []
+  const unreadCount = safeNotifications.filter(n => !n.isRead).length
 
   return (
     <div className="space-y-5 animate-fade-in">

@@ -124,7 +124,8 @@ const AnnouncementsPage = () => {
     }
   }
 
-  const filtered = announcements.filter(a => {
+  const safeAnnouncements = Array.isArray(announcements) ? announcements : []
+  const filtered = safeAnnouncements.filter(a => {
     if (selectedCategory !== 'ALL' && a.category !== selectedCategory) return false
     return true
   })

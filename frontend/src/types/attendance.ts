@@ -25,3 +25,4 @@ export interface TodayAttendanceStatus {
   status?: AttendanceStatus;
   isOnBreak?: boolean;
 }
+

@@ -102,9 +102,10 @@ export default function DocumentVaultPage() {
     }
   }
 
+  const safeDocs = Array.isArray(documents) ? documents : []
   const filteredDocs = activeTab === 'ALL'
-    ? documents
-    : documents.filter(d => d.category === activeTab)
+    ? safeDocs
+    : safeDocs.filter(d => d.category === activeTab)
 
   return (
     <div className="space-y-6">

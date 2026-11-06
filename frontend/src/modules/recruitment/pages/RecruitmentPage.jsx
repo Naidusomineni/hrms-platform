@@ -259,7 +259,8 @@ const RecruitmentPage = () => {
   }
 
   // Filter candidates by stage & search query
-  const filteredCandidates = candidates.filter(c => {
+  const safeCandidates = Array.isArray(candidates) ? candidates : []
+  const filteredCandidates = safeCandidates.filter(c => {
     const matchesStage = stageFilter === 'ALL' || c.stage === stageFilter
     const q = searchQuery.toLowerCase()
     const matchesSearch = !q || (
@@ -425,7 +426,7 @@ const RecruitmentPage = () => {
                   </button>
 
                   {PIPELINE_STAGES.map((s, idx) => {
-                    const count = candidates.filter(c => c.stage === s.key).length
+                    const count = safeCandidates.filter(c => c.stage === s.key).length
                     const isActive = stageFilter === s.key
                     const isOfferOrHired = ['OFFER_PENDING', 'HIRED'].includes(s.key)
 

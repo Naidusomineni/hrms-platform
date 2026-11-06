@@ -23,3 +23,4 @@ export const helpdeskAPI = {
   getStats: () =>
     apiClient.get<ApiResponse<{ totalOpen: number; inProgress: number; resolved: number; criticalCount: number }>>('/v1/helpdesk/tickets/stats'),
 }
+

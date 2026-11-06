@@ -43,3 +43,4 @@ export const payrollAPI = {
   getSlip: (empId: number | string, month: number, year: number) =>
     apiClient.get<ApiResponse<PayrollSlip>>(`/v1/payroll/employee/${empId}/slip`, { params: { month, year } }),
 }
+

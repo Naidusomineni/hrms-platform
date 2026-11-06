@@ -45,3 +45,4 @@ export interface SupportTicket {
   createdAt: string;
   comments?: TicketComment[];
 }
+

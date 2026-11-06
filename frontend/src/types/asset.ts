@@ -33,3 +33,4 @@ export interface AssetAllocation {
   returnedAt?: string;
   notes?: string;
 }
+

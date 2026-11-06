@@ -1,8 +1,15 @@
+import React, { type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { useSelector } from 'react-redux'
+import { useAppSelector } from '../store/hooks'
+import type { Role } from '../types'
 
-const ProtectedRoute = ({ children, roles }) => {
-  const { isAuthenticated, user } = useSelector(s => s.auth)
+interface ProtectedRouteProps {
+  children: ReactNode
+  roles?: (Role | string)[]
+}
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
+  const { isAuthenticated, user } = useAppSelector(s => s.auth)
   const location = useLocation()
 
   if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />
@@ -21,6 +28,7 @@ const ProtectedRoute = ({ children, roles }) => {
       </div>
     )
   }
-  return children
+  return <>{children}</>
 }
+
 export default ProtectedRoute

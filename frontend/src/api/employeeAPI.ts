@@ -17,3 +17,4 @@ export const employeeAPI = {
     (id ? apiClient.post<ApiResponse<Employee>>(`/v1/employees/${id}/document`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
         : apiClient.post<ApiResponse<Employee>>('/v1/employees/document', formData, { headers: { 'Content-Type': 'multipart/form-data' } })),
 }
+

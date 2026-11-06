@@ -24,3 +24,4 @@ export const documentAPI = {
 }
 
 export default documentAPI
+

@@ -16,6 +16,8 @@ export interface Page<T> {
   empty: boolean;
 }
 
+export type PageResponse<T> = Page<T>;
+
 export interface PaginationParams {
   page?: number;
   size?: number;

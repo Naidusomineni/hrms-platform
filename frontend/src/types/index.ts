@@ -7,3 +7,5 @@ export * from './asset';
 export * from './helpdesk';
 export * from './attendance';
 export * from './document';
+export * from './dashboard';
+export * from './leave';

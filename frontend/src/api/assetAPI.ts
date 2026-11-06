@@ -13,3 +13,4 @@ export const assetAPI = {
 }
 
 export default assetAPI
+

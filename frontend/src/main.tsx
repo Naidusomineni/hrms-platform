@@ -1,13 +1,18 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { Provider } from 'react-redux'
-import { BrowserRouter } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
-import App from './App.jsx'
-import { store } from './store/store'
-import './styles/index.css'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { Provider } from 'react-redux';
+import { BrowserRouter } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import App from './App';
+import { store } from './store/store';
+import './styles/index.css';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error('Failed to find the root element');
+}
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <Provider store={store}>
       <BrowserRouter>
@@ -25,23 +30,23 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               fontSize: '13.5px',
               fontWeight: '500',
               padding: '12px 18px',
-              maxWidth: '420px'
+              maxWidth: '420px',
             },
             success: {
               iconTheme: { primary: '#059669', secondary: '#ecfdf5' },
               style: {
-                borderLeft: '4px solid #059669'
-              }
+                borderLeft: '4px solid #059669',
+              },
             },
             error: {
               iconTheme: { primary: '#dc2626', secondary: '#fef2f2' },
               style: {
-                borderLeft: '4px solid #dc2626'
-              }
+                borderLeft: '4px solid #dc2626',
+              },
             },
           }}
         />
       </BrowserRouter>
     </Provider>
   </React.StrictMode>
-)
+);

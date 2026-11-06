@@ -159,20 +159,20 @@ hrms-platform-main/
 │   │   │   ├── common/                               # Strongly typed reusable UI library (index.tsx):
 │   │   │   │   ├── index.tsx                         # Typed Button, Card, Badge, Modal, Spinner, Input
 │   │   │   │   └── index.jsx                         # Backward-compatibility re-export shim
-│   │   │   └── layout/                               # MainLayout, Sidebar, Navbar, MobileDrawer
+│   │   │   └── layout/                               # MainLayout.tsx, Sidebar.tsx, Topbar.tsx
 │   │   ├── modules/                                  # 17 Modular UI Modules:
-│   │   │   ├── asset/pages/                          # AssetPage (Master Inventory & Issued Assets)
+│   │   │   ├── asset/pages/                          # AssetPage.tsx (Master Inventory & Issued Assets)
 │   │   │   ├── attendance/pages/                     # AttendancePage (GPS punch card, break timer, logs)
 │   │   │   ├── auth/pages/                           # LoginPage, RegisterPage, MFA Verification
 │   │   │   ├── communication/pages/                  # AnnouncementsPage
-│   │   │   ├── dashboard/pages/                      # DashboardPage (Role-tailored KPI widgets)
+│   │   │   ├── dashboard/pages/                      # DashboardPage.tsx (Role-tailored KPI widgets)
 │   │   │   ├── department/pages/                     # DepartmentPage
-│   │   │   ├── document/pages/                       # DocumentVaultPage
+│   │   │   ├── document/pages/                       # DocumentVaultPage.tsx (Authenticated blob streaming)
 │   │   │   ├── employee/pages/                       # EmployeeListPage, EmployeeDetailPage, EmployeeFormPage
 │   │   │   ├── expense/pages/                        # ExpenseClaimsPage.tsx (Strict typed claims & review)
-│   │   │   ├── helpdesk/pages/                       # HelpdeskPage (SLA timers, ticket conversation modal)
+│   │   │   ├── helpdesk/pages/                       # HelpdeskPage.tsx (SLA timers, ticket conversation modal)
 │   │   │   ├── intelligence/pages/                   # WorkforceIntelligencePage (AI Copilot, Policy RAG)
-│   │   │   ├── leave/pages/                          # LeavePage (Leave balances, apply modal, approvals)
+│   │   │   ├── leave/pages/                          # LeavePage.tsx (Leave balances, apply modal, approvals)
 │   │   │   ├── notification/pages/                   # NotificationPage
 │   │   │   ├── offboarding/pages/                    # OffboardingPage (Resignation, clearances, F&F, letters)
 │   │   │   ├── payroll/pages/                        # PayrollPage (Register console, slip PDF download)
@@ -184,14 +184,15 @@ hrms-platform-main/
 │   │   │   ├── tenant/pages/                         # TenantAdminPage (White-label branding, audit logs)
 │   │   │   └── workflow/pages/                       # ApprovalsPage (Unified manager sign-off queue)
 │   │   ├── routes/
-│   │   │   └── ProtectedRoute.jsx                    # Client-side RBAC guard & route redirects
+│   │   │   └── ProtectedRoute.tsx                    # Client-side RBAC guard & typed route redirects
 │   │   ├── store/                                    # Redux Toolkit centralized state slices:
-│   │   │   ├── index.js                              # Redux store configuration
+│   │   │   ├── store.ts                              # Strongly typed RootState & AppDispatch
+│   │   │   ├── hooks.ts                              # useAppDispatch & useAppSelector typed hooks
 │   │   │   └── slices/                               # authSlice, tenantSlice, uiSlice
 │   │   ├── styles/                                   # Tailwind CSS custom themes & global utility classes
 │   │   ├── utils/                                    # PDF generators (payslipPdfGenerator, letterGenerator)
-│   │   ├── App.jsx                                   # React Router DOM v6 route registry
-│   │   └── main.jsx                                  # React 18 DOM mount point
+│   │   ├── App.tsx                                   # React Router DOM v6 typed route registry
+│   │   └── main.tsx                                  # React 18 DOM mount point (with strict null checking)
 │   ├── package.json                                  # NPM dependencies & build scripts
 │   └── vite.config.js                                # Vite bundler configuration & HTTPS proxy
 └── docs/

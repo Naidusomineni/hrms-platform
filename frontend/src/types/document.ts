@@ -40,3 +40,4 @@ export interface HrLetterRequest {
   purpose: string;
   addressedTo?: string;
 }
+

@@ -1,27 +1,35 @@
 import React, { useEffect, useState } from 'react'
-import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
+import { useAppSelector } from '../../../store/hooks'
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts'
-import { Users, User, Building2, UserCheck, UserX, Clock, CalendarDays, Briefcase, TrendingUp, Gift, ChevronRight } from 'lucide-react'
+import { Users, User, Building2, UserCheck, Clock, CalendarDays, TrendingUp, Gift, ChevronRight } from 'lucide-react'
 import { dashboardAPI } from '../../../api/dashboardAPI'
-import { StatCard, Card, CardHeader, CardBody, Spinner, Badge } from '../../../components/common/index.jsx'
+import { StatCard, Card, CardHeader, CardBody, Spinner, Badge } from '../../../components/common'
+import type { DashboardStats } from '../../../types'
 import { format } from 'date-fns'
 
 const COLORS = ['#2563eb','#0d9488','#d97706','#dc2626','#7c3aed','#0891b2','#65a30d']
 
-const statusBadge = { ACTIVE:'success', PROBATION:'warning', ON_LEAVE:'info', TERMINATED:'danger', RESIGNED:'danger', INACTIVE:'default' }
+const statusBadge: Record<string, string> = {
+  ACTIVE: 'success',
+  PROBATION: 'warning',
+  ON_LEAVE: 'info',
+  TERMINATED: 'danger',
+  RESIGNED: 'danger',
+  INACTIVE: 'default'
+}
 
-const DashboardPage = () => {
-  const { user } = useSelector(s => s.auth)
+const DashboardPage: React.FC = () => {
+  const { user } = useAppSelector(s => s.auth)
   const navigate = useNavigate()
-  const isAdminHR = ['ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN','ROLE_IT_ADMIN'].includes(user?.role)
-  const [stats, setStats] = useState(null)
-  const [loading, setLoading] = useState(isAdminHR)
+  const isAdminHR = ['ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN','ROLE_IT_ADMIN'].includes(user?.role || '')
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [loading, setLoading] = useState<boolean>(isAdminHR)
 
   useEffect(() => {
     if (!isAdminHR) return
     dashboardAPI.getAdminStats()
-      .then(r => setStats(r.data.data))
+      .then(r => setStats(r.data?.data || null))
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [isAdminHR])
@@ -56,11 +64,11 @@ const DashboardPage = () => {
   }
 
   const deptData = stats?.employeesByDepartment
-    ? Object.entries(stats.employeesByDepartment).map(([name, count]) => ({ name, count }))
+    ? Object.entries(stats.employeesByDepartment).map(([name, count]) => ({ name, count: Number(count) }))
     : []
 
   const trendData = stats?.headcountTrend
-    ? Object.entries(stats.headcountTrend).map(([month, count]) => ({ month, count }))
+    ? Object.entries(stats.headcountTrend).map(([month, count]) => ({ month, count: Number(count) }))
     : []
 
   const attendanceData = [
@@ -68,6 +76,9 @@ const DashboardPage = () => {
     { name: 'Absent', value: Number(stats?.absentToday || 0), color: '#ef4444' },
     { name: 'On Leave', value: Number(stats?.onLeaveToday || 0), color: '#f59e0b' },
   ].filter(d => d.value > 0)
+
+  const safeRecentHires = Array.isArray(stats?.recentHires) ? stats.recentHires : []
+  const safeUpcomingBirthdays = Array.isArray(stats?.upcomingBirthdays) ? stats.upcomingBirthdays : []
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -193,7 +204,7 @@ const DashboardPage = () => {
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Hires */}
-        {stats?.recentHires?.length > 0 && (
+        {safeRecentHires.length > 0 && (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -202,17 +213,17 @@ const DashboardPage = () => {
               </div>
             </CardHeader>
             <div className="divide-y divide-slate-50">
-              {stats.recentHires.slice(0,5).map(emp => (
+              {safeRecentHires.slice(0,5).map(emp => (
                 <div key={emp.id} onClick={() => navigate(`/employees/${emp.id}`)}
                   className="flex items-center gap-3 px-6 py-3 hover:bg-slate-50 cursor-pointer transition-colors">
                   <div className="w-9 h-9 gradient-primary rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">
                     {emp.firstName?.charAt(0)}{emp.lastName?.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 truncate">{emp.fullName}</p>
+                    <p className="text-sm font-semibold text-slate-800 truncate">{emp.fullName || `${emp.firstName} ${emp.lastName}`}</p>
                     <p className="text-xs text-slate-400 truncate">{emp.designation} · {emp.departmentName || 'Unassigned'}</p>
                   </div>
-                  <Badge variant={statusBadge[emp.employmentStatus] || 'default'}>
+                  <Badge variant={statusBadge[emp.employmentStatus || ''] || 'default'}>
                     {emp.employmentStatus?.replace('_',' ')}
                   </Badge>
                 </div>
@@ -226,9 +237,9 @@ const DashboardPage = () => {
           <CardHeader>
             <h3 className="font-bold text-slate-800 flex items-center gap-2"><Gift size={16} className="text-pink-500"/>Upcoming Birthdays</h3>
           </CardHeader>
-          {stats?.upcomingBirthdays?.length > 0 ? (
+          {safeUpcomingBirthdays.length > 0 ? (
             <div className="divide-y divide-slate-50">
-              {stats.upcomingBirthdays.map((b, i) => (
+              {safeUpcomingBirthdays.map((b, i) => (
                 <div key={i} className="flex items-center gap-3 px-6 py-3">
                   <div className="w-9 h-9 bg-pink-100 rounded-xl flex items-center justify-center text-pink-600 text-lg shrink-0">🎂</div>
                   <div className="flex-1 min-w-0">
@@ -250,4 +261,5 @@ const DashboardPage = () => {
     </div>
   )
 }
+
 export default DashboardPage

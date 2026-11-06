@@ -1,4 +1,13 @@
-import axios from 'axios'
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
+import type { ApiResponse } from '../types'
+
+interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean
+}
+
+export interface CustomAxiosError extends AxiosError {
+  userFriendlyMessage?: string
+}
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -11,7 +20,7 @@ const apiClient = axios.create({
 
 // Attach JWT token and Multi-Tenant Context to every request
 apiClient.interceptors.request.use(
-  (config) => {
+  (config: InternalAxiosRequestConfig) => {
     const isGuestEndpoint = config.url && (config.url.includes('/guest/') || config.url.includes('/public/'))
     if (!isGuestEndpoint) {
       const token = localStorage.getItem('accessToken')
@@ -28,7 +37,6 @@ apiClient.interceptors.request.use(
 
     return config
   },
-
   (error) => Promise.reject(error)
 )
 
@@ -36,12 +44,12 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
 
-  (error) => {
-    const originalRequest = error.config
+  (error: CustomAxiosError) => {
+    const originalRequest = error.config as CustomAxiosRequestConfig | undefined
 
     // Extract detailed friendly error message if available
     if (error.response?.data) {
-      const d = error.response.data
+      const d = error.response.data as any
       let msg = d.message || d.error || 'Request failed'
       if (d.data && typeof d.data === 'object' && !Array.isArray(d.data)) {
         const details = Object.entries(d.data)
@@ -60,10 +68,13 @@ apiClient.interceptors.response.use(
 
     // If unauthorized and not already retried, try refresh once
     const isLoginEndpoint = originalRequest?.url?.includes('/v1/auth/login')
-    if (error.response?.status === 401 && !originalRequest?._retry && !isLoginEndpoint) {
+    if (error.response?.status === 401 && !originalRequest?._retry && !isLoginEndpoint && originalRequest) {
       originalRequest._retry = true
       const refreshToken = localStorage.getItem('refreshToken')
-      return apiClient.post('/v1/auth/refresh', refreshToken ? { refreshToken } : {})
+      return apiClient.post<ApiResponse<{ accessToken: string; refreshToken?: string }>>(
+        '/v1/auth/refresh',
+        refreshToken ? { refreshToken } : {}
+      )
         .then(res => {
           const data = res.data?.data  
           if (data?.accessToken) {
@@ -88,6 +99,6 @@ apiClient.interceptors.response.use(
 
     return Promise.reject(error)
   }
-) 
+)
 
 export default apiClient

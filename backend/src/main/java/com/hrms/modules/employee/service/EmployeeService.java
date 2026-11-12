@@ -422,6 +422,190 @@ public class EmployeeService {
         }
     }
 
+    public String getBulkImportTemplate() {
+        return "first_name,last_name,email,phone_number,department,designation,date_of_joining,salary,employment_status\n"
+             + "Aarav,Sharma,aarav.sharma@example.com,+91 9876543210,Engineering,Software Engineer,2026-06-01,75000,FULL_TIME\n"
+             + "Priya,Patel,priya.patel@example.com,+91 9876543211,Human Resources,HR Executive,2026-06-15,60000,PROBATION\n"
+             + "Vikram,Rao,vikram.rao@example.com,+91 9876543212,Finance,Accounts Manager,2026-07-01,85000,FULL_TIME\n";
+    }
+
+    public com.hrms.dto.response.BulkImportResultDto bulkImport(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("Uploaded CSV file cannot be empty");
+        }
+
+        String tenantId = TenantContext.getTenantId();
+        int totalRows = 0;
+        int successCount = 0;
+        int failureCount = 0;
+        List<String> errors = new java.util.ArrayList<>();
+        List<String> importedNumbers = new java.util.ArrayList<>();
+        int currentYear = LocalDate.now().getYear();
+
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(file.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
+
+            String line;
+            boolean isHeader = true;
+            int rowNumber = 0;
+
+            while ((line = reader.readLine()) != null) {
+                rowNumber++;
+                if (line.trim().isEmpty()) continue;
+                if (isHeader) {
+                    isHeader = false;
+                    continue; // Skip header row
+                }
+
+                totalRows++;
+                String[] cols = line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+                for (int i = 0; i < cols.length; i++) {
+                    cols[i] = cols[i].trim().replaceAll("^\"|\"$", "").trim();
+                }
+
+                if (cols.length < 3) {
+                    failureCount++;
+                    errors.add("Row " + rowNumber + ": Incomplete columns. First name, last name, and email are required.");
+                    continue;
+                }
+
+                String firstName = cols[0];
+                String lastName = cols.length > 1 ? cols[1] : "";
+                String email = cols.length > 2 ? cols[2].toLowerCase() : "";
+                String phone = cols.length > 3 ? cols[3] : "";
+                String deptName = cols.length > 4 ? cols[4] : "";
+                String designation = cols.length > 5 ? cols[5] : "Associate";
+                String dojStr = cols.length > 6 ? cols[6] : "";
+                String salaryStr = cols.length > 7 ? cols[7] : "65000";
+                String statusStr = cols.length > 8 ? cols[8] : "PROBATION";
+
+                if (firstName.isBlank() || email.isBlank()) {
+                    failureCount++;
+                    errors.add("Row " + rowNumber + ": First name and email are mandatory.");
+                    continue;
+                }
+
+                if (employeeRepository.existsByEmail(email) || userRepository.existsByEmail(email)) {
+                    failureCount++;
+                    errors.add("Row " + rowNumber + ": Email '" + email + "' already exists in the system.");
+                    continue;
+                }
+
+                try {
+                    // 1. Provision User Account
+                    String rawPassword = "Welcome@" + (1000 + new java.util.Random().nextInt(9000));
+                    User user = User.builder()
+                            .firstName(firstName)
+                            .lastName(lastName)
+                            .email(email)
+                            .password(passwordEncoder.encode(rawPassword))
+                            .role(Role.ROLE_EMPLOYEE)
+                            .isActive(true)
+                            .emailVerified(true)
+                            .mustChangePassword(true)
+                            .build();
+                    if (tenantId != null && !tenantId.isBlank()) {
+                        user.setTenantId(tenantId);
+                    }
+                    user = userRepository.save(user);
+
+                    // 2. Resolve Department
+                    Department dept = null;
+                    if (!deptName.isBlank()) {
+                        dept = departmentRepository.findByName(deptName).orElse(null);
+                    }
+
+                    // 3. Resolve Dates & Salary
+                    LocalDate doj = LocalDate.now();
+                    if (!dojStr.isBlank()) {
+                        try {
+                            doj = LocalDate.parse(dojStr);
+                        } catch (Exception ignored) {}
+                    }
+
+                    BigDecimal salary = new BigDecimal("65000.00");
+                    if (!salaryStr.isBlank()) {
+                        try {
+                            salary = new BigDecimal(salaryStr.replaceAll("[^0-9.]", ""));
+                        } catch (Exception ignored) {}
+                    }
+
+                    EmploymentStatus empStatus = EmploymentStatus.PROBATION;
+                    if (!statusStr.isBlank()) {
+                        try {
+                            empStatus = EmploymentStatus.valueOf(statusStr.toUpperCase());
+                        } catch (Exception ignored) {}
+                    }
+
+                    // 4. Create Employee
+                    String empNumber = generateNumber();
+                    Employee emp = Employee.builder()
+                            .employeeNumber(empNumber)
+                            .firstName(firstName)
+                            .lastName(lastName)
+                            .email(email)
+                            .phoneNumber(phone)
+                            .designation(designation)
+                            .jobTitle(designation)
+                            .dateOfJoining(doj)
+                            .employmentStatus(empStatus)
+                            .shiftType(ShiftType.MORNING)
+                            .salary(salary)
+                            .leaveBalance(24)
+                            .sickLeaveBalance(12)
+                            .casualLeaveBalance(8)
+                            .department(dept)
+                            .user(user)
+                            .build();
+                    if (tenantId != null && !tenantId.isBlank()) {
+                        emp.setTenantId(tenantId);
+                    }
+                    emp = employeeRepository.save(emp);
+
+                    // 5. Seed Initial Leave Balances
+                    List<EmployeeLeaveBalance> balances = List.of(
+                            EmployeeLeaveBalance.builder()
+                                    .employee(emp).leaveType(LeaveType.ANNUAL)
+                                    .allocatedDays(BigDecimal.valueOf(24.0)).usedDays(BigDecimal.ZERO)
+                                    .pendingDays(BigDecimal.ZERO).balanceDays(BigDecimal.valueOf(24.0))
+                                    .year(currentYear).build(),
+                            EmployeeLeaveBalance.builder()
+                                    .employee(emp).leaveType(LeaveType.SICK)
+                                    .allocatedDays(BigDecimal.valueOf(12.0)).usedDays(BigDecimal.ZERO)
+                                    .pendingDays(BigDecimal.ZERO).balanceDays(BigDecimal.valueOf(12.0))
+                                    .year(currentYear).build(),
+                            EmployeeLeaveBalance.builder()
+                                    .employee(emp).leaveType(LeaveType.CASUAL)
+                                    .allocatedDays(BigDecimal.valueOf(8.0)).usedDays(BigDecimal.ZERO)
+                                    .pendingDays(BigDecimal.ZERO).balanceDays(BigDecimal.valueOf(8.0))
+                                    .year(currentYear).build()
+                    );
+                    balances.forEach(b -> b.setTenantId(tenantId != null ? tenantId : "default"));
+                    leaveBalanceRepository.saveAll(balances);
+
+                    successCount++;
+                    importedNumbers.add(empNumber);
+                } catch (Exception ex) {
+                    failureCount++;
+                    errors.add("Row " + rowNumber + " (" + email + "): " + ex.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            throw new BadRequestException("Failed to read CSV stream: " + e.getMessage());
+        }
+
+        auditService.log("EMPLOYEES_BULK_IMPORTED", "EMPLOYEE", null,
+                "Bulk imported " + successCount + " employees with " + failureCount + " failures");
+
+        return com.hrms.dto.response.BulkImportResultDto.builder()
+                .totalRows(totalRows)
+                .successCount(successCount)
+                .failureCount(failureCount)
+                .errors(errors)
+                .importedEmployeeNumbers(importedNumbers)
+                .build();
+    }
+
     private String sanitizeFilename(String originalFilename) {
         return originalFilename.replaceAll("[^a-zA-Z0-9._-]", "_");
     }

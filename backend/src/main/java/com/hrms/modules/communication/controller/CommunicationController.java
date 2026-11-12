@@ -7,6 +7,7 @@ import com.hrms.modules.communication.dto.AnnouncementRequest;
 import com.hrms.modules.communication.dto.AnnouncementResponse;
 import com.hrms.modules.communication.service.CommunicationService;
 import com.hrms.repository.UserRepository;
+import com.hrms.util.PaginationUtils;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -63,7 +64,7 @@ public class CommunicationController {
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "20") int size) {
         User user = getCurrentUser();
-        Page<AnnouncementResponse> res = communicationService.getAllAnnouncements(PageRequest.of(page, size), user);
+        Page<AnnouncementResponse> res = communicationService.getAllAnnouncements(PaginationUtils.of(page, size), user);
         return ResponseEntity.ok(ApiResponse.success(res));
     }
 

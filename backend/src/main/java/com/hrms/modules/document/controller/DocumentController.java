@@ -6,6 +6,7 @@ import com.hrms.modules.document.dto.DocumentVerifyRequest;
 import com.hrms.modules.document.dto.HrLetterRequest;
 import com.hrms.modules.document.entity.EmployeeDocument;
 import com.hrms.modules.document.service.DocumentService;
+import com.hrms.util.PaginationUtils;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -55,7 +56,7 @@ public class DocumentController {
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size,
             @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
-        return ResponseEntity.ok(ApiResponse.success(documentService.getDocumentsForEmployee(empId, PageRequest.of(page, size), userDetails)));
+        return ResponseEntity.ok(ApiResponse.success(documentService.getDocumentsForEmployee(empId, PaginationUtils.of(page, size), userDetails)));
     }
 
     @GetMapping("/pending-verification")
@@ -63,7 +64,7 @@ public class DocumentController {
     public ResponseEntity<ApiResponse<Page<DocumentResponse>>> getPending(
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponse.success(documentService.getPendingVerification(PageRequest.of(page, size))));
+        return ResponseEntity.ok(ApiResponse.success(documentService.getPendingVerification(PaginationUtils.of(page, size))));
     }
 
     @PutMapping("/{id}/verify")

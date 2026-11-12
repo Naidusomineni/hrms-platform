@@ -19,3 +19,4 @@ const options = fs.readFileSync('backend/javac_options.txt', 'utf8').trim();
 const files = getJavaFiles('backend/src/main/java');
 fs.writeFileSync('backend/javac_compile.txt', options + '\n' + files.join('\n'), 'utf8');
 console.log(`Generated javac_compile.txt with ${files.length} source files.`);
+

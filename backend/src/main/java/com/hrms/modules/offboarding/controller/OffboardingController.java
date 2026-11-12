@@ -5,6 +5,7 @@ import com.hrms.modules.offboarding.dto.ClearanceDto;
 import com.hrms.modules.offboarding.dto.SeparationRequestDto;
 import com.hrms.modules.offboarding.dto.SettlementDto;
 import com.hrms.modules.offboarding.service.OffboardingService;
+import com.hrms.util.PaginationUtils;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -42,7 +43,7 @@ public class OffboardingController {
             @RequestParam(name = "status", required = false) String status,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "20") int size) {
-        return ResponseEntity.ok(ApiResponse.success(offboardingService.getSeparations(status, PageRequest.of(page, size))));
+        return ResponseEntity.ok(ApiResponse.success(offboardingService.getSeparations(status, PaginationUtils.of(page, size))));
     }
 
     @GetMapping("/separations/{id}")

@@ -3,6 +3,7 @@ package com.hrms.modules.helpdesk.controller;
 import com.hrms.dto.response.ApiResponse;
 import com.hrms.modules.helpdesk.dto.*;
 import com.hrms.modules.helpdesk.service.HelpdeskService;
+import com.hrms.util.PaginationUtils;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -36,7 +37,7 @@ public class HelpdeskController {
             @RequestParam(name = "status", required = false) String status,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "20") int size) {
-        Page<TicketResponse> res = helpdeskService.getAllTickets(status, PageRequest.of(page, size));
+        Page<TicketResponse> res = helpdeskService.getAllTickets(status, PaginationUtils.of(page, size));
         return ResponseEntity.ok(ApiResponse.success(res));
     }
 
@@ -45,7 +46,7 @@ public class HelpdeskController {
             @RequestParam("employeeId") Long employeeId,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "20") int size) {
-        Page<TicketResponse> res = helpdeskService.getMyTickets(employeeId, PageRequest.of(page, size));
+        Page<TicketResponse> res = helpdeskService.getMyTickets(employeeId, PaginationUtils.of(page, size));
         return ResponseEntity.ok(ApiResponse.success(res));
     }
 

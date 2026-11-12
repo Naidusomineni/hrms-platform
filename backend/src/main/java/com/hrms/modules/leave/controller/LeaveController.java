@@ -1,5 +1,6 @@
 package com.hrms.modules.leave.controller;
 import com.hrms.modules.leave.service.LeaveService;
+import com.hrms.util.PaginationUtils;
 
 import com.hrms.dto.request.*;
 import com.hrms.dto.response.*;
@@ -42,7 +43,7 @@ public class LeaveController {
             @PathVariable("empId") Long empId,
             @RequestParam(name = "page", defaultValue="0") int page,
             @RequestParam(name = "size", defaultValue="10") int size) {
-        return ResponseEntity.ok(ApiResponse.success(leaveService.getForEmployee(empId, PageRequest.of(page,size))));
+        return ResponseEntity.ok(ApiResponse.success(leaveService.getForEmployee(empId, PaginationUtils.of(page, size))));
     }
 
     @GetMapping("/pending")
@@ -50,6 +51,6 @@ public class LeaveController {
     public ResponseEntity<ApiResponse<Page<LeaveResponse>>> getPending(
             @RequestParam(name = "page", defaultValue="0") int page,
             @RequestParam(name = "size", defaultValue="10") int size) {
-        return ResponseEntity.ok(ApiResponse.success(leaveService.getPending(PageRequest.of(page,size))));
+        return ResponseEntity.ok(ApiResponse.success(leaveService.getPending(PaginationUtils.of(page, size))));
     }
 }

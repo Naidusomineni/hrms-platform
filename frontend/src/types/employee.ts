@@ -47,3 +47,11 @@ export interface Employee {
   createdAt?: string;
 }
 
+export interface BulkImportResult {
+  totalRows: number;
+  successCount: number;
+  failureCount: number;
+  errors: string[];
+  importedEmployeeNumbers: string[];
+}
+

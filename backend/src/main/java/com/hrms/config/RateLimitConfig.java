@@ -18,31 +18,50 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component @Slf4j
 public class RateLimitConfig extends OncePerRequestFilter {
 
-    private final Map<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
+    private static final int MAX_CACHE_ENTRIES = 5000;
+    private final Map<String, Bucket> authBuckets = new ConcurrentHashMap<>();
 
     @org.springframework.beans.factory.annotation.Value("${rate-limit.login.capacity:100}")
     private int loginCapacity;
 
-    private Bucket createLoginBucket(String ip) {
-        int capacity = ("127.0.0.1".equals(ip) || "0:0:0:0:0:0:0:1".equals(ip)) ? 500 : loginCapacity;
+    private Bucket createBucket(String key, int capacity) {
         return Bucket.builder()
             .addLimit(Bandwidth.classic(capacity, Refill.intervally(capacity, Duration.ofMinutes(1))))
             .build();
+    }
+
+    private Bucket getBucket(String key, int capacity) {
+        if (authBuckets.size() >= MAX_CACHE_ENTRIES) {
+            log.warn("Rate limit bucket cache reached maximum threshold of {}; pruning cache to prevent memory exhaustion.", MAX_CACHE_ENTRIES);
+            authBuckets.clear();
+        }
+        return authBuckets.computeIfAbsent(key, k -> createBucket(k, capacity));
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
-        if (request.getServletPath().contains("/auth/login")) {
+        String path = request.getServletPath();
+        boolean isLogin = path.contains("/auth/login");
+        boolean isRecovery = path.contains("/auth/forgot-password") || path.contains("/auth/reset-password") || path.contains("/auth/verify-email");
+
+        if (isLogin || isRecovery) {
             String ip = getClientIp(request);
-            Bucket bucket = loginBuckets.computeIfAbsent(ip, this::createLoginBucket);
+            boolean isLocal = "127.0.0.1".equals(ip) || "0:0:0:0:0:0:0:1".equals(ip);
+            int capacity = isLocal ? 500 : (isRecovery ? 15 : loginCapacity);
+            String bucketKey = ip + ":" + (isRecovery ? "recovery" : "login");
+
+            Bucket bucket = getBucket(bucketKey, capacity);
             if (!bucket.tryConsume(1)) {
-                log.warn("Rate limit exceeded for IP: {}", ip);
+                log.warn("Rate limit exceeded for IP: {} on endpoint: {}", ip, path);
                 response.setStatus(429);
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                String msg = isRecovery
+                    ? "Too many password recovery attempts. Please try again in 1 minute."
+                    : "Too many login attempts. Please try again in 1 minute.";
                 response.getWriter().write(
-                    "{\"success\":false,\"message\":\"Too many login attempts. Please try again in 1 minute.\"}");
+                    "{\"success\":false,\"message\":\"" + msg + "\"}");
                 return;
             }
         }
@@ -56,3 +75,4 @@ public class RateLimitConfig extends OncePerRequestFilter {
             : request.getRemoteAddr();
     }
 }
+

@@ -1,5 +1,6 @@
 package com.hrms.modules.notification.controller;
 import com.hrms.modules.notification.service.NotificationService;
+import com.hrms.util.PaginationUtils;
 
 import com.hrms.dto.response.*;
 
@@ -21,7 +22,7 @@ public class NotificationController {
             @RequestParam(name = "page", defaultValue="0") int page,
             @RequestParam(name = "size", defaultValue="20") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-            notificationService.getForUser(userId, PageRequest.of(page, size))));
+            notificationService.getForUser(userId, PaginationUtils.of(page, size))));
     }
 
     @GetMapping("/user/{userId}/unread-count")

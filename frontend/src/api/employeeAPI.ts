@@ -1,5 +1,5 @@
 import apiClient from './apiClient'
-import type { ApiResponse, Employee, Page, PaginationParams } from '../types'
+import type { ApiResponse, Employee, Page, PaginationParams, BulkImportResult } from '../types'
 
 export const employeeAPI = {
   getMe: () => apiClient.get<ApiResponse<Employee>>('/v1/employees/me'),
@@ -16,5 +16,14 @@ export const employeeAPI = {
   uploadDoc: (id?: number | string, formData?: FormData) =>
     (id ? apiClient.post<ApiResponse<Employee>>(`/v1/employees/${id}/document`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
         : apiClient.post<ApiResponse<Employee>>('/v1/employees/document', formData, { headers: { 'Content-Type': 'multipart/form-data' } })),
+  downloadBulkImportTemplate: () =>
+    apiClient.get('/v1/employees/bulk-import/template', { responseType: 'blob' }),
+  bulkImport: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiClient.post<ApiResponse<BulkImportResult>>('/v1/employees/bulk-import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  }
 }
 

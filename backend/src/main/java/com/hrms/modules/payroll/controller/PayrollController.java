@@ -6,12 +6,14 @@ import com.hrms.enums.PayrollStatus;
 import com.hrms.modules.payroll.dto.BankDisbursementDto;
 import com.hrms.modules.payroll.dto.PayrollAdjustmentRequest;
 import com.hrms.modules.payroll.service.PayrollService;
+import com.hrms.util.PaginationUtils;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -62,7 +64,7 @@ public class PayrollController {
             @RequestParam(value = "search", required = false) String search,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "20") int size) {
-        PageRequest pr = PageRequest.of(page, size, Sort.by("id").ascending());
+        Pageable pr = PaginationUtils.of(page, size, Sort.by("id").ascending());
         return ResponseEntity.ok(ApiResponse.success(
             payrollService.getPayrollRegister(month, year, status, search, pr)));
     }
@@ -151,7 +153,7 @@ public class PayrollController {
         boolean isHrOrAdmin = userDetails != null && userDetails.getAuthorities().stream()
             .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_HR") || a.getAuthority().equals("ROLE_SUPER_ADMIN"));
         return ResponseEntity.ok(ApiResponse.success(
-            payrollService.getSlipsForEmployee(empId, PageRequest.of(page, size), isHrOrAdmin)));
+            payrollService.getSlipsForEmployee(empId, PaginationUtils.of(page, size), isHrOrAdmin)));
     }
 
     @GetMapping("/employee/{empId}/slip")

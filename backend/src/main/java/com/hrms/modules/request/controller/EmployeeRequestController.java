@@ -4,6 +4,7 @@ import com.hrms.dto.response.ApiResponse;
 import com.hrms.modules.request.dto.EmployeeRequestCreateDto;
 import com.hrms.modules.request.dto.EmployeeRequestResponseDto;
 import com.hrms.modules.request.service.EmployeeRequestService;
+import com.hrms.util.PaginationUtils;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -36,7 +37,7 @@ public class EmployeeRequestController {
             @PathVariable("empId") Long empId,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponse.success(requestService.getForEmployee(empId, PageRequest.of(page, size))));
+        return ResponseEntity.ok(ApiResponse.success(requestService.getForEmployee(empId, PaginationUtils.of(page, size))));
     }
 
     @GetMapping("/pending")
@@ -44,7 +45,7 @@ public class EmployeeRequestController {
     public ResponseEntity<ApiResponse<Page<EmployeeRequestResponseDto>>> getPending(
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponse.success(requestService.getPending(PageRequest.of(page, size))));
+        return ResponseEntity.ok(ApiResponse.success(requestService.getPending(PaginationUtils.of(page, size))));
     }
 
     @PutMapping("/{id}/review")

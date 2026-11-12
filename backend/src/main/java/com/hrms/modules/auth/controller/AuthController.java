@@ -30,14 +30,20 @@ public class AuthController {
             .body(ApiResponse.success("Registration successful. Please verify your email.", authService.register(req)));
     }
 
+    private boolean isSecureRequest(HttpServletRequest request) {
+        if (request == null) return false;
+        return request.isSecure() || "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto"));
+    }
+
     @PostMapping("/login")
     @Operation(summary = "Login — returns access + refresh tokens")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @Valid @RequestBody LoginRequest req, HttpServletRequest httpReq) {
         AuthResponse authResponse = authService.login(req, httpReq);
+        boolean isSecure = isSecureRequest(httpReq);
         ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", authResponse.getRefreshToken())
                 .httpOnly(true)
-                .secure(false)
+                .secure(isSecure)
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(7 * 24 * 3600)
@@ -52,7 +58,8 @@ public class AuthController {
     @Operation(summary = "Refresh access token (token rotation)")
     public ResponseEntity<ApiResponse<AuthResponse>> refresh(
             @RequestBody(required = false) RefreshTokenRequest req,
-            @CookieValue(name = "refreshToken", required = false) String cookieRefreshToken) {
+            @CookieValue(name = "refreshToken", required = false) String cookieRefreshToken,
+            HttpServletRequest httpReq) {
         String tokenToRefresh = (req != null && req.getRefreshToken() != null && !req.getRefreshToken().isBlank())
                 ? req.getRefreshToken()
                 : cookieRefreshToken;
@@ -65,9 +72,10 @@ public class AuthController {
         resolvedReq.setRefreshToken(tokenToRefresh);
         AuthResponse authResponse = authService.refreshToken(resolvedReq);
 
+        boolean isSecure = isSecureRequest(httpReq);
         ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", authResponse.getRefreshToken())
                 .httpOnly(true)
-                .secure(false)
+                .secure(isSecure)
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(7 * 24 * 3600)
@@ -82,7 +90,8 @@ public class AuthController {
     @Operation(summary = "Logout — revoke refresh token")
     public ResponseEntity<ApiResponse<Void>> logout(
             @RequestParam(name = "refreshToken", required = false) String refreshToken,
-            @CookieValue(name = "refreshToken", required = false) String cookieRefreshToken) {
+            @CookieValue(name = "refreshToken", required = false) String cookieRefreshToken,
+            HttpServletRequest httpReq) {
         String tokenToRevoke = (refreshToken != null && !refreshToken.isBlank())
                 ? refreshToken
                 : cookieRefreshToken;
@@ -91,8 +100,11 @@ public class AuthController {
             authService.logout(tokenToRevoke);
         }
 
+        boolean isSecure = isSecureRequest(httpReq);
         ResponseCookie deleteCookie = ResponseCookie.from("refreshToken", "")
                 .httpOnly(true)
+                .secure(isSecure)
+                .sameSite("Lax")
                 .path("/")
                 .maxAge(0)
                 .build();
@@ -107,7 +119,8 @@ public class AuthController {
     @Operation(summary = "Logout from all devices")
     public ResponseEntity<ApiResponse<Void>> logoutAll(
             @RequestParam(name = "userId", required = false) Long targetUserId,
-            @AuthenticationPrincipal UserDetails userDetails) {
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletRequest httpReq) {
         if (userDetails == null) {
             throw new org.springframework.security.access.AccessDeniedException("Unauthorized");
         }
@@ -125,8 +138,11 @@ public class AuthController {
 
         authService.logoutAll(userIdToRevoke);
 
+        boolean isSecure = isSecureRequest(httpReq);
         ResponseCookie deleteCookie = ResponseCookie.from("refreshToken", "")
                 .httpOnly(true)
+                .secure(isSecure)
+                .sameSite("Lax")
                 .path("/")
                 .maxAge(0)
                 .build();

@@ -1,5 +1,6 @@
 package com.hrms.modules.employee.controller;
 import com.hrms.modules.employee.service.EmployeeService;
+import com.hrms.util.PaginationUtils;
 
 import com.hrms.dto.request.EmployeeRequest;
 import com.hrms.dto.response.*;
@@ -43,8 +44,7 @@ public class EmployeeController {
             @RequestParam(name = "size", defaultValue="10") int size,
             @RequestParam(name = "sortBy", defaultValue="createdAt") String sortBy,
             @RequestParam(name = "sortDir", defaultValue="desc") String sortDir) {
-        Sort sort = "asc".equalsIgnoreCase(sortDir) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
-        Page<EmployeeResponse> result = employeeService.getAll(search, PageRequest.of(page, size, sort));
+        Page<EmployeeResponse> result = employeeService.getAll(search, PaginationUtils.of(page, size, sortBy, sortDir));
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
@@ -98,7 +98,7 @@ public class EmployeeController {
             @RequestParam(name = "page", defaultValue="0") int page,
             @RequestParam(name = "size", defaultValue="10") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-            employeeService.getByDepartment(deptId, PageRequest.of(page, size))));
+            employeeService.getByDepartment(deptId, PaginationUtils.of(page, size))));
     }
 
     @PutMapping("/{id}")
@@ -115,5 +115,27 @@ public class EmployeeController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         employeeService.delete(id);
         return ResponseEntity.ok(ApiResponse.success("Employee removed successfully"));
+    }
+
+    @GetMapping(value = "/bulk-import/template", produces = "text/csv")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN')")
+    @Operation(summary = "Download sample CSV template for bulk employee import")
+    public ResponseEntity<byte[]> downloadBulkImportTemplate() {
+        String template = employeeService.getBulkImportTemplate();
+        byte[] csvBytes = template.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"employee_bulk_import_template.csv\"")
+                .header(HttpHeaders.CONTENT_TYPE, "text/csv; charset=UTF-8")
+                .body(csvBytes);
+    }
+
+    @PostMapping(value = "/bulk-import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN')")
+    @Operation(summary = "Bulk import employees via CSV file")
+    public ResponseEntity<ApiResponse<com.hrms.dto.response.BulkImportResultDto>> bulkImport(
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Bulk import processed",
+                employeeService.bulkImport(file)));
     }
 }

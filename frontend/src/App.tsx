@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import { refreshAccessToken } from './store/slices/authSlice';
@@ -6,48 +6,58 @@ import { fetchTenantBranding } from './store/slices/tenantSlice';
 import ProtectedRoute from './routes/ProtectedRoute';
 import MainLayout from './components/layout/MainLayout';
 
-// Modular Auth Pages
-import LoginPage from './modules/auth/pages/LoginPage';
-import RegisterPage from './modules/auth/pages/RegisterPage';
-import ForgotPasswordPage from './modules/auth/pages/ForgotPasswordPage';
-import ResetPasswordPage from './modules/auth/pages/ResetPasswordPage';
-import VerifyEmailPage from './modules/auth/pages/VerifyEmailPage';
-import FirstLoginChangePasswordPage from './modules/auth/pages/FirstLoginChangePasswordPage';
+// Modular Auth Pages (Lazy Loaded for high performance chunking)
+const LoginPage = lazy(() => import('./modules/auth/pages/LoginPage'));
+const RegisterPage = lazy(() => import('./modules/auth/pages/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('./modules/auth/pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./modules/auth/pages/ResetPasswordPage'));
+const VerifyEmailPage = lazy(() => import('./modules/auth/pages/VerifyEmailPage'));
+const FirstLoginChangePasswordPage = lazy(() => import('./modules/auth/pages/FirstLoginChangePasswordPage'));
 
-// Modular Domain Feature Pages
-import DashboardPage from './modules/dashboard/pages/DashboardPage';
-import EmployeeListPage from './modules/employee/pages/EmployeeListPage';
-import EmployeeFormPage from './modules/employee/pages/EmployeeFormPage';
-import EmployeeDetailPage from './modules/employee/pages/EmployeeDetailPage';
-import DepartmentPage from './modules/department/pages/DepartmentPage';
-import AttendancePage from './modules/attendance/pages/AttendancePage';
-import LeavePage from './modules/leave/pages/LeavePage';
-import ApprovalsPage from './modules/workflow/pages/ApprovalsPage';
-import DocumentVaultPage from './modules/document/pages/DocumentVaultPage';
-import RequestsPage from './modules/request/pages/RequestsPage';
-import PayrollPage from './modules/payroll/pages/PayrollPage';
-import NotificationPage from './modules/notification/pages/NotificationPage';
-import ProfilePage from './modules/profile/pages/ProfilePage';
-import TenantAdminPage from './modules/tenant/pages/TenantAdminPage';
-import PolicyConfigPage from './modules/tenant/pages/PolicyConfigPage';
+// Modular Domain Feature Pages (Lazy Loaded)
+const DashboardPage = lazy(() => import('./modules/dashboard/pages/DashboardPage'));
+const EmployeeListPage = lazy(() => import('./modules/employee/pages/EmployeeListPage'));
+const EmployeeFormPage = lazy(() => import('./modules/employee/pages/EmployeeFormPage'));
+const EmployeeDetailPage = lazy(() => import('./modules/employee/pages/EmployeeDetailPage'));
+const DepartmentPage = lazy(() => import('./modules/department/pages/DepartmentPage'));
+const AttendancePage = lazy(() => import('./modules/attendance/pages/AttendancePage'));
+const LeavePage = lazy(() => import('./modules/leave/pages/LeavePage'));
+const ApprovalsPage = lazy(() => import('./modules/workflow/pages/ApprovalsPage'));
+const DocumentVaultPage = lazy(() => import('./modules/document/pages/DocumentVaultPage'));
+const RequestsPage = lazy(() => import('./modules/request/pages/RequestsPage'));
+const PayrollPage = lazy(() => import('./modules/payroll/pages/PayrollPage'));
+const NotificationPage = lazy(() => import('./modules/notification/pages/NotificationPage'));
+const ProfilePage = lazy(() => import('./modules/profile/pages/ProfilePage'));
+const TenantAdminPage = lazy(() => import('./modules/tenant/pages/TenantAdminPage'));
+const PolicyConfigPage = lazy(() => import('./modules/tenant/pages/PolicyConfigPage'));
 
-// Phase 3 & 4 Modules
-import PerformancePage from './modules/performance/pages/PerformancePage';
-import RecruitmentPage from './modules/recruitment/pages/RecruitmentPage';
-import AssetPage from './modules/asset/pages/AssetPage';
-import ReportsPage from './modules/report/pages/ReportsPage';
-import HelpdeskPage from './modules/helpdesk/pages/HelpdeskPage';
-import AnnouncementsPage from './modules/communication/pages/AnnouncementsPage';
-import ShiftRosterPage from './modules/shift/pages/ShiftRosterPage';
+// Phase 3 & 4 Modules (Lazy Loaded)
+const PerformancePage = lazy(() => import('./modules/performance/pages/PerformancePage'));
+const RecruitmentPage = lazy(() => import('./modules/recruitment/pages/RecruitmentPage'));
+const AssetPage = lazy(() => import('./modules/asset/pages/AssetPage'));
+const ReportsPage = lazy(() => import('./modules/report/pages/ReportsPage'));
+const HelpdeskPage = lazy(() => import('./modules/helpdesk/pages/HelpdeskPage'));
+const AnnouncementsPage = lazy(() => import('./modules/communication/pages/AnnouncementsPage'));
+const ShiftRosterPage = lazy(() => import('./modules/shift/pages/ShiftRosterPage'));
 
-// Phase 4 Modules
-import OffboardingPage from './modules/offboarding/pages/OffboardingPage';
-import WorkforceIntelligencePage from './modules/intelligence/pages/WorkforceIntelligencePage';
-import ExpenseClaimsPage from './modules/expense/pages/ExpenseClaimsPage';
+// Phase 4 Modules (Lazy Loaded)
+const OffboardingPage = lazy(() => import('./modules/offboarding/pages/OffboardingPage'));
+const WorkforceIntelligencePage = lazy(() => import('./modules/intelligence/pages/WorkforceIntelligencePage'));
+const ExpenseClaimsPage = lazy(() => import('./modules/expense/pages/ExpenseClaimsPage'));
 
 // Phase 7 Modules (Native Live Video Interviews)
-import CandidateLobbyPage from './modules/recruitment/pages/CandidateLobbyPage';
-import LiveInterviewRoomPage from './modules/recruitment/pages/LiveInterviewRoomPage';
+const CandidateLobbyPage = lazy(() => import('./modules/recruitment/pages/CandidateLobbyPage'));
+const LiveInterviewRoomPage = lazy(() => import('./modules/recruitment/pages/LiveInterviewRoomPage'));
+
+// Global Fallback Loading Indicator for code-split route chunks
+const RouteLoadingFallback: React.FC = () => (
+  <div className="flex h-[60vh] w-full items-center justify-center">
+    <div className="flex flex-col items-center gap-3">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
+      <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Loading module...</span>
+    </div>
+  </div>
+);
 
 const App: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -68,7 +78,9 @@ const App: React.FC = () => {
     : '/dashboard';
 
   return (
-    <Routes>
+    <Suspense fallback={<RouteLoadingFallback />}>
+      <Routes>
+
       {/* Public Routes */}
       <Route path="/login" element={isAuthenticated ? <Navigate to={homeRoute} replace /> : <LoginPage />} />
       <Route path="/register" element={isAuthenticated ? <Navigate to={homeRoute} replace /> : <RegisterPage />} />
@@ -173,6 +185,7 @@ const App: React.FC = () => {
         }
       />
     </Routes>
+    </Suspense>
   );
 };
 

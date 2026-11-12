@@ -38,6 +38,7 @@ UTF-8
 "backend/src/main/java/com/hrms/dto/response/AttendanceResponse.java"
 "backend/src/main/java/com/hrms/dto/response/AuditLogResponse.java"
 "backend/src/main/java/com/hrms/dto/response/AuthResponse.java"
+"backend/src/main/java/com/hrms/dto/response/BulkImportResultDto.java"
 "backend/src/main/java/com/hrms/dto/response/DashboardStats.java"
 "backend/src/main/java/com/hrms/dto/response/DepartmentResponse.java"
 "backend/src/main/java/com/hrms/dto/response/EmployeeResponse.java"
@@ -322,3 +323,4 @@ UTF-8
 "backend/src/main/java/com/hrms/security/service/UserDetailsServiceImpl.java"
 "backend/src/main/java/com/hrms/service/EmailService.java"
 "backend/src/main/java/com/hrms/util/OtpUtils.java"
+"backend/src/main/java/com/hrms/util/PaginationUtils.java"

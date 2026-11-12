@@ -9,6 +9,7 @@ import com.hrms.modules.attendance.dto.BiometricPunchDto;
 import com.hrms.modules.attendance.dto.OfficeLocationDto;
 import com.hrms.modules.attendance.dto.RegularizationRequestDto;
 import com.hrms.modules.attendance.service.AttendanceService;
+import com.hrms.util.PaginationUtils;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -171,7 +172,7 @@ public class AttendanceController {
             @PathVariable("id") Long id,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "31") int size) {
-        return ResponseEntity.ok(ApiResponse.success(attendanceService.getForEmployee(id, PageRequest.of(page, size))));
+        return ResponseEntity.ok(ApiResponse.success(attendanceService.getForEmployee(id, PaginationUtils.of(page, size))));
     }
 
     @GetMapping("/employee/{id}/monthly")

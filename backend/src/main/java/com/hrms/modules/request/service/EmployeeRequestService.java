@@ -76,18 +76,46 @@ public class EmployeeRequestService {
     }
 
     public EmployeeRequestResponseDto reviewRequest(Long requestId, String action, String comments, String reviewerEmail) {
+        if (action == null || (!"APPROVED".equalsIgnoreCase(action.trim()) && !"REJECTED".equalsIgnoreCase(action.trim()))) {
+            throw new BadRequestException("Invalid action: " + action + ". Allowed review actions are APPROVED or REJECTED");
+        }
+
         EmployeeRequest req = requestRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("EmployeeRequest", "id", requestId));
+
+        // Tenant boundary verification
+        String currentTenant = TenantContext.getTenantId();
+        if (req.getTenantId() != null && currentTenant != null && !req.getTenantId().equalsIgnoreCase(currentTenant)) {
+            throw new ResourceNotFoundException("EmployeeRequest", "id", requestId);
+        }
+
+        // State Machine validation: only PENDING requests can be approved or rejected
+        if (!"PENDING".equalsIgnoreCase(req.getStatus())) {
+            throw new BadRequestException("Request #" + requestId + " is already in terminal state '" + req.getStatus() + "' and cannot be modified");
+        }
 
         User reviewer = userRepository.findByEmail(reviewerEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", reviewerEmail));
 
-        req.setStatus(action.toUpperCase());
+        // Approver authorization: must be ADMIN, HR, or direct reporting manager
+        String role = reviewer.getRole() != null ? reviewer.getRole().name() : "";
+        boolean isPrivileged = "ROLE_ADMIN".equals(role) || "ROLE_SUPER_ADMIN".equals(role) || "ROLE_HR".equals(role);
+        boolean isDirectManager = false;
+        if (req.getEmployee() != null && req.getEmployee().getManager() != null && req.getEmployee().getManager().getEmail() != null) {
+            isDirectManager = req.getEmployee().getManager().getEmail().equalsIgnoreCase(reviewerEmail);
+        }
+
+        if (!isPrivileged && !isDirectManager) {
+            throw new org.springframework.security.access.AccessDeniedException("Access denied: Only direct reporting manager or HR/Admin can decide on employee requests");
+        }
+
+        req.setStatus(action.trim().toUpperCase());
         req.setApproverComments(comments);
         req.setReviewedBy(reviewer);
         req.setReviewedAt(LocalDateTime.now());
         req = requestRepository.save(req);
 
+        log.info("Employee request #{} reviewed: decision={}, reviewer={}", requestId, req.getStatus(), reviewerEmail);
         return toResponse(req);
     }
 

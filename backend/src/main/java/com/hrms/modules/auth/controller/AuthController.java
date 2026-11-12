@@ -105,9 +105,35 @@ public class AuthController {
     @PostMapping("/logout-all")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Logout from all devices")
-    public ResponseEntity<ApiResponse<Void>> logoutAll(@AuthenticationPrincipal UserDetails userDetails) {
-        // userId must be resolved from userDetails
-        return ResponseEntity.ok(ApiResponse.success("All sessions invalidated"));
+    public ResponseEntity<ApiResponse<Void>> logoutAll(
+            @RequestParam(name = "userId", required = false) Long targetUserId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Unauthorized");
+        }
+        com.hrms.entity.User caller = authService.getUserByEmail(userDetails.getUsername());
+        Long userIdToRevoke = caller.getId();
+
+        if (targetUserId != null && !targetUserId.equals(caller.getId())) {
+            boolean isAdmin = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isAdmin) {
+                throw new org.springframework.security.access.AccessDeniedException("Only administrators can invalidate sessions for other users.");
+            }
+            userIdToRevoke = targetUserId;
+        }
+
+        authService.logoutAll(userIdToRevoke);
+
+        ResponseCookie deleteCookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .path("/")
+                .maxAge(0)
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
+                .body(ApiResponse.success("All sessions invalidated successfully"));
     }
 
     @PostMapping("/forgot-password")

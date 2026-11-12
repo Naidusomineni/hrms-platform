@@ -156,7 +156,43 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public EmployeeResponse getById(Long id) {
-        return toResponse(findById(id));
+        return getById(id, null);
+    }
+
+    @Transactional(readOnly = true)
+    public EmployeeResponse getById(Long id, UserDetails userDetails) {
+        Employee emp = findById(id);
+
+        // Multi-tenant isolation check
+        String tenantId = TenantContext.getTenantId();
+        if (emp.getTenantId() != null && tenantId != null && !emp.getTenantId().equalsIgnoreCase(tenantId)) {
+            throw new ResourceNotFoundException("Employee", "id", id);
+        }
+
+        // BOLA / IDOR Authorization check:
+        // Admin, HR, Super Admin can view any employee.
+        // Managers can view direct reports.
+        // Employees can only view themselves.
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                String callerEmail = userDetails.getUsername();
+                boolean isSelf = emp.getEmail() != null && emp.getEmail().equalsIgnoreCase(callerEmail);
+                boolean isManagerOfEmp = emp.getManager() != null &&
+                        emp.getManager().getEmail() != null &&
+                        emp.getManager().getEmail().equalsIgnoreCase(callerEmail);
+
+                if (!isSelf && !isManagerOfEmp) {
+                    throw new org.springframework.security.access.AccessDeniedException(
+                            "Access denied: You do not have permission to view confidential employee profile " + id);
+                }
+            }
+        }
+
+        return toResponse(emp);
     }
 
     public EmployeeResponse getByEmail(String email) {

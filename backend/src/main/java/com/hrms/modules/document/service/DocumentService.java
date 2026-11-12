@@ -93,9 +93,37 @@ public class DocumentService {
     }
 
     public Resource loadDocumentResource(Long docId) {
+        return loadDocumentResource(docId, null);
+    }
+
+    public Resource loadDocumentResource(Long docId, org.springframework.security.core.userdetails.UserDetails userDetails) {
         EmployeeDocument doc = documentRepository.findById(docId)
                 .orElseThrow(() -> new ResourceNotFoundException("EmployeeDocument", "id", docId));
         String tenantId = TenantContext.getTenantId();
+
+        // Multi-tenant check
+        if (doc.getTenantId() != null && tenantId != null && !doc.getTenantId().equalsIgnoreCase(tenantId)) {
+            throw new ResourceNotFoundException("EmployeeDocument", "id", docId);
+        }
+
+        // BOLA / IDOR Authorization check
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                String callerEmail = userDetails.getUsername();
+                boolean isOwner = doc.getEmployee() != null &&
+                        doc.getEmployee().getEmail() != null &&
+                        doc.getEmployee().getEmail().equalsIgnoreCase(callerEmail);
+                if (!isOwner) {
+                    throw new org.springframework.security.access.AccessDeniedException(
+                            "Access denied: You do not have permission to download this document.");
+                }
+            }
+        }
+
         return new org.springframework.core.io.InputStreamResource(storageService.downloadFile(tenantId, doc.getFilePath()));
     }
 
@@ -123,6 +151,26 @@ public class DocumentService {
 
     @Transactional(readOnly = true)
     public Page<DocumentResponse> getDocumentsForEmployee(Long empId, Pageable pageable) {
+        return getDocumentsForEmployee(empId, pageable, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<DocumentResponse> getDocumentsForEmployee(Long empId, Pageable pageable, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                String callerEmail = userDetails.getUsername();
+                Employee emp = employeeRepository.findById(empId).orElse(null);
+                boolean isOwner = emp != null && emp.getEmail() != null && emp.getEmail().equalsIgnoreCase(callerEmail);
+                if (!isOwner) {
+                    throw new org.springframework.security.access.AccessDeniedException(
+                            "Access denied: You do not have permission to view documents for employee " + empId);
+                }
+            }
+        }
         return documentRepository.findByEmployeeIdOrderByCreatedAtDesc(empId, pageable).map(this::toResponse);
     }
 

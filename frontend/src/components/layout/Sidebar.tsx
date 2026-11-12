@@ -1,15 +1,16 @@
-import React, { useState, type ElementType } from 'react'
+import React, { useState, useEffect, type ElementType } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { logoutUser } from '../../store/slices/authSlice'
 import { toggleSidebar } from '../../store/slices/uiSlice'
 import { attendanceAPI } from '../../api/attendanceAPI'
+import { tenantModuleAPI } from '../../api/tenantModuleAPI'
 import { Modal, Button } from '../common'
 import {
   LayoutDashboard, Users, Building2, Clock, CalendarDays,
   DollarSign, User, LogOut, ChevronLeft,
   Briefcase, Shield, BarChart3, CheckSquare, FileText, Send,
-  Target, Laptop, AlertCircle, XCircle, UserMinus, LifeBuoy, Megaphone, CalendarClock, BrainCircuit, Receipt
+  Target, Laptop, AlertCircle, XCircle, UserMinus, LifeBuoy, Megaphone, CalendarClock, BrainCircuit, Receipt, Sliders
 } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -20,6 +21,7 @@ interface NavItem {
   label: string
   icon: ElementType<{ size?: number; className?: string }>
   roles: string[]
+  moduleKey?: string
 }
 
 interface NavGroup {
@@ -31,51 +33,52 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Overview',
     items: [
-      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
-      { path: '/announcements', label: 'Announcements', icon: Megaphone, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
+      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'], moduleKey: 'DASHBOARD' },
+      { path: '/announcements', label: 'Announcements', icon: Megaphone, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'], moduleKey: 'COMMUNICATION' },
     ]
   },
   {
     title: 'Time & Attendance',
     items: [
-      { path: '/attendance', label: 'Attendance', icon: Clock, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
-      { path: '/shifts', label: 'Shift & Roster', icon: CalendarClock, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
-      { path: '/leaves', label: 'Leave Management', icon: CalendarDays, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
+      { path: '/attendance', label: 'Attendance', icon: Clock, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'], moduleKey: 'ATTENDANCE' },
+      { path: '/shifts', label: 'Shift & Roster', icon: CalendarClock, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'], moduleKey: 'SHIFTS' },
+      { path: '/leaves', label: 'Leave Management', icon: CalendarDays, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'], moduleKey: 'LEAVES' },
     ]
   },
   {
     title: 'Organization',
     items: [
-      { path: '/approvals', label: 'Approvals Inbox', icon: CheckSquare, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER'] },
-      { path: '/requests', label: 'My Requests', icon: Send, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
-      { path: '/employees', label: 'Employees', icon: Users, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_IT_ADMIN'] },
-      { path: '/departments', label: 'Departments', icon: Building2, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR'] },
-      { path: '/documents', label: 'Document Vault', icon: FileText, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
+      { path: '/approvals', label: 'Approvals Inbox', icon: CheckSquare, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER'], moduleKey: 'APPROVALS' },
+      { path: '/requests', label: 'My Requests', icon: Send, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'], moduleKey: 'REQUESTS' },
+      { path: '/employees', label: 'Employees', icon: Users, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_IT_ADMIN'], moduleKey: 'EMPLOYEES' },
+      { path: '/departments', label: 'Departments', icon: Building2, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR'], moduleKey: 'DEPARTMENTS' },
+      { path: '/documents', label: 'Document Vault', icon: FileText, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'], moduleKey: 'DOCUMENTS' },
     ]
   },
   {
     title: 'Talent & HR',
     items: [
-      { path: '/recruitment', label: 'Recruitment / ATS', icon: Briefcase, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER'] },
-      { path: '/performance', label: 'Performance & OKR', icon: Target, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
-      { path: '/intelligence', label: 'AI HR & Insights', icon: BrainCircuit, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
-      { path: '/offboarding', label: 'Offboarding & F&F', icon: UserMinus, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
+      { path: '/recruitment', label: 'Recruitment / ATS', icon: Briefcase, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER'], moduleKey: 'RECRUITMENT' },
+      { path: '/performance', label: 'Performance & OKR', icon: Target, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'], moduleKey: 'PERFORMANCE' },
+      { path: '/intelligence', label: 'AI HR & Insights', icon: BrainCircuit, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'], moduleKey: 'INTELLIGENCE' },
+      { path: '/offboarding', label: 'Offboarding & F&F', icon: UserMinus, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'], moduleKey: 'OFFBOARDING' },
     ]
   },
   {
     title: 'Finance & Ops',
     items: [
-      { path: '/payroll', label: 'Payroll', icon: DollarSign, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
-      { path: '/expenses', label: 'Expense Claims', icon: Receipt, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
-      { path: '/assets', label: 'Assets & Hardware', icon: Laptop, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
-      { path: '/helpdesk', label: 'IT Service Desk', icon: LifeBuoy, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
-      { path: '/reports', label: 'Reports & Tax BI', icon: BarChart3, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER'] },
+      { path: '/payroll', label: 'Payroll', icon: DollarSign, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'], moduleKey: 'PAYROLL' },
+      { path: '/expenses', label: 'Expense Claims', icon: Receipt, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'], moduleKey: 'EXPENSES' },
+      { path: '/assets', label: 'Assets & Hardware', icon: Laptop, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'], moduleKey: 'ASSETS' },
+      { path: '/helpdesk', label: 'IT Service Desk', icon: LifeBuoy, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'], moduleKey: 'HELPDESK' },
+      { path: '/reports', label: 'Reports & Tax BI', icon: BarChart3, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER'], moduleKey: 'REPORTS' },
     ]
   },
   {
-    title: 'System',
+    title: 'System & Governance',
     items: [
-      { path: '/admin', label: 'Admin Panel', icon: Shield, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_IT_ADMIN'] },
+      { path: '/policies', label: 'Policy Hub', icon: Sliders, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR'], moduleKey: 'SETTINGS' },
+      { path: '/admin', label: 'Admin Panel', icon: Shield, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_IT_ADMIN'], moduleKey: 'SETTINGS' },
       { path: '/profile', label: 'My Profile', icon: User, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_HR', 'ROLE_MANAGER', 'ROLE_EMPLOYEE', 'ROLE_IT_ADMIN'] },
     ]
   }
@@ -88,10 +91,24 @@ const Sidebar: React.FC = () => {
   const { user } = useAppSelector(s => s.auth)
   const { tenant } = useAppSelector(s => s.tenant)
 
+  const [enabledModules, setEnabledModules] = useState<string[] | null>(null)
   const [logoutModalOpen, setLogoutModalOpen] = useState<boolean>(false)
   const [activeShiftInfo, setActiveShiftInfo] = useState<any>(null)
   const [loggingOut, setLoggingOut] = useState<boolean>(false)
   const [avatarError, setAvatarError] = useState<boolean>(false)
+
+  // Fetch tenant subscription manifests and listen for real-time toggles
+  useEffect(() => {
+    const loadModules = () => {
+      tenantModuleAPI.getEnabledModuleKeys()
+        .then(res => setEnabledModules(res.data.data || []))
+        .catch(() => setEnabledModules(null))
+    }
+    loadModules()
+
+    window.addEventListener('tenant-modules-updated', loadModules)
+    return () => window.removeEventListener('tenant-modules-updated', loadModules)
+  }, [])
 
   // Smart Logout Flow
   const handleLogoutClick = async () => {
@@ -163,7 +180,12 @@ const Sidebar: React.FC = () => {
   const filteredGroups = NAV_GROUPS.map(group => ({
     ...group,
     items: group.items
-      .filter(item => user?.role ? item.roles.includes(user.role) : false)
+      .filter(item => {
+        const hasRole = user?.role ? item.roles.includes(user.role) : false
+        if (!hasRole) return false
+        if (!enabledModules || !item.moduleKey) return true
+        return enabledModules.includes(item.moduleKey)
+      })
       .map(item => {
         if (isEmpOnly) {
           if (item.path === '/payroll') return { ...item, label: 'My Payslips' }
@@ -187,7 +209,7 @@ const Sidebar: React.FC = () => {
   // Clean company display name (avoid awkward truncation)
   const companyShortName = tenant?.name
     ? (tenant.name.length > 20 ? tenant.name.split(' ').slice(0, 2).join(' ') : tenant.name)
-    : 'HRMS Platform'
+    : 'Eoxys Systems'
 
   return (
     <aside className={clsx(

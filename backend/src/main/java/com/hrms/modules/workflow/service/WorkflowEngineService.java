@@ -1,30 +1,39 @@
 package com.hrms.modules.workflow.service;
 
+import com.hrms.entity.Attendance;
 import com.hrms.entity.Employee;
 import com.hrms.entity.LeaveRequest;
 import com.hrms.entity.User;
+import com.hrms.enums.AttendanceStatus;
 import com.hrms.enums.LeaveStatus;
 import com.hrms.enums.NotificationType;
 import com.hrms.exception.BadRequestException;
 import com.hrms.exception.ResourceNotFoundException;
 import com.hrms.infrastructure.multitenancy.context.TenantContext;
+import com.hrms.modules.attendance.entity.AttendanceRegularization;
+import com.hrms.modules.attendance.repository.AttendanceRegularizationRepository;
 import com.hrms.modules.leave.entity.EmployeeLeaveBalance;
 import com.hrms.modules.leave.repository.EmployeeLeaveBalanceRepository;
 import com.hrms.modules.request.entity.EmployeeRequest;
 import com.hrms.modules.request.repository.EmployeeRequestRepository;
 import com.hrms.modules.workflow.dto.ApprovalActionRequest;
+import com.hrms.modules.workflow.dto.ApprovalDelegationDto;
 import com.hrms.modules.workflow.dto.WorkflowDefinitionDto;
 import com.hrms.modules.workflow.dto.WorkflowTaskResponse;
+import com.hrms.modules.workflow.entity.ApprovalDelegation;
 import com.hrms.modules.workflow.entity.WorkflowApproval;
 import com.hrms.modules.workflow.entity.WorkflowDefinition;
 import com.hrms.modules.workflow.entity.WorkflowInstance;
 import com.hrms.modules.workflow.entity.WorkflowStep;
+import com.hrms.modules.workflow.repository.ApprovalDelegationRepository;
 import com.hrms.modules.workflow.repository.WorkflowApprovalRepository;
 import com.hrms.modules.workflow.repository.WorkflowDefinitionRepository;
 import com.hrms.modules.workflow.repository.WorkflowInstanceRepository;
 import com.hrms.modules.workflow.repository.WorkflowStepRepository;
+import com.hrms.repository.AttendanceRepository;
 import com.hrms.repository.EmployeeRepository;
 import com.hrms.repository.LeaveRequestRepository;
+import com.hrms.repository.UserRepository;
 import com.hrms.modules.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +41,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +60,10 @@ public class WorkflowEngineService {
     private final EmployeeLeaveBalanceRepository balanceRepository;
     private final EmployeeRepository employeeRepository;
     private final NotificationService notificationService;
+    private final AttendanceRegularizationRepository regularizationRepository;
+    private final AttendanceRepository attendanceRepository;
+    private final ApprovalDelegationRepository delegationRepository;
+    private final UserRepository userRepository;
 
     public WorkflowInstance startWorkflow(String moduleType, Long entityId, User initiator) {
         String tenantId = TenantContext.getTenantId();
@@ -89,6 +103,43 @@ public class WorkflowEngineService {
         WorkflowDefinition def = instance.getWorkflowDefinition();
         WorkflowStep currentStep = stepRepository.findByWorkflowDefinitionIdAndStepOrder(def.getId(), instance.getCurrentStepOrder())
                 .orElseThrow(() -> new BadRequestException("Workflow step configuration missing"));
+
+        // Multi-tenant isolation check
+        String currentTenant = TenantContext.getTenantId();
+        if (instance.getTenantId() != null && currentTenant != null && !instance.getTenantId().equalsIgnoreCase(currentTenant)) {
+            throw new ResourceNotFoundException("WorkflowInstance", "id", instanceId);
+        }
+
+        // Approver Authorization Validation
+        boolean isAuthorized = false;
+        String roleName = approver.getRole() != null ? approver.getRole().name() : "";
+        if ("ROLE_ADMIN".equals(roleName) || "ROLE_SUPER_ADMIN".equals(roleName)) {
+            isAuthorized = true;
+        } else if ("SPECIFIC_ROLE".equalsIgnoreCase(currentStep.getApproverType()) && currentStep.getApproverRole() != null) {
+            isAuthorized = currentStep.getApproverRole().equalsIgnoreCase(roleName);
+        } else if ("REPORTING_MANAGER".equalsIgnoreCase(currentStep.getApproverType())) {
+            if (instance.getInitiatedBy() != null) {
+                Employee submitter = employeeRepository.findByEmail(instance.getInitiatedBy().getEmail()).orElse(null);
+                if (submitter != null && submitter.getManager() != null && submitter.getManager().getEmail() != null) {
+                    isAuthorized = submitter.getManager().getEmail().equalsIgnoreCase(approver.getEmail());
+                }
+            }
+        }
+
+        // Check if there is an active delegation to this approver
+        if (!isAuthorized) {
+            LocalDate today = LocalDate.now();
+            List<ApprovalDelegation> delegations = delegationRepository.findActiveDelegationsForDelegatee(
+                    currentTenant != null ? currentTenant : "default", approver.getId(), today);
+            if (!delegations.isEmpty()) {
+                isAuthorized = true;
+            }
+        }
+
+        if (!isAuthorized) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Access denied: You are not authorized to decide on this workflow approval step (" + currentStep.getStepName() + ")");
+        }
 
         // Record Approval
         WorkflowApproval approval = WorkflowApproval.builder()
@@ -169,7 +220,41 @@ public class WorkflowEngineService {
                         "/leaves"
                 );
             });
-        } else if ("WORK_FROM_HOME".equalsIgnoreCase(instance.getEntityType()) || "EXPENSE".equalsIgnoreCase(instance.getEntityType())) {
+        } else if ("ATTENDANCE_REGULARIZATION".equalsIgnoreCase(instance.getEntityType())) {
+            regularizationRepository.findById(instance.getEntityId()).ifPresent(reg -> {
+                reg.setStatus(approved ? "APPROVED" : "REJECTED");
+                reg.setReviewerComments(comments);
+                reg.setReviewedAt(LocalDateTime.now());
+                regularizationRepository.save(reg);
+
+                if (approved) {
+                    Attendance att = reg.getAttendance();
+                    if (att == null) {
+                        att = attendanceRepository.findByEmployeeIdAndDate(reg.getEmployee().getId(), reg.getDate())
+                                .orElse(Attendance.builder().employee(reg.getEmployee()).date(reg.getDate()).build());
+                    }
+                    if (reg.getRequestedCheckIn() != null) att.setCheckInTime(reg.getRequestedCheckIn());
+                    if (reg.getRequestedCheckOut() != null) att.setCheckOutTime(reg.getRequestedCheckOut());
+                    if (att.getCheckInTime() != null && att.getCheckOutTime() != null) {
+                        double hours = java.time.Duration.between(att.getCheckInTime(), att.getCheckOutTime()).toMinutes() / 60.0;
+                        att.setWorkingHours(Math.round(hours * 100.0) / 100.0);
+                        att.setOvertimeHours(Math.round(Math.max(0.0, hours - 8.0) * 100.0) / 100.0);
+                    }
+                    att.setStatus(AttendanceStatus.PRESENT);
+                    att.setRegularizationStatus("REGULARIZED");
+                    attendanceRepository.save(att);
+                }
+
+                notificationService.send(
+                        reg.getEmployee().getUser().getId(),
+                        "Attendance Regularization " + (approved ? "Approved" : "Rejected"),
+                        "Your regularization request for " + reg.getDate() + " has been " + (approved ? "approved." : "rejected: " + comments),
+                        NotificationType.SYSTEM,
+                        "/attendance"
+                );
+            });
+        } else {
+            // General Employee Requests (WFH, Overtime, On-Duty, Expense, etc.)
             employeeRequestRepository.findById(instance.getEntityId()).ifPresent(er -> {
                 er.setStatus(approved ? "APPROVED" : "REJECTED");
                 er.setApproverComments(comments);
@@ -269,6 +354,67 @@ public class WorkflowEngineService {
                         .comments(h.getComments())
                         .decidedAt(h.getDecidedAt())
                         .build()).collect(Collectors.toList()))
+                .build();
+    }
+
+    // --- Out-of-Office Delegation Management ---
+
+    public ApprovalDelegationDto createDelegation(ApprovalDelegationDto dto, User delegator) {
+        String tenantId = TenantContext.getTenantId();
+        User delegatee = userRepository.findById(dto.getDelegateeId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", dto.getDelegateeId()));
+
+        if (delegator.getId().equals(delegatee.getId())) {
+            throw new BadRequestException("Cannot delegate approvals to yourself");
+        }
+
+        ApprovalDelegation delegation = ApprovalDelegation.builder()
+                .delegator(delegator)
+                .delegatee(delegatee)
+                .startDate(dto.getStartDate() != null ? dto.getStartDate() : LocalDate.now())
+                .endDate(dto.getEndDate() != null ? dto.getEndDate() : LocalDate.now().plusDays(7))
+                .requestTypes(dto.getRequestTypes() != null ? dto.getRequestTypes() : "ALL")
+                .notes(dto.getNotes())
+                .isActive(true)
+                .build();
+
+        delegation = delegationRepository.save(delegation);
+        log.info("Approval delegation created: delegator={}, delegatee={}, dates={} to {}",
+                delegator.getEmail(), delegatee.getEmail(), delegation.getStartDate(), delegation.getEndDate());
+        return toDelegationDto(delegation);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ApprovalDelegationDto> getMyDelegations(User user) {
+        String tenantId = TenantContext.getTenantId();
+        return delegationRepository.findByTenantIdAndDelegatorIdAndIsActiveTrue(tenantId, user.getId())
+                .stream().map(this::toDelegationDto).collect(Collectors.toList());
+    }
+
+    public void cancelDelegation(Long id, User user) {
+        ApprovalDelegation delegation = delegationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("ApprovalDelegation", "id", id));
+        if (!delegation.getDelegator().getId().equals(user.getId())) {
+            throw new BadRequestException("You can only cancel your own delegations");
+        }
+        delegation.setIsActive(false);
+        delegationRepository.save(delegation);
+        log.info("Delegation {} cancelled by {}", id, user.getEmail());
+    }
+
+    private ApprovalDelegationDto toDelegationDto(ApprovalDelegation d) {
+        return ApprovalDelegationDto.builder()
+                .id(d.getId())
+                .delegatorId(d.getDelegator().getId())
+                .delegatorName(d.getDelegator().getEmail())
+                .delegateeId(d.getDelegatee().getId())
+                .delegateeName(d.getDelegatee().getEmail())
+                .startDate(d.getStartDate())
+                .endDate(d.getEndDate())
+                .requestTypes(d.getRequestTypes())
+                .notes(d.getNotes())
+                .isActive(d.getIsActive())
+                .createdAt(d.getCreatedAt())
                 .build();
     }
 }

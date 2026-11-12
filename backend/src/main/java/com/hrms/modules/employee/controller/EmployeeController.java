@@ -59,8 +59,10 @@ public class EmployeeController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get employee by ID")
-    public ResponseEntity<ApiResponse<EmployeeResponse>> getById(@PathVariable("id") Long id) {
-        return ResponseEntity.ok(ApiResponse.success(employeeService.getById(id)));
+    public ResponseEntity<ApiResponse<EmployeeResponse>> getById(
+            @PathVariable("id") Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success(employeeService.getById(id, userDetails)));
     }
 
     @PostMapping(value = "/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

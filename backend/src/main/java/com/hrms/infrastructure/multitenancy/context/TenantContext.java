@@ -8,7 +8,7 @@ import java.util.function.Supplier;
  */
 public final class TenantContext {
 
-    public static final String DEFAULT_TENANT_ID = "default";
+    public static final String DEFAULT_TENANT_ID = "eoxys";
     private static final ThreadLocal<String> CURRENT_TENANT = ThreadLocal.withInitial(() -> DEFAULT_TENANT_ID);
 
     private TenantContext() {

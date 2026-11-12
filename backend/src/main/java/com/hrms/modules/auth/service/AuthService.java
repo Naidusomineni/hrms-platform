@@ -9,6 +9,7 @@ import com.hrms.exception.BadRequestException;
 import com.hrms.exception.DuplicateResourceException;
 import com.hrms.exception.ResourceNotFoundException;
 import com.hrms.exception.TokenRefreshException;
+import com.hrms.infrastructure.multitenancy.context.TenantContext;
 import com.hrms.infrastructure.redis.DistributedTokenBlacklistService;
 import com.hrms.repository.*;
 import com.hrms.security.jwt.JwtUtils;
@@ -215,7 +216,11 @@ public class AuthService {
             recordLoginHistory(user, ipAddress, userAgent, "SUCCESS");
 
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            String accessToken = jwtUtils.generateToken(userDetails);
+            String userTenant = user.getTenantId();
+            if (userTenant != null && !userTenant.isBlank()) {
+                TenantContext.setTenantId(userTenant);
+            }
+            String accessToken = jwtUtils.generateToken(userDetails, userTenant);
             RefreshToken refreshToken = createRefreshToken(user, ipAddress, userAgent);
 
             log.info("Login success: email={}, ip={}", user.getEmail(), ipAddress);
@@ -584,5 +589,10 @@ public class AuthService {
             .expiresIn(jwtExpirationMs / 1000)
             .mustChangePassword(Boolean.TRUE.equals(user.getMustChangePassword()))
             .build();
+    }
+
+    public User getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
     }
 }

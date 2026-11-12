@@ -144,41 +144,86 @@ public class AuthController {
     @Operation(summary = "Change password (logged-in user)")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @Valid @RequestBody ChangePasswordRequest req,
-            @RequestParam("userId") Long userId) {
-        authService.changePassword(userId, req);
+            @RequestParam(name = "userId", required = false) Long userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Unauthorized");
+        }
+        com.hrms.entity.User caller = authService.getUserByEmail(userDetails.getUsername());
+        Long targetId = caller.getId();
+        if (userId != null && !userId.equals(caller.getId())) {
+            boolean isAdmin = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isAdmin) {
+                throw new org.springframework.security.access.AccessDeniedException("Cannot change password for another user.");
+            }
+            targetId = userId;
+        }
+        authService.changePassword(targetId, req);
         return ResponseEntity.ok(ApiResponse.success("Password changed. Please login again."));
     }
 
     @GetMapping("/login-history")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Get login history for current user")
-    public ResponseEntity<ApiResponse<?>> loginHistory(@RequestParam("userId") Long userId) {
-        return ResponseEntity.ok(ApiResponse.success(authService.getLoginHistory(userId)));
+    public ResponseEntity<ApiResponse<?>> loginHistory(
+            @RequestParam(name = "userId", required = false) Long userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Unauthorized");
+        }
+        com.hrms.entity.User caller = authService.getUserByEmail(userDetails.getUsername());
+        Long targetId = caller.getId();
+        if (userId != null && !userId.equals(caller.getId())) {
+            boolean isAdmin = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isAdmin) {
+                throw new org.springframework.security.access.AccessDeniedException("Cannot view login history of another user.");
+            }
+            targetId = userId;
+        }
+        return ResponseEntity.ok(ApiResponse.success(authService.getLoginHistory(targetId)));
     }
 
     @PostMapping("/2fa/setup")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Initialize 2FA TOTP setup (returns secret & otpauth QR URI)")
-    public ResponseEntity<ApiResponse<com.hrms.modules.auth.dto.TotpSetupResponse>> setupTotp(@RequestParam Long userId) {
-        return ResponseEntity.ok(ApiResponse.success(authService.setupTotp(userId)));
+    public ResponseEntity<ApiResponse<com.hrms.modules.auth.dto.TotpSetupResponse>> setupTotp(
+            @RequestParam(name = "userId", required = false) Long userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Unauthorized");
+        }
+        com.hrms.entity.User caller = authService.getUserByEmail(userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(authService.setupTotp(caller.getId())));
     }
 
     @PostMapping("/2fa/enable")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Enable 2FA TOTP by verifying initial 6-digit code")
     public ResponseEntity<ApiResponse<com.hrms.modules.auth.dto.TotpEnableResponse>> enableTotp(
-            @RequestParam Long userId,
-            @RequestParam int code) {
-        return ResponseEntity.ok(ApiResponse.success("2FA enabled successfully", authService.enableTotp(userId, code)));
+            @RequestParam(name = "userId", required = false) Long userId,
+            @RequestParam("code") int code,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Unauthorized");
+        }
+        com.hrms.entity.User caller = authService.getUserByEmail(userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success("2FA enabled successfully", authService.enableTotp(caller.getId(), code)));
     }
 
     @PostMapping("/2fa/disable")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Disable 2FA TOTP by supplying current 6-digit code or backup code")
     public ResponseEntity<ApiResponse<Void>> disableTotp(
-            @RequestParam Long userId,
-            @RequestParam int code) {
-        authService.disableTotp(userId, code);
+            @RequestParam(name = "userId", required = false) Long userId,
+            @RequestParam("code") int code,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Unauthorized");
+        }
+        com.hrms.entity.User caller = authService.getUserByEmail(userDetails.getUsername());
+        authService.disableTotp(caller.getId(), code);
         return ResponseEntity.ok(ApiResponse.success("2FA disabled successfully"));
     }
 }

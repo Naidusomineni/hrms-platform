@@ -53,8 +53,9 @@ public class DocumentController {
     public ResponseEntity<ApiResponse<Page<DocumentResponse>>> getForEmployee(
             @PathVariable("empId") Long empId,
             @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponse.success(documentService.getDocumentsForEmployee(empId, PageRequest.of(page, size))));
+            @RequestParam(name = "size", defaultValue = "10") int size,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success(documentService.getDocumentsForEmployee(empId, PageRequest.of(page, size), userDetails)));
     }
 
     @GetMapping("/pending-verification")
@@ -75,8 +76,10 @@ public class DocumentController {
     }
 
     @GetMapping("/{id}/download")
-    public ResponseEntity<Resource> download(@PathVariable("id") Long id) {
-        Resource resource = documentService.loadDocumentResource(id);
+    public ResponseEntity<Resource> download(
+            @PathVariable("id") Long id,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        Resource resource = documentService.loadDocumentResource(id, userDetails);
         EmployeeDocument doc = documentService.getDocumentEntity(id);
 
         return ResponseEntity.ok()

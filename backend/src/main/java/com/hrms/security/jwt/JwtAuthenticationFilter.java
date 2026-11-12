@@ -44,6 +44,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             userDetails, null, userDetails.getAuthorities());
                         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                        // Enforce tenant isolation: prevent tenant header spoofing
+                        boolean isSuperAdmin = userDetails.getAuthorities().stream()
+                                .anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+                        String requestedHeader = request.getHeader("X-Tenant-ID");
+                        if (!isSuperAdmin && requestedHeader != null && !requestedHeader.isBlank() && !requestedHeader.equalsIgnoreCase(tokenTenant)) {
+                            log.warn("Tenant context tampering detected: User '{}' (tenant '{}') attempted to set header to '{}'. Forcing authenticated tenant context.",
+                                    username, tokenTenant, requestedHeader);
+                            TenantContext.setTenantId(tokenTenant);
+                            response.setHeader("X-Tenant-ID", tokenTenant);
+                        }
                     }
                 }
             }
@@ -64,8 +75,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return path.startsWith("/v1/auth/") || path.startsWith("/swagger-ui") ||
-               path.startsWith("/v3/api-docs") || path.startsWith("/actuator/health") ||
+        boolean isPublicAuth = path.equals("/v1/auth/login") ||
+                               path.equals("/v1/auth/register") ||
+                               path.equals("/v1/auth/refresh") ||
+                               path.equals("/v1/auth/forgot-password") ||
+                               path.equals("/v1/auth/reset-password") ||
+                               path.equals("/v1/auth/verify-email") ||
+                               path.equals("/v1/auth/resend-verification");
+
+        return isPublicAuth ||
+               path.startsWith("/swagger-ui") ||
+               path.startsWith("/v3/api-docs") ||
+               path.startsWith("/actuator/health") ||
+               path.startsWith("/actuator/info") ||
                path.startsWith("/v1/recruitment/interviews/guest/");
     }
 }

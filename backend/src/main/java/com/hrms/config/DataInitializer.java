@@ -79,18 +79,18 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        if (!tenantRepository.existsById("default")) {
-            log.info("Seeding default tenant...");
+        if (!tenantRepository.existsById("eoxys")) {
+            log.info("Seeding Eoxys tenant...");
             tenantRepository.save(Tenant.builder()
-                .id("default")
-                .code("DEFAULT")
-                .name("Global Enterprise Platform")
-                .domain("localhost")
+                .id("eoxys")
+                .code("EOXYS")
+                .name("Eoxys Systems India Pvt Ltd")
+                .domain("https://www.eoxys.com")
                 .status("ACTIVE")
                 .subscriptionTier("ENTERPRISE")
-                .primaryColor("#2563eb")
+                .primaryColor("#059669")
                 .build());
-            log.info("Default tenant seeded.");
+            log.info("Eoxys tenant seeded.");
         }
 
         if (departmentRepository.count() == 0) {
@@ -107,10 +107,14 @@ public class DataInitializer implements CommandLineRunner {
         if (userRepository.count() == 0) {
             log.info("Seeding default users...");
 
-            TenantRole adminRole = tenantRoleRepository.findByTenantIdAndName("default", "ROLE_ADMIN").orElse(null);
-            TenantRole hrRole = tenantRoleRepository.findByTenantIdAndName("default", "ROLE_HR").orElse(null);
-            TenantRole managerRole = tenantRoleRepository.findByTenantIdAndName("default", "ROLE_MANAGER").orElse(null);
-            TenantRole empRole = tenantRoleRepository.findByTenantIdAndName("default", "ROLE_EMPLOYEE").orElse(null);
+            TenantRole adminRole = tenantRoleRepository.findByTenantIdAndName("eoxys", "ROLE_ADMIN")
+                    .or(() -> tenantRoleRepository.findByTenantIdAndName("default", "ROLE_ADMIN")).orElse(null);
+            TenantRole hrRole = tenantRoleRepository.findByTenantIdAndName("eoxys", "ROLE_HR")
+                    .or(() -> tenantRoleRepository.findByTenantIdAndName("default", "ROLE_HR")).orElse(null);
+            TenantRole managerRole = tenantRoleRepository.findByTenantIdAndName("eoxys", "ROLE_MANAGER")
+                    .or(() -> tenantRoleRepository.findByTenantIdAndName("default", "ROLE_MANAGER")).orElse(null);
+            TenantRole empRole = tenantRoleRepository.findByTenantIdAndName("eoxys", "ROLE_EMPLOYEE")
+                    .or(() -> tenantRoleRepository.findByTenantIdAndName("default", "ROLE_EMPLOYEE")).orElse(null);
 
             userRepository.saveAll(List.of(
                 User.builder()
@@ -180,7 +184,7 @@ public class DataInitializer implements CommandLineRunner {
                         .casualLeaveBalance(12)
                         .deleted(false)
                         .build();
-                    e.setTenantId("default");
+                    e.setTenantId("eoxys");
                     return employeeRepository.save(e);
                 });
             configureEmployeeFinancials(adminEmp, new BigDecimal("150000.00"), "HDFC Bank", "50100492817291", "HDFC0000001");
@@ -207,7 +211,7 @@ public class DataInitializer implements CommandLineRunner {
                         .casualLeaveBalance(12)
                         .deleted(false)
                         .build();
-                    e.setTenantId("default");
+                    e.setTenantId("eoxys");
                     return employeeRepository.save(e);
                 });
             configureEmployeeFinancials(hrEmp, new BigDecimal("95000.00"), "ICICI Bank", "001205019283", "ICIC0000012");
@@ -234,7 +238,7 @@ public class DataInitializer implements CommandLineRunner {
                         .casualLeaveBalance(12)
                         .deleted(false)
                         .build();
-                    e.setTenantId("default");
+                    e.setTenantId("eoxys");
                     return employeeRepository.save(e);
                 });
             configureEmployeeFinancials(mEmp, new BigDecimal("135000.00"), "State Bank of India", "30918274619", "SBIN0001234");
@@ -263,7 +267,7 @@ public class DataInitializer implements CommandLineRunner {
                         .casualLeaveBalance(8)
                         .deleted(false)
                         .build();
-                    e.setTenantId("default");
+                    e.setTenantId("eoxys");
                     return employeeRepository.save(e);
                 });
             configureEmployeeFinancials(regEmp, new BigDecimal("85000.00"), "Axis Bank", "918020038172918", "UTIB0000045");
@@ -301,7 +305,7 @@ public class DataInitializer implements CommandLineRunner {
                         .casualLeaveBalance(12)
                         .deleted(false)
                         .build();
-                    e.setTenantId("default");
+                    e.setTenantId("eoxys");
                     return employeeRepository.save(e);
                 });
             configureEmployeeFinancials(itEmp, new BigDecimal("120000.00"), "State Bank of India", "309182746192", "SBIN0001234");
@@ -318,7 +322,7 @@ public class DataInitializer implements CommandLineRunner {
                 .radiusMeters(500)
                 .isActive(true)
                 .build();
-            ol.setTenantId("default");
+            ol.setTenantId("eoxys");
             officeLocationRepository.save(ol);
             log.info("Default office location seeded: Headquarters - Tech Park");
         }
@@ -336,7 +340,7 @@ public class DataInitializer implements CommandLineRunner {
                 .nightAllowanceRate(BigDecimal.ZERO)
                 .isActive(true)
                 .build();
-            s.setTenantId("default");
+            s.setTenantId("eoxys");
             shiftRepository.save(s);
             log.info("Default shift seeded: GEN-01 (General Morning Shift)");
         }
@@ -348,7 +352,7 @@ public class DataInitializer implements CommandLineRunner {
                 LeavePolicy.builder().leaveType(LeaveType.SICK).annualAllowance(BigDecimal.valueOf(12.0)).monthlyAccrualRate(BigDecimal.valueOf(1.0)).maxCarryOver(BigDecimal.valueOf(5.0)).allowsHalfDay(true).requiresAttachment(true).isActive(true).build(),
                 LeavePolicy.builder().leaveType(LeaveType.CASUAL).annualAllowance(BigDecimal.valueOf(8.0)).monthlyAccrualRate(BigDecimal.valueOf(0.67)).maxCarryOver(BigDecimal.valueOf(0.0)).allowsHalfDay(true).requiresAttachment(false).isActive(true).build()
             );
-            policies.forEach(p -> p.setTenantId("default"));
+            policies.forEach(p -> p.setTenantId("eoxys"));
             leavePolicyRepository.saveAll(policies);
             log.info("Default leave policies seeded: ANNUAL, SICK, CASUAL");
         }
@@ -363,7 +367,7 @@ public class DataInitializer implements CommandLineRunner {
                 .endDate(LocalDate.of(year, 12, 31))
                 .status("IN_REVIEW")
                 .build();
-            cycle.setTenantId("default");
+            cycle.setTenantId("eoxys");
             appraisalCycleRepository.save(cycle);
             log.info("Default appraisal cycle seeded for year {}", year);
         }
@@ -382,7 +386,7 @@ public class DataInitializer implements CommandLineRunner {
                 .conditionStatus("GOOD")
                 .status("AVAILABLE")
                 .build();
-            a1.setTenantId("default");
+            a1.setTenantId("eoxys");
 
             Asset a2 = Asset.builder()
                 .assetTag("AST-MON-002")
@@ -396,7 +400,7 @@ public class DataInitializer implements CommandLineRunner {
                 .conditionStatus("GOOD")
                 .status("AVAILABLE")
                 .build();
-            a2.setTenantId("default");
+            a2.setTenantId("eoxys");
 
             assetRepository.saveAll(List.of(a1, a2));
             log.info("Default hardware assets seeded: AST-LAP-001, AST-MON-002");
@@ -418,7 +422,7 @@ public class DataInitializer implements CommandLineRunner {
                 .salaryMax(new BigDecimal("2400000.00"))
                 .closesAt(LocalDate.now().plusMonths(3))
                 .build();
-            job.setTenantId("default");
+            job.setTenantId("eoxys");
             job = jobPostingRepository.save(job);
             log.info("Default job posting seeded: Senior Full Stack Engineer");
 
@@ -436,7 +440,7 @@ public class DataInitializer implements CommandLineRunner {
                     .notes("Strong background in Spring Boot microservices and React dashboards.")
                     .jobPosting(job)
                     .build();
-                c1.setTenantId("default");
+                c1.setTenantId("eoxys");
 
                 Candidate c2 = Candidate.builder()
                     .name("Rohan Varma")
@@ -451,7 +455,7 @@ public class DataInitializer implements CommandLineRunner {
                     .notes("Shortlisted for Live Coding and System Architecture evaluation.")
                     .jobPosting(job)
                     .build();
-                c2.setTenantId("default");
+                c2.setTenantId("eoxys");
 
                 candidateRepository.saveAll(List.of(c1, c2));
                 log.info("Default candidates seeded: Aditi Sen, Rohan Varma");
@@ -473,7 +477,7 @@ public class DataInitializer implements CommandLineRunner {
                     .publishedAt(LocalDateTime.now())
                     .acknowledgmentRequired(true)
                     .build();
-                a.setTenantId("default");
+                a.setTenantId("eoxys");
                 companyAnnouncementRepository.save(a);
                 log.info("Default corporate announcement seeded: Q4 Corporate Town Hall");
             }
@@ -491,7 +495,7 @@ public class DataInitializer implements CommandLineRunner {
                 .actionRoute("/leaves")
                 .isActive(true)
                 .build();
-            p1.setTenantId("default");
+            p1.setTenantId("eoxys");
 
             HrPolicyArticle p2 = HrPolicyArticle.builder()
                 .category("ATTENDANCE")
@@ -503,7 +507,7 @@ public class DataInitializer implements CommandLineRunner {
                 .actionRoute("/attendance")
                 .isActive(true)
                 .build();
-            p2.setTenantId("default");
+            p2.setTenantId("eoxys");
 
             HrPolicyArticle p3 = HrPolicyArticle.builder()
                 .category("EXPENSE")
@@ -515,7 +519,7 @@ public class DataInitializer implements CommandLineRunner {
                 .actionRoute("/expenses")
                 .isActive(true)
                 .build();
-            p3.setTenantId("default");
+            p3.setTenantId("eoxys");
 
             hrPolicyArticleRepository.saveAll(List.of(p1, p2, p3));
             log.info("Default HR policy knowledge base articles seeded: LEAVE, ATTENDANCE, EXPENSE");
@@ -565,7 +569,7 @@ public class DataInitializer implements CommandLineRunner {
                     .pendingDays(BigDecimal.ZERO)
                     .year(currentYear)
                     .build();
-                bal.setTenantId("default");
+                bal.setTenantId("eoxys");
                 leaveBalanceRepository.save(bal);
             }
         }

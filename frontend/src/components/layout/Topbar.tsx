@@ -20,6 +20,8 @@ const titles: Record<string, string> = {
   '/notifications': 'Notifications',
   '/profile': 'My Profile',
   '/admin': 'Admin Panel',
+  '/policies': 'Company Policies & Work Rules',
+  '/shifts': 'Shift & Roster Management',
 };
 
 const Topbar: React.FC = () => {

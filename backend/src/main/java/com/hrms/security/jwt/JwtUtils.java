@@ -24,9 +24,13 @@ public class JwtUtils {
     @Value("${jwt.allowed-clock-skew-seconds:60}") private long allowedClockSkewSeconds;
 
     public String generateToken(UserDetails userDetails) {
+        return generateToken(userDetails, TenantContext.getTenantId());
+    }
+
+    public String generateToken(UserDetails userDetails, String tenantId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", userDetails.getAuthorities().iterator().next().getAuthority());
-        claims.put("tenant_id", TenantContext.getTenantId());
+        claims.put("tenant_id", tenantId != null && !tenantId.isBlank() ? tenantId : TenantContext.getTenantId());
         return buildToken(claims, userDetails.getUsername(), jwtExpirationMs);
     }
 

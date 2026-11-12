@@ -17,8 +17,10 @@ import com.hrms.modules.attendance.service.GeofenceValidator;
 import com.hrms.repository.*;
 import com.hrms.modules.attendance.dto.BiometricDeviceDto;
 import com.hrms.modules.attendance.dto.BiometricPunchDto;
+import com.hrms.modules.attendance.entity.AttendancePolicy;
 import com.hrms.modules.attendance.entity.BiometricDevice;
 import com.hrms.modules.attendance.repository.BiometricDeviceRepository;
+import com.hrms.modules.workflow.service.WorkflowEngineService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
@@ -33,7 +35,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Service @Slf4j @RequiredArgsConstructor @Transactional
+@Service
+@Slf4j
+@RequiredArgsConstructor
+@Transactional
 public class AttendanceService {
     private final AttendanceRepository attendanceRepository;
     private final EmployeeRepository employeeRepository;
@@ -42,13 +47,35 @@ public class AttendanceService {
     private final AttendanceRegularizationRepository regularizationRepository;
     private final BiometricDeviceRepository biometricDeviceRepository;
     private final GeofenceValidator geofenceValidator;
+    private final PolicyResolverService policyResolverService;
+    private final LeaveRequestRepository leaveRequestRepository;
+    private final WorkflowEngineService workflowEngineService;
 
     public AttendanceResponse punch(AttendancePunchRequest req) {
         Employee emp = employeeRepository.findById(req.getEmployeeId())
-            .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", req.getEmployeeId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", req.getEmployeeId()));
 
         LocalDate date = req.getDate() != null ? req.getDate() : LocalDate.now();
         LocalTime time = req.getTime() != null ? req.getTime() : LocalTime.now();
+
+        // Dynamically resolve effective attendance policy for this employee
+        AttendancePolicy policy = policyResolverService.resolveAttendancePolicy(emp.getId(), date);
+
+        // Validate Allowed Punch Channels/Methods
+        String punchSource = req.getPunchSource() != null ? req.getPunchSource().toUpperCase().trim() : "WEB_MANUAL";
+        String allowedMethods = policy.getAllowedPunchMethods() != null ? policy.getAllowedPunchMethods().toUpperCase()
+                : "BIOMETRIC,WEB,GEOFENCE";
+
+        if (punchSource.contains("BIOMETRIC") && !allowedMethods.contains("BIOMETRIC")) {
+            throw new BadRequestException("Biometric punches are not permitted by policy '" + policy.getPolicyName()
+                    + "'. Allowed: " + policy.getAllowedPunchMethods());
+        } else if ((punchSource.contains("WEB") || punchSource.contains("MANUAL")) && !allowedMethods.contains("WEB")) {
+            throw new BadRequestException("Web/manual punches are disabled by policy '" + policy.getPolicyName()
+                    + "'. Allowed: " + policy.getAllowedPunchMethods());
+        } else if (punchSource.contains("GEOFENCE") && !allowedMethods.contains("GEOFENCE")) {
+            throw new BadRequestException("Geofence punches are disabled by policy '" + policy.getPolicyName()
+                    + "'. Allowed: " + policy.getAllowedPunchMethods());
+        }
 
         boolean isWfh = req.getWorkMode() != null && "REMOTE_WFH".equalsIgnoreCase(req.getWorkMode());
 
@@ -61,8 +88,7 @@ public class AttendanceService {
                 boolean inside = geofenceValidator.isWithinGeofence(
                         req.getLatitude(), req.getLongitude(),
                         office.getLatitude(), office.getLongitude(),
-                        office.getRadiusMeters()
-                );
+                        office.getRadiusMeters());
                 geofenceStatus = inside ? "INSIDE_GEOFENCE" : "OUTSIDE_GEOFENCE";
             }
         }
@@ -74,7 +100,8 @@ public class AttendanceService {
             if (existingOpt.isPresent()) {
                 attendance = existingOpt.get();
                 if (attendance.getCheckInTime() != null) {
-                    throw new BadRequestException("Employee already checked in for today at " + attendance.getCheckInTime());
+                    throw new BadRequestException(
+                            "Employee already checked in for today at " + attendance.getCheckInTime());
                 }
             } else {
                 attendance = Attendance.builder()
@@ -92,13 +119,20 @@ public class AttendanceService {
             attendance.setGeofenceStatus(geofenceStatus);
             attendance.setWorkMode(isWfh ? "REMOTE_WFH" : "OFFICE");
             attendance.setPunchSource(req.getPunchSource() != null ? req.getPunchSource() : "WEB_MANUAL");
-            if (req.getDeviceId() != null) attendance.setDeviceId(req.getDeviceId());
+            if (req.getDeviceId() != null)
+                attendance.setDeviceId(req.getDeviceId());
             attendance.setStatus(isWfh ? AttendanceStatus.WORK_FROM_HOME : AttendanceStatus.PRESENT);
 
-            // Shift check: If after 09:30 AM and not WFH, flag as LATE
-            if (!isWfh && time.isAfter(LocalTime.of(9, 30))) {
+            // Dynamic Shift / Grace Period Check from resolved Policy
+            int graceMinutes = policy.getGracePeriodMinutes() != null ? policy.getGracePeriodMinutes() : 15;
+            LocalTime shiftStart = policy.getShiftStartTime() != null ? policy.getShiftStartTime() : LocalTime.of(9, 0);
+            LocalTime lateCutoff = shiftStart.plusMinutes(graceMinutes);
+
+            if (!isWfh && time.isAfter(lateCutoff)) {
                 attendance.setStatus(AttendanceStatus.LATE_ARRIVAL);
-                attendance.setLateArrivalReason(req.getLateArrivalReason() != null ? req.getLateArrivalReason() : "Late arrival after 09:30 AM");
+                attendance.setLateArrivalReason(req.getLateArrivalReason() != null
+                        ? req.getLateArrivalReason()
+                        : "Late arrival after grace period cutoff " + lateCutoff + " (" + policy.getPolicyName() + ")");
             }
         } else if ("CHECK_OUT".equalsIgnoreCase(req.getPunchType())) {
             if (existingOpt.isEmpty() || existingOpt.get().getCheckInTime() == null) {
@@ -108,7 +142,8 @@ public class AttendanceService {
             attendance.setCheckOutTime(time);
             attendance.setCheckOutLatitude(req.getLatitude());
             attendance.setCheckOutLongitude(req.getLongitude());
-            if (req.getDeviceId() != null) attendance.setDeviceId(req.getDeviceId());
+            if (req.getDeviceId() != null)
+                attendance.setDeviceId(req.getDeviceId());
 
             // If employee was on break, auto-conclude break
             if (Boolean.TRUE.equals(attendance.getIsOnBreak()) && attendance.getLastBreakStart() != null) {
@@ -119,17 +154,36 @@ public class AttendanceService {
                 attendance.setLastBreakStart(null);
             }
 
-            // Calculate net working hours (minus break time)
+            // Calculate net working hours (minus break time or policy auto-deduction)
             long totalMinutes = Duration.between(attendance.getCheckInTime(), time).toMinutes();
             int breakMins = attendance.getBreakMinutes() != null ? attendance.getBreakMinutes() : 0;
+            if (breakMins == 0 && Boolean.TRUE.equals(policy.getAutoDeductBreak())) {
+                breakMins = policy.getBreakDeductionMinutes() != null ? policy.getBreakDeductionMinutes() : 45;
+                attendance.setBreakMinutes(breakMins);
+            }
+
             double hours = Math.max(0.0, (totalMinutes - breakMins) / 60.0);
             attendance.setWorkingHours(Math.round(hours * 100.0) / 100.0);
 
-            // Standard 8-hour workday
-            double overtime = Math.max(0.0, hours - 8.0);
-            attendance.setOvertimeHours(Math.round(overtime * 100.0) / 100.0);
+            // Policy-driven full-day, half-day, and overtime thresholds
+            double fullDayThreshold = policy.getFullDayHours() != null ? policy.getFullDayHours().doubleValue() : 8.0;
+            double halfDayThreshold = policy.getHalfDayHours() != null ? policy.getHalfDayHours().doubleValue() : 4.0;
 
-            if (hours < 4.0) {
+            if (Boolean.TRUE.equals(policy.getOvertimeEnabled())) {
+                double overtimeMin = Math.max(0.0, (hours - fullDayThreshold) * 60.0);
+                int minOtMinutes = policy.getMinOvertimeThresholdMinutes() != null
+                        ? policy.getMinOvertimeThresholdMinutes()
+                        : 60;
+                if (overtimeMin >= minOtMinutes) {
+                    attendance.setOvertimeHours(Math.round((overtimeMin / 60.0) * 100.0) / 100.0);
+                } else {
+                    attendance.setOvertimeHours(0.0);
+                }
+            } else {
+                attendance.setOvertimeHours(0.0);
+            }
+
+            if (hours < halfDayThreshold) {
                 attendance.setStatus(AttendanceStatus.HALF_DAY);
             }
         } else {
@@ -141,8 +195,8 @@ public class AttendanceService {
         }
 
         attendance = attendanceRepository.save(attendance);
-        log.info("Attendance punch processed: empId={}, type={}, time={}, geofence={}",
-                emp.getId(), req.getPunchType(), time, geofenceStatus);
+        log.info("Attendance punch processed: empId={}, type={}, time={}, geofence={}, policy={}",
+                emp.getId(), req.getPunchType(), time, geofenceStatus, policy.getPolicyCode());
         return toResponse(attendance);
     }
 
@@ -150,6 +204,42 @@ public class AttendanceService {
     public RegularizationRequestDto submitRegularization(RegularizationRequestDto req) {
         Employee emp = employeeRepository.findById(req.getEmployeeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", req.getEmployeeId()));
+
+        // Resolve Policy for Employee on Regularization Date
+        AttendancePolicy policy = policyResolverService.resolveAttendancePolicy(emp.getId(), req.getDate());
+
+        // 1. Filing Window Validation
+        int windowDays = policy.getRegularizationFilingWindowDays() != null ? policy.getRegularizationFilingWindowDays()
+                : 5;
+        LocalDate earliestAllowed = LocalDate.now().minusDays(windowDays);
+        if (req.getDate().isBefore(earliestAllowed)) {
+            throw new BadRequestException("Regularization filing window exceeded. Requests under policy '" +
+                    policy.getPolicyName() + "' must be submitted within " + windowDays +
+                    " days of the date (earliest allowed: " + earliestAllowed + ").");
+        }
+
+        // 2. Monthly Quota Validation
+        int maxAllowedPerMonth = policy.getMaxRegularizationsPerMonth() != null ? policy.getMaxRegularizationsPerMonth()
+                : 3;
+        LocalDate startOfMonth = req.getDate().withDayOfMonth(1);
+        LocalDate endOfMonth = req.getDate().withDayOfMonth(req.getDate().lengthOfMonth());
+        long monthlyCount = regularizationRepository.countByEmployeeIdAndDateBetweenAndNotRejected(emp.getId(),
+                startOfMonth, endOfMonth);
+        if (monthlyCount >= maxAllowedPerMonth) {
+            throw new BadRequestException("Monthly regularization quota of " + maxAllowedPerMonth +
+                    " requests exceeded for " + req.getDate().getMonth() + " " + req.getDate().getYear() +
+                    " under policy '" + policy.getPolicyName() + "'.");
+        }
+
+        // 3. Mutual Exclusivity / Date Conflict Check
+        List<LeaveRequest> overlappingLeaves = leaveRequestRepository.findOverlapping(emp.getId(), req.getDate(),
+                req.getDate());
+        boolean hasApprovedLeave = overlappingLeaves.stream()
+                .anyMatch(l -> "APPROVED".equalsIgnoreCase(l.getStatus().name()));
+        if (hasApprovedLeave) {
+            throw new BadRequestException("Conflict detected: Employee already has an approved leave recorded on " +
+                    req.getDate() + ". Regularization cannot be filed for a leave day.");
+        }
 
         Attendance att = null;
         if (req.getAttendanceId() != null) {
@@ -173,12 +263,21 @@ public class AttendanceService {
             attendanceRepository.save(att);
         }
 
+        // Trigger Workflow Engine
+        try {
+            workflowEngineService.startWorkflow("ATTENDANCE_REGULARIZATION", reg.getId(), emp.getUser());
+        } catch (Exception e) {
+            log.info("Direct workflow not configured for ATTENDANCE_REGULARIZATION; standard approval enabled: {}",
+                    e.getMessage());
+        }
+
         req.setId(reg.getId());
         req.setStatus(reg.getStatus());
         return req;
     }
 
-    public RegularizationRequestDto reviewRegularization(Long regId, String action, String comments, String reviewerEmail) {
+    public RegularizationRequestDto reviewRegularization(Long regId, String action, String comments,
+            String reviewerEmail) {
         AttendanceRegularization reg = regularizationRepository.findById(regId)
                 .orElseThrow(() -> new ResourceNotFoundException("AttendanceRegularization", "id", regId));
 
@@ -197,8 +296,10 @@ public class AttendanceService {
                 att = attendanceRepository.findByEmployeeIdAndDate(reg.getEmployee().getId(), reg.getDate())
                         .orElse(Attendance.builder().employee(reg.getEmployee()).date(reg.getDate()).build());
             }
-            if (reg.getRequestedCheckIn() != null) att.setCheckInTime(reg.getRequestedCheckIn());
-            if (reg.getRequestedCheckOut() != null) att.setCheckOutTime(reg.getRequestedCheckOut());
+            if (reg.getRequestedCheckIn() != null)
+                att.setCheckInTime(reg.getRequestedCheckIn());
+            if (reg.getRequestedCheckOut() != null)
+                att.setCheckOutTime(reg.getRequestedCheckOut());
             if (att.getCheckInTime() != null && att.getCheckOutTime() != null) {
                 double hours = Duration.between(att.getCheckInTime(), att.getCheckOutTime()).toMinutes() / 60.0;
                 att.setWorkingHours(Math.round(hours * 100.0) / 100.0);
@@ -253,6 +354,27 @@ public class AttendanceService {
         return dto;
     }
 
+    public OfficeLocationDto updateOfficeLocation(Long id, OfficeLocationDto dto) {
+        OfficeLocation ol = officeLocationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("OfficeLocation", "id", id));
+        ol.setName(dto.getName());
+        ol.setAddress(dto.getAddress());
+        ol.setLatitude(dto.getLatitude());
+        ol.setLongitude(dto.getLongitude());
+        if (dto.getRadiusMeters() != null) ol.setRadiusMeters(dto.getRadiusMeters());
+        if (dto.getIpWhitelist() != null) ol.setIpWhitelist(dto.getIpWhitelist());
+        if (dto.getIsActive() != null) ol.setIsActive(dto.getIsActive());
+        ol = officeLocationRepository.save(ol);
+        dto.setId(ol.getId());
+        return dto;
+    }
+
+    public void deleteOfficeLocation(Long id) {
+        OfficeLocation ol = officeLocationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("OfficeLocation", "id", id));
+        officeLocationRepository.delete(ol);
+    }
+
     // --- Original Standard APIs ---
     public AttendanceResponse mark(AttendanceRequest req) {
         if (attendanceRepository.existsByEmployeeIdAndDate(req.getEmployeeId(), req.getDate()))
@@ -261,7 +383,7 @@ public class AttendanceService {
             throw new BadRequestException("Cannot mark attendance for a future date");
 
         Employee emp = employeeRepository.findById(req.getEmployeeId())
-            .orElseThrow(() -> new ResourceNotFoundException("Employee","id",req.getEmployeeId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", req.getEmployeeId()));
 
         Double hours = null;
         if (req.getCheckInTime() != null && req.getCheckOutTime() != null) {
@@ -271,21 +393,67 @@ public class AttendanceService {
         }
 
         Attendance attendance = Attendance.builder()
-            .employee(emp).date(req.getDate())
-            .checkInTime(req.getCheckInTime()).checkOutTime(req.getCheckOutTime())
-            .workingHours(hours).status(req.getStatus())
-            .remarks(req.getRemarks()).lateArrivalReason(req.getLateArrivalReason())
-            .build();
+                .employee(emp).date(req.getDate())
+                .checkInTime(req.getCheckInTime()).checkOutTime(req.getCheckOutTime())
+                .workingHours(hours).status(req.getStatus())
+                .remarks(req.getRemarks()).lateArrivalReason(req.getLateArrivalReason())
+                .build();
         return toResponse(attendanceRepository.save(attendance));
     }
 
     public AttendanceResponse update(Long id, AttendanceRequest req) {
         Attendance a = attendanceRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Attendance","id",id));
-        a.setCheckInTime(req.getCheckInTime()); a.setCheckOutTime(req.getCheckOutTime());
-        a.setStatus(req.getStatus()); a.setRemarks(req.getRemarks());
-        if (req.getCheckInTime() != null && req.getCheckOutTime() != null)
-            a.setWorkingHours(Duration.between(req.getCheckInTime(), req.getCheckOutTime()).toMinutes() / 60.0);
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance", "id", id));
+
+        if (req.getCheckInTime() != null && req.getCheckOutTime() != null) {
+            if (req.getCheckOutTime().isBefore(req.getCheckInTime())) {
+                throw new BadRequestException("Check-out time cannot be before check-in time");
+            }
+            long totalMinutes = Duration.between(req.getCheckInTime(), req.getCheckOutTime()).toMinutes();
+            int breakMins = a.getBreakMinutes() != null ? a.getBreakMinutes() : 0;
+            double hours = Math.max(0.0, (totalMinutes - breakMins) / 60.0);
+            a.setWorkingHours(Math.round(hours * 100.0) / 100.0);
+
+            // Policy-driven overtime check
+            try {
+                AttendancePolicy policy = policyResolverService.resolveAttendancePolicy(a.getEmployee().getId(),
+                        a.getDate());
+                double fullDayThreshold = policy.getFullDayHours() != null ? policy.getFullDayHours().doubleValue()
+                        : 8.0;
+                if (Boolean.TRUE.equals(policy.getOvertimeEnabled())) {
+                    double overtimeMin = Math.max(0.0, (hours - fullDayThreshold) * 60.0);
+                    int minOtMinutes = policy.getMinOvertimeThresholdMinutes() != null
+                            ? policy.getMinOvertimeThresholdMinutes()
+                            : 60;
+                    if (overtimeMin >= minOtMinutes) {
+                        a.setOvertimeHours(Math.round((overtimeMin / 60.0) * 100.0) / 100.0);
+                    } else {
+                        a.setOvertimeHours(0.0);
+                    }
+                } else {
+                    a.setOvertimeHours(0.0);
+                }
+            } catch (Exception ex) {
+                log.warn("Could not resolve policy overtime for employee {}: {}", a.getEmployee().getId(),
+                        ex.getMessage());
+            }
+        } else if (req.getCheckInTime() != null) {
+            a.setWorkingHours(null);
+            a.setOvertimeHours(0.0);
+        }
+
+        a.setCheckInTime(req.getCheckInTime());
+        a.setCheckOutTime(req.getCheckOutTime());
+        if (req.getStatus() != null)
+            a.setStatus(req.getStatus());
+        if (req.getRemarks() != null)
+            a.setRemarks(req.getRemarks());
+        if (req.getLateArrivalReason() != null)
+            a.setLateArrivalReason(req.getLateArrivalReason());
+
+        log.info("Attendance record {} adjusted by HR/Admin. In: {}, Out: {}, Hours: {}, Status: {}",
+                id, a.getCheckInTime(), a.getCheckOutTime(), a.getWorkingHours(), a.getStatus());
+
         return toResponse(attendanceRepository.save(a));
     }
 
@@ -297,19 +465,19 @@ public class AttendanceService {
     @Transactional(readOnly = true)
     public List<AttendanceResponse> getMonthly(Long empId, int year, int month) {
         return attendanceRepository.findMonthly(empId, year, month)
-            .stream().map(this::toResponse).collect(Collectors.toList());
+                .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<AttendanceResponse> getByDate(LocalDate date) {
         return attendanceRepository.findByDateOrderByEmployee_FirstNameAsc(date)
-            .stream().map(this::toResponse).collect(Collectors.toList());
+                .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     // --- Auto-Login Punch ---
     public AttendanceResponse recordLoginPunch(Long employeeId, String ipAddress, String workMode) {
         Employee emp = employeeRepository.findById(employeeId)
-            .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
 
         LocalDate today = LocalDate.now();
         Optional<Attendance> existing = attendanceRepository.findByEmployeeIdAndDate(employeeId, today);
@@ -321,9 +489,9 @@ public class AttendanceService {
         boolean isWfh = "REMOTE_WFH".equalsIgnoreCase(workMode);
 
         Attendance attendance = existing.orElseGet(() -> Attendance.builder()
-            .employee(emp)
-            .date(today)
-            .build());
+                .employee(emp)
+                .date(today)
+                .build());
 
         attendance.setCheckInTime(now);
         attendance.setIpAddress(ipAddress);
@@ -344,7 +512,7 @@ public class AttendanceService {
     public AttendanceResponse toggleBreak(Long employeeId) {
         LocalDate today = LocalDate.now();
         Attendance att = attendanceRepository.findByEmployeeIdAndDate(employeeId, today)
-            .orElseThrow(() -> new BadRequestException("No attendance check-in found for today"));
+                .orElseThrow(() -> new BadRequestException("No attendance check-in found for today"));
 
         if (att.getCheckInTime() == null) {
             throw new BadRequestException("Employee has not checked in for today");
@@ -374,8 +542,8 @@ public class AttendanceService {
     @Transactional(readOnly = true)
     public AttendanceResponse getTodayStatus(Long employeeId) {
         return attendanceRepository.findByEmployeeIdAndDate(employeeId, LocalDate.now())
-            .map(this::toResponse)
-            .orElse(null);
+                .map(this::toResponse)
+                .orElse(null);
     }
 
     // --- Biometric Machine Sync Engine ---
@@ -387,7 +555,7 @@ public class AttendanceService {
         for (BiometricPunchDto punch : punches) {
             try {
                 Employee emp = employeeRepository.findByEmployeeNumber(punch.getEmployeeNumber())
-                    .orElse(null);
+                        .orElse(null);
                 if (emp == null) {
                     errors.add("Employee not found for number: " + punch.getEmployeeNumber());
                     failed++;
@@ -397,33 +565,91 @@ public class AttendanceService {
                 LocalDate date = punch.getTimestamp().toLocalDate();
                 LocalTime time = punch.getTimestamp().toLocalTime();
 
+                AttendancePolicy policy = null;
+                try {
+                    policy = policyResolverService.resolveAttendancePolicy(emp.getId(), date);
+                } catch (Exception ex) {
+                    log.warn("Could not resolve policy for employee {}: {}", emp.getId(), ex.getMessage());
+                }
+                int graceMinutes = (policy != null && policy.getGracePeriodMinutes() != null) ? policy.getGracePeriodMinutes() : 15;
+                LocalTime shiftStart = (policy != null && policy.getShiftStartTime() != null) ? policy.getShiftStartTime() : LocalTime.of(9, 0);
+                LocalTime lateCutoff = shiftStart.plusMinutes(graceMinutes);
+
                 Optional<Attendance> opt = attendanceRepository.findByEmployeeIdAndDate(emp.getId(), date);
                 Attendance att;
 
                 if (opt.isEmpty()) {
-                    // First punch of the day is Check-In
+                    // First punch of the day is authoritative Check-In
                     att = Attendance.builder()
-                        .employee(emp)
-                        .date(date)
-                        .checkInTime(time)
-                        .punchSource("BIOMETRIC_DEVICE")
-                        .deviceId(punch.getDeviceId())
-                        .geofenceStatus("BIOMETRIC_VERIFIED")
-                        .status(time.isAfter(LocalTime.of(9, 30)) ? AttendanceStatus.LATE_ARRIVAL : AttendanceStatus.PRESENT)
-                        .remarks("Biometric punch via " + punch.getDeviceId())
-                        .build();
+                            .employee(emp)
+                            .date(date)
+                            .checkInTime(time)
+                            .punchSource("BIOMETRIC_DEVICE")
+                            .deviceId(punch.getDeviceId())
+                            .geofenceStatus("BIOMETRIC_VERIFIED")
+                            .status(time.isAfter(lateCutoff) ? AttendanceStatus.LATE_ARRIVAL : AttendanceStatus.PRESENT)
+                            .lateArrivalReason(time.isAfter(lateCutoff) ? "Late biometric punch at " + time + " (Cutoff: " + lateCutoff + ")" : null)
+                            .remarks("Biometric punch via " + punch.getDeviceId())
+                            .build();
                 } else {
-                    // Subsequent punch updates Check-Out and recalculates hours
                     att = opt.get();
-                    if (att.getCheckInTime() != null && time.isAfter(att.getCheckInTime())) {
-                        att.setCheckOutTime(time);
+                    LocalTime existingCheckIn = att.getCheckInTime();
+
+                    if (existingCheckIn == null) {
+                        // Check-in was not set yet
+                        att.setCheckInTime(time);
+                        att.setPunchSource("BIOMETRIC_DEVICE");
                         att.setDeviceId(punch.getDeviceId());
-                        long totalMinutes = Duration.between(att.getCheckInTime(), time).toMinutes();
-                        int breakMins = att.getBreakMinutes() != null ? att.getBreakMinutes() : 0;
-                        double hours = Math.max(0.0, (totalMinutes - breakMins) / 60.0);
-                        att.setWorkingHours(Math.round(hours * 100.0) / 100.0);
-                        att.setOvertimeHours(Math.round(Math.max(0.0, hours - 8.0) * 100.0) / 100.0);
-                        if (hours < 4.0) att.setStatus(AttendanceStatus.HALF_DAY);
+                        att.setGeofenceStatus("BIOMETRIC_VERIFIED");
+                        att.setStatus(time.isAfter(lateCutoff) ? AttendanceStatus.LATE_ARRIVAL : AttendanceStatus.PRESENT);
+                    } else if (time.isBefore(existingCheckIn)) {
+                        // Crucial Enterprise Truth: Hardware punch happened earlier than web punch
+                        // Prioritize earlier physical arrival time and waive late penalty if arrived on time
+                        att.setCheckInTime(time);
+                        att.setDeviceId(punch.getDeviceId());
+                        att.setPunchSource("BIOMETRIC_DEVICE");
+                        att.setGeofenceStatus("BIOMETRIC_VERIFIED");
+                        if (!time.isAfter(lateCutoff)) {
+                            att.setStatus(AttendanceStatus.PRESENT);
+                            att.setLateArrivalReason(null);
+                        }
+                    } else {
+                        // Subsequent punch after check-in. Ignore duplicate scans within 30 minutes of check-in
+                        long minutesSinceCheckIn = Duration.between(existingCheckIn, time).toMinutes();
+                        if (minutesSinceCheckIn >= 30) {
+                            // Departure / Exit Punch: record Check-Out
+                            if (att.getCheckOutTime() == null || time.isAfter(att.getCheckOutTime())) {
+                                att.setCheckOutTime(time);
+                                att.setDeviceId(punch.getDeviceId());
+
+                                long totalMinutes = Duration.between(existingCheckIn, time).toMinutes();
+                                int breakMins = att.getBreakMinutes() != null ? att.getBreakMinutes() : 0;
+                                double hours = Math.max(0.0, (totalMinutes - breakMins) / 60.0);
+                                att.setWorkingHours(Math.round(hours * 100.0) / 100.0);
+
+                                double fullDayThreshold = (policy != null && policy.getFullDayHours() != null)
+                                        ? policy.getFullDayHours().doubleValue() : 8.0;
+                                double halfDayThreshold = (policy != null && policy.getHalfDayHours() != null)
+                                        ? policy.getHalfDayHours().doubleValue() : 4.0;
+
+                                if (policy != null && Boolean.TRUE.equals(policy.getOvertimeEnabled())) {
+                                    double overtimeMin = Math.max(0.0, (hours - fullDayThreshold) * 60.0);
+                                    int minOtMinutes = policy.getMinOvertimeThresholdMinutes() != null
+                                            ? policy.getMinOvertimeThresholdMinutes() : 60;
+                                    if (overtimeMin >= minOtMinutes) {
+                                        att.setOvertimeHours(Math.round((overtimeMin / 60.0) * 100.0) / 100.0);
+                                    } else {
+                                        att.setOvertimeHours(0.0);
+                                    }
+                                } else {
+                                    att.setOvertimeHours(0.0);
+                                }
+
+                                if (hours < halfDayThreshold) {
+                                    att.setStatus(AttendanceStatus.HALF_DAY);
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -454,12 +680,16 @@ public class AttendanceService {
     // --- Bulk Biometric CSV Ingestion ---
     public Map<String, Object> uploadBiometricCsv(org.springframework.web.multipart.MultipartFile file) {
         List<BiometricPunchDto> punches = new ArrayList<>();
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+        try (BufferedReader br = new BufferedReader(
+                new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
             boolean firstLine = true;
             DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             while ((line = br.readLine()) != null) {
-                if (firstLine) { firstLine = false; continue; } // skip header
+                if (firstLine) {
+                    firstLine = false;
+                    continue;
+                } // skip header
                 String[] parts = line.split(",");
                 if (parts.length >= 3) {
                     String empNum = parts[0].trim().replace("\"", "");
@@ -472,10 +702,10 @@ public class AttendanceService {
                         ts = LocalDateTime.parse(tsStr, dtf);
                     }
                     punches.add(BiometricPunchDto.builder()
-                        .employeeNumber(empNum)
-                        .timestamp(ts)
-                        .deviceId(devId)
-                        .build());
+                            .employeeNumber(empNum)
+                            .timestamp(ts)
+                            .deviceId(devId)
+                            .build());
                 }
             }
         } catch (Exception e) {
@@ -489,25 +719,25 @@ public class AttendanceService {
     public List<BiometricDeviceDto> getBiometricDevices() {
         String tenantId = TenantContext.getTenantId();
         List<BiometricDevice> devices = (tenantId != null)
-            ? biometricDeviceRepository.findByTenantId(tenantId)
-            : biometricDeviceRepository.findAll();
+                ? biometricDeviceRepository.findByTenantId(tenantId)
+                : biometricDeviceRepository.findAll();
         return devices.stream()
-            .map(d -> BiometricDeviceDto.builder()
-                .id(d.getId())
-                .deviceCode(d.getDeviceCode())
-                .deviceName(d.getDeviceName())
-                .ipAddress(d.getIpAddress())
-                .location(d.getLocation())
-                .isActive(d.getIsActive())
-                .lastSyncAt(d.getLastSyncAt())
-                .build())
-            .collect(Collectors.toList());
+                .map(d -> BiometricDeviceDto.builder()
+                        .id(d.getId())
+                        .deviceCode(d.getDeviceCode())
+                        .deviceName(d.getDeviceName())
+                        .ipAddress(d.getIpAddress())
+                        .location(d.getLocation())
+                        .isActive(d.getIsActive())
+                        .lastSyncAt(d.getLastSyncAt())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     public BiometricDeviceDto saveBiometricDevice(BiometricDeviceDto dto) {
         BiometricDevice dev = dto.getId() != null
-            ? biometricDeviceRepository.findById(dto.getId()).orElseGet(BiometricDevice::new)
-            : new BiometricDevice();
+                ? biometricDeviceRepository.findById(dto.getId()).orElseGet(BiometricDevice::new)
+                : new BiometricDevice();
 
         dev.setDeviceCode(dto.getDeviceCode());
         dev.setDeviceName(dto.getDeviceName());
@@ -521,25 +751,31 @@ public class AttendanceService {
         return dto;
     }
 
+    public void deleteBiometricDevice(Long id) {
+        BiometricDevice dev = biometricDeviceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("BiometricDevice", "id", id));
+        biometricDeviceRepository.delete(dev);
+    }
+
     public AttendanceResponse toResponse(Attendance a) {
         return AttendanceResponse.builder()
-            .id(a.getId()).employeeId(a.getEmployee().getId())
-            .employeeName(a.getEmployee().getFullName())
-            .employeeNumber(a.getEmployee().getEmployeeNumber())
-            .date(a.getDate()).checkInTime(a.getCheckInTime())
-            .checkOutTime(a.getCheckOutTime()).workingHours(a.getWorkingHours())
-            .overtimeHours(a.getOvertimeHours()).status(a.getStatus())
-            .remarks(a.getRemarks())
-            .geofenceStatus(a.getGeofenceStatus())
-            .officeName(a.getOfficeLocation() != null ? a.getOfficeLocation().getName() : null)
-            .selfieUrl(a.getSelfieUrl())
-            .regularizationStatus(a.getRegularizationStatus())
-            .lateArrivalReason(a.getLateArrivalReason())
-            .punchSource(a.getPunchSource())
-            .deviceId(a.getDeviceId())
-            .breakMinutes(a.getBreakMinutes())
-            .isOnBreak(a.getIsOnBreak())
-            .workMode(a.getWorkMode())
-            .build();
+                .id(a.getId()).employeeId(a.getEmployee().getId())
+                .employeeName(a.getEmployee().getFullName())
+                .employeeNumber(a.getEmployee().getEmployeeNumber())
+                .date(a.getDate()).checkInTime(a.getCheckInTime())
+                .checkOutTime(a.getCheckOutTime()).workingHours(a.getWorkingHours())
+                .overtimeHours(a.getOvertimeHours()).status(a.getStatus())
+                .remarks(a.getRemarks())
+                .geofenceStatus(a.getGeofenceStatus())
+                .officeName(a.getOfficeLocation() != null ? a.getOfficeLocation().getName() : null)
+                .selfieUrl(a.getSelfieUrl())
+                .regularizationStatus(a.getRegularizationStatus())
+                .lateArrivalReason(a.getLateArrivalReason())
+                .punchSource(a.getPunchSource())
+                .deviceId(a.getDeviceId())
+                .breakMinutes(a.getBreakMinutes())
+                .isOnBreak(a.getIsOnBreak())
+                .workMode(a.getWorkMode())
+                .build();
     }
 }

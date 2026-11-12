@@ -353,6 +353,15 @@ public class PayrollService {
 
     @Transactional(readOnly = true)
     public Page<PayrollSlip> getSlipsForEmployee(Long empId, Pageable pageable, boolean isHrOrAdmin) {
+        if (!isHrOrAdmin) {
+            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getName() != null) {
+                Employee callerEmp = employeeRepository.findByEmail(auth.getName()).orElse(null);
+                if (callerEmp == null || !callerEmp.getId().equals(empId)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only view your own payslips.");
+                }
+            }
+        }
         if (isHrOrAdmin) {
             return payrollSlipRepository.findByEmployeeIdOrderByYearDescMonthDesc(empId, pageable);
         } else {
@@ -363,6 +372,17 @@ public class PayrollService {
 
     @Transactional(readOnly = true)
     public Optional<PayrollSlip> getSlip(Long empId, int month, int year) {
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getName() != null) {
+            boolean isHrOrAdmin = auth.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_HR") || a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isHrOrAdmin) {
+                Employee callerEmp = employeeRepository.findByEmail(auth.getName()).orElse(null);
+                if (callerEmp == null || !callerEmp.getId().equals(empId)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only view your own payslip.");
+                }
+            }
+        }
         return payrollSlipRepository.findByEmployeeIdAndMonthAndYear(empId, month, year);
     }
 

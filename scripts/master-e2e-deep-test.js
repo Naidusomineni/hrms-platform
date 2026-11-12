@@ -375,7 +375,7 @@ async function runMasterSuite() {
     assert(balances.length > 0, 'Multi-Type Leave Balance Meters', `${balances.length} leave types active`);
 
     // B. Apply Leave
-    const randomOffsetDays = Math.floor(Math.random() * 90) + 15;
+    const randomOffsetDays = Math.floor(Math.random() * 200) + 250;
     const leaveStart = new Date(Date.now() + randomOffsetDays * 86400000).toISOString().slice(0, 10);
     const leaveEnd = new Date(Date.now() + (randomOffsetDays + 1) * 86400000).toISOString().slice(0, 10);
     const applyRes = await axios.post(`${API_BASE}/v1/leaves/apply/${empId}`, {

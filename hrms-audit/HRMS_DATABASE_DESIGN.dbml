@@ -1,0 +1,452 @@
+// HRMS database design for dbdiagram.io
+// Source: backend Flyway migrations V2–V15 plus JPA entity relationships.
+// This is an ERD-oriented representation, not a deployable migration.
+// Legacy/core table columns not declared in the visible migrations are intentionally omitted.
+
+Table tenants {
+  id varchar(64) [pk]
+  code varchar(50) [unique, not null]
+  name varchar(150) [not null]
+  domain varchar(255)
+  status varchar(20) [not null]
+  subscription_tier varchar(50) [not null]
+  logo_url varchar(500)
+  primary_color varchar(20)
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table users {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  email varchar(255)
+  role varchar(50)
+  // Other identity columns are defined by entity/config; omitted here unless migration-backed.
+}
+
+Table employees {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  department_id bigint
+  user_id bigint
+  manager_id bigint
+  employee_number varchar(100)
+  employment_status varchar(50)
+}
+
+Table departments {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  name varchar(150)
+  code varchar(50)
+}
+
+Table office_locations {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  name varchar(150)
+}
+
+Table tenant_subscriptions {
+  id bigint [pk, increment]
+  tenant_id varchar(64) [not null]
+  plan_name varchar(50) [not null]
+  max_employees int [not null]
+  features jsonb
+  starts_at timestamp [not null]
+  expires_at timestamp
+  status varchar(20) [not null]
+  created_at timestamp [not null]
+}
+
+Table tenant_settings {
+  id bigint [pk, increment]
+  tenant_id varchar(64) [not null]
+  config_key varchar(100) [not null]
+  config_value text [not null]
+  description varchar(255)
+  created_at timestamp
+  updated_at timestamp
+  Indexes { (tenant_id, config_key) [unique] }
+}
+
+Table tenant_module_manifests {
+  id bigint [pk, increment]
+  tenant_id varchar(50) [not null]
+  module_key varchar(64) [not null]
+  is_enabled boolean [not null]
+  created_at timestamp
+  updated_at timestamp
+  Indexes { (tenant_id, module_key) [unique] }
+}
+
+Table permissions {
+  id bigint [pk, increment]
+  name varchar(100) [unique, not null]
+  category varchar(50) [not null]
+  description varchar(255)
+  created_at timestamp
+}
+
+Table roles {
+  id bigint [pk, increment]
+  tenant_id varchar(64) [not null]
+  name varchar(50) [not null]
+  description varchar(255)
+  is_system_role boolean [not null]
+  created_at timestamp
+  updated_at timestamp
+  Indexes { (tenant_id, name) [unique] }
+}
+
+Table role_permissions {
+  role_id bigint [pk]
+  permission_id bigint [pk]
+}
+
+Table user_roles {
+  user_id bigint [pk]
+  role_id bigint [pk]
+}
+
+Table attendance {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint [not null]
+  date date
+  punch_source varchar(50)
+  device_id varchar(100)
+  break_minutes int
+  is_on_break boolean
+  last_break_start timestamp
+  work_mode varchar(30)
+}
+
+Table attendance_regularizations {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint [not null]
+  status varchar(40)
+}
+
+Table attendance_policies {
+  id bigint [pk, increment]
+  tenant_id varchar(50) [not null]
+  policy_name varchar(150) [not null]
+  policy_code varchar(50) [not null]
+  is_default boolean [not null]
+  effective_from date [not null]
+  grace_period_minutes int [not null]
+  full_day_hours numeric(4,2) [not null]
+  half_day_hours numeric(4,2) [not null]
+  overtime_enabled boolean [not null]
+  is_active boolean [not null]
+  Indexes { (tenant_id, policy_code) [unique] }
+}
+
+Table policy_assignments {
+  id bigint [pk, increment]
+  tenant_id varchar(50) [not null]
+  policy_type varchar(32) [not null]
+  policy_id bigint [not null]
+  department_id bigint
+  office_location_id bigint
+  employee_id bigint
+  priority_level int [not null]
+}
+
+Table leave_requests {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint [not null]
+}
+
+Table leave_policies {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+}
+
+Table employee_leave_balances {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint [not null]
+  year int
+}
+
+Table employee_requests {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint [not null]
+  status varchar(50)
+}
+
+Table workflow_definitions {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  module_type varchar(100)
+}
+
+Table workflow_steps {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  workflow_definition_id bigint [not null]
+  step_order int
+}
+
+Table workflow_instances {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  entity_type varchar(100)
+  entity_id bigint
+  status varchar(50)
+}
+
+Table workflow_approvals {
+  id bigint [pk]
+  workflow_instance_id bigint [not null]
+}
+
+Table approval_delegations {
+  id bigint [pk, increment]
+  tenant_id varchar(50) [not null]
+  delegator_id bigint [not null]
+  delegatee_id bigint [not null]
+  start_date date [not null]
+  end_date date [not null]
+  request_types varchar(255) [not null]
+  is_active boolean [not null]
+}
+
+Table payroll_slips {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint
+  payroll_month int
+  payroll_year int
+  reimbursements numeric(12,2)
+  bonus numeric(12,2)
+  overtime_amount numeric(12,2)
+  deductions_adjustment numeric(12,2)
+  status varchar(50)
+}
+
+Table expense_claims {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint
+  expense_date date
+  status varchar(50)
+}
+
+Table employee_documents {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint [not null]
+  category varchar(100)
+  expiry_date date
+}
+
+Table policy_acknowledgements {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint
+}
+
+Table job_postings {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+}
+
+Table candidates {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  job_posting_id bigint
+}
+
+Table interview_sessions {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  candidate_id bigint
+  interviewer_id bigint
+  scheduled_start timestamp
+  guest_access_token varchar(255)
+}
+
+Table interview_panelists {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  interview_session_id bigint [not null]
+  employee_id bigint
+}
+
+Table interview_scorecards {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  candidate_id bigint
+  interview_session_id bigint
+  interviewer_id bigint
+}
+
+Table appraisal_cycles {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  status varchar(50)
+}
+
+Table employee_goals {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint
+  cycle_id bigint
+}
+
+Table performance_reviews {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+}
+
+Table assets {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  asset_tag varchar(100)
+}
+
+Table asset_allocations {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  asset_id bigint
+  employee_id bigint
+  allocation_status varchar(50)
+}
+
+Table tax_declarations {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint
+  financial_year varchar(20)
+}
+
+Table employee_separations {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint
+  status varchar(50)
+}
+
+Table separation_clearances {
+  id bigint [pk]
+  separation_id bigint [not null]
+}
+
+Table full_and_final_settlements {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint
+}
+
+Table shifts {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  is_active boolean
+}
+
+Table roster_assignments {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  shift_id bigint
+  employee_id bigint
+  effective_date date
+}
+
+Table shift_swap_requests {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  requester_employee_id bigint
+  target_employee_id bigint
+  status varchar(50)
+}
+
+Table support_tickets {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint
+  assigned_to bigint
+  status varchar(50)
+}
+
+Table ticket_comments {
+  id bigint [pk]
+  ticket_id bigint [not null]
+}
+
+Table company_announcements {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  published_at timestamp
+  pinned boolean
+}
+
+Table announcement_acknowledgments {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+}
+
+Table hr_policy_articles {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  category varchar(100)
+  is_active boolean
+}
+
+Table flight_risk_evaluations {
+  id bigint [pk]
+  tenant_id varchar(64) [not null]
+  employee_id bigint
+  risk_level varchar(50)
+}
+
+// Explicit foreign keys are added only where migrations declare a database FK.
+Ref: tenant_subscriptions.tenant_id > tenants.id
+Ref: tenant_settings.tenant_id > tenants.id
+Ref: roles.tenant_id > tenants.id
+Ref: role_permissions.role_id > roles.id
+Ref: role_permissions.permission_id > permissions.id
+Ref: user_roles.user_id > users.id
+Ref: user_roles.role_id > roles.id
+Ref: tenant_module_manifests.tenant_id > tenants.id
+Ref: attendance_policies.tenant_id > tenants.id
+Ref: policy_assignments.tenant_id > tenants.id
+Ref: policy_assignments.policy_id > attendance_policies.id
+Ref: policy_assignments.department_id > departments.id
+Ref: policy_assignments.office_location_id > office_locations.id
+Ref: policy_assignments.employee_id > employees.id
+Ref: approval_delegations.tenant_id > tenants.id
+Ref: approval_delegations.delegator_id > users.id
+Ref: approval_delegations.delegatee_id > users.id
+Ref: workflow_steps.workflow_definition_id > workflow_definitions.id
+Ref: workflow_approvals.workflow_instance_id > workflow_instances.id
+Ref: interview_panelists.interview_session_id > interview_sessions.id
+Ref: separation_clearances.separation_id > employee_separations.id
+Ref: ticket_comments.ticket_id > support_tickets.id
+
+// Entity relationships inferred from conventional ID columns/JPA associations;
+// verify against current entity mappings before treating these as constraints.
+Ref: employees.department_id > departments.id
+Ref: employees.user_id > users.id
+Ref: employees.manager_id > employees.id
+Ref: attendance.employee_id > employees.id
+Ref: leave_requests.employee_id > employees.id
+Ref: employee_leave_balances.employee_id > employees.id
+Ref: employee_requests.employee_id > employees.id
+Ref: employee_documents.employee_id > employees.id
+Ref: payroll_slips.employee_id > employees.id
+Ref: expense_claims.employee_id > employees.id
+Ref: candidates.job_posting_id > job_postings.id
+Ref: interview_sessions.candidate_id > candidates.id
+Ref: interview_sessions.interviewer_id > employees.id
+Ref: asset_allocations.asset_id > assets.id
+Ref: roster_assignments.shift_id > shifts.id
+Ref: roster_assignments.employee_id > employees.id
+Ref: employee_separations.employee_id > employees.id
+Ref: employee_goals.employee_id > employees.id
+Ref: employee_goals.cycle_id > appraisal_cycles.id

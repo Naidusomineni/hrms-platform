@@ -17,6 +17,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import com.hrms.infrastructure.multitenancy.filter.TenantModuleEnforcementFilter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -34,11 +35,18 @@ public class SecurityConfig {
 
     private final TenantContextFilter tenantContextFilter;
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final TenantModuleEnforcementFilter tenantModuleEnforcementFilter;
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtAuthEntryPoint jwtAuthEntryPoint;
 
     private static final String[] PUBLIC_PATHS = {
-            "/v1/auth/**",
+            "/v1/auth/login",
+            "/v1/auth/register",
+            "/v1/auth/refresh",
+            "/v1/auth/forgot-password",
+            "/v1/auth/reset-password",
+            "/v1/auth/verify-email",
+            "/v1/auth/resend-verification",
             "/v1/tenants/current",
             "/v1/recruitment/interviews/guest/**",
             "/swagger-ui/**",
@@ -78,7 +86,7 @@ public class SecurityConfig {
 
                         // Dashboard APIs
                         .requestMatchers("/v1/dashboard/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR", "ROLE_IT_ADMIN")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR", "ROLE_MANAGER", "ROLE_IT_ADMIN")
 
                         // Employee self-service APIs
                         .requestMatchers(HttpMethod.GET, "/v1/employees/*").authenticated()
@@ -86,11 +94,11 @@ public class SecurityConfig {
 
                         // Employee management APIs
                         .requestMatchers("/v1/employees/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR", "ROLE_IT_ADMIN")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR", "ROLE_MANAGER", "ROLE_IT_ADMIN")
 
                         // Department APIs
                         .requestMatchers("/v1/departments/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR", "ROLE_IT_ADMIN")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR", "ROLE_MANAGER", "ROLE_IT_ADMIN")
 
                         // Notification APIs
                         .requestMatchers("/v1/notifications/**")
@@ -110,6 +118,8 @@ public class SecurityConfig {
                         UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter,
                         UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(tenantModuleEnforcementFilter,
+                        JwtAuthenticationFilter.class)
 
                 .build();
     }

@@ -9,3 +9,4 @@ export * from './attendance';
 export * from './document';
 export * from './dashboard';
 export * from './leave';
+export * from './policy';

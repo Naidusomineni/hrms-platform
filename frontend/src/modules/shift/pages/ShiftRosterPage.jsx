@@ -371,15 +371,15 @@ const ShiftRosterPage = () => {
 
               {/* Legend */}
               <div className="flex flex-wrap items-center gap-3 text-xs">
-                <span className="inline-flex items-center gap-1.5 text-blue-700 font-medium">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> General Day (09:00 - 18:00)
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-amber-700 font-medium">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Morning (06:00 - 15:00)
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-purple-700 font-medium">
-                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500" /> Night (21:00 - 06:00)
-                </span>
+                {shifts.map((s, idx) => {
+                  const colors = ['text-blue-700 bg-blue-500', 'text-amber-700 bg-amber-500', 'text-purple-700 bg-purple-500', 'text-emerald-700 bg-emerald-500']
+                  const [textColor, dotColor] = (colors[idx % colors.length] || 'text-slate-700 bg-slate-500').split(' ')
+                  return (
+                    <span key={s.id || idx} className={`inline-flex items-center gap-1.5 ${textColor} font-medium`}>
+                      <span className={`w-2.5 h-2.5 rounded-full ${dotColor}`} /> {s.name} ({s.startTime ? s.startTime.slice(0, 5) : '10:00'} - {s.endTime ? s.endTime.slice(0, 5) : '19:00'})
+                    </span>
+                  )
+                })}
               </div>
             </div>
           </CardHeader>

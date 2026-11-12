@@ -4,6 +4,7 @@ import com.hrms.dto.response.ApiResponse;
 import com.hrms.entity.User;
 import com.hrms.exception.ResourceNotFoundException;
 import com.hrms.modules.workflow.dto.ApprovalActionRequest;
+import com.hrms.modules.workflow.dto.ApprovalDelegationDto;
 import com.hrms.modules.workflow.dto.WorkflowDefinitionDto;
 import com.hrms.modules.workflow.dto.WorkflowTaskResponse;
 import com.hrms.modules.workflow.service.WorkflowEngineService;
@@ -59,5 +60,33 @@ public class WorkflowController {
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR')")
     public ResponseEntity<ApiResponse<List<WorkflowDefinitionDto>>> getDefinitions() {
         return ResponseEntity.ok(ApiResponse.success(workflowService.getWorkflowDefinitions()));
+    }
+
+    @GetMapping("/delegations")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_MANAGER')")
+    public ResponseEntity<ApiResponse<List<ApprovalDelegationDto>>> getDelegations() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+        return ResponseEntity.ok(ApiResponse.success(workflowService.getMyDelegations(user)));
+    }
+
+    @PostMapping("/delegations")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_MANAGER')")
+    public ResponseEntity<ApiResponse<ApprovalDelegationDto>> createDelegation(@Valid @RequestBody ApprovalDelegationDto dto) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+        return ResponseEntity.ok(ApiResponse.success("Delegation created successfully", workflowService.createDelegation(dto, user)));
+    }
+
+    @DeleteMapping("/delegations/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_MANAGER')")
+    public ResponseEntity<ApiResponse<Void>> cancelDelegation(@PathVariable("id") Long id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+        workflowService.cancelDelegation(id, user);
+        return ResponseEntity.ok(ApiResponse.success("Delegation cancelled successfully", null));
     }
 }

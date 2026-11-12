@@ -41,6 +41,9 @@ export const attendanceAPI = {
   saveBiometricDevice: (data: any) =>
     apiClient.post<ApiResponse<any>>('/v1/attendance/biometric-devices', data),
 
+  deleteBiometricDevice: (id: number | string) =>
+    apiClient.delete<ApiResponse<void>>(`/v1/attendance/biometric-devices/${id}`),
+
   regularize: (data: any) =>
     apiClient.post<ApiResponse<any>>('/v1/attendance/regularize', data),
 
@@ -52,6 +55,12 @@ export const attendanceAPI = {
 
   saveOfficeLocation: (data: any) =>
     apiClient.post<ApiResponse<any>>('/v1/attendance/office-locations', data),
+
+  updateOfficeLocation: (id: number | string, data: any) =>
+    apiClient.put<ApiResponse<any>>(`/v1/attendance/office-locations/${id}`, data),
+
+  deleteOfficeLocation: (id: number | string) =>
+    apiClient.delete<ApiResponse<void>>(`/v1/attendance/office-locations/${id}`),
 
   mark: (data: any) =>
     apiClient.post<ApiResponse<AttendanceRecord>>('/v1/attendance', data),

@@ -11,6 +11,7 @@ import com.hrms.modules.request.entity.EmployeeRequest;
 import com.hrms.modules.request.repository.EmployeeRequestRepository;
 import com.hrms.modules.workflow.service.WorkflowEngineService;
 import com.hrms.repository.EmployeeRepository;
+import com.hrms.repository.LeaveRequestRepository;
 import com.hrms.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,14 +29,29 @@ public class EmployeeRequestService {
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
     private final WorkflowEngineService workflowEngineService;
+    private final LeaveRequestRepository leaveRequestRepository;
 
     public EmployeeRequestResponseDto createRequest(EmployeeRequestCreateDto dto) {
         Employee emp = employeeRepository.findById(dto.getEmployeeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", dto.getEmployeeId()));
 
+        String reqType = dto.getRequestType() != null ? dto.getRequestType().toUpperCase().trim() : "GENERAL";
+
+        // Mutual Exclusivity: Date-level conflict validation for WFH, ON_DUTY, etc.
+        if (dto.getStartDate() != null && ("WORK_FROM_HOME".equals(reqType) || "ON_DUTY".equals(reqType))) {
+            var endDate = dto.getEndDate() != null ? dto.getEndDate() : dto.getStartDate();
+            var overlappingLeaves = leaveRequestRepository.findOverlapping(emp.getId(), dto.getStartDate(), endDate);
+            boolean hasApprovedLeave = overlappingLeaves.stream()
+                    .anyMatch(l -> "APPROVED".equalsIgnoreCase(l.getStatus().name()));
+            if (hasApprovedLeave) {
+                throw new BadRequestException("Conflict detected: Cannot submit " + reqType + 
+                        " request. An approved leave is already scheduled between " + dto.getStartDate() + " and " + endDate + ".");
+            }
+        }
+
         EmployeeRequest req = EmployeeRequest.builder()
                 .employee(emp)
-                .requestType(dto.getRequestType().toUpperCase())
+                .requestType(reqType)
                 .title(dto.getTitle())
                 .description(dto.getDescription())
                 .startDate(dto.getStartDate())

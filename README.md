@@ -1,4 +1,4 @@
-# 🏢 HRMS Platform v2.4 — Enterprise Edition
+# 🏢 HRMS Platform v2.5 — Enterprise Edition
 
 > A production-grade Human Resource Management System built with Spring Boot 3.2.3 (Java 21 LTS), React 18 SPA, PostgreSQL 18 & 16, Redis, JWT with Silent Refresh Token Rotation, WebSocket notifications, Workforce Intelligence & Generative AI, and full DevOps setup.
 
@@ -14,7 +14,7 @@
 
 ## 📋 Table of Contents
 
-1. [What's New in v2.4](#whats-new)
+1. [What's New in v2.5](#whats-new)
 2. [Tech Stack](#tech-stack)
 3. [Features](#features)
 4. [Architecture](#architecture)
@@ -31,17 +31,15 @@
 
 ---
 
-## 🆕 What's New in v2.4 <a name="whats-new"></a>
+## 🆕 What's New in v2.5 <a name="whats-new"></a>
 
 | Category | New Production Enhancements & Capabilities |
 | :--- | :--- |
-| **Strict TypeScript Layer** | Complete TypeScript migration (`src/types/index.ts`, `attendance.ts`, `payroll.ts`, `auth.ts`, `employee.ts`, `expense.ts`, `asset.ts`, `helpdesk.ts`), typed Redux Toolkit RootStore & slices, typed API clients, and zero-error `tsc --noEmit` gate |
-| **Corporate SaaS UI Redesign** | Refactored from saturated neon aesthetics into a modern B2B SaaS command center: slate-50/white cards, subtle 1px borders, high-contrast typography, and refined status pills |
-| **100% Mojibake Elimination** | Standardized UTF-8 encoding across all 21 modular pages and components; replaced corrupted character sequences (`ðŸŽ%`, etc.) with vector Lucide icons (`<UserPlus />`, `<CheckCircle />`) |
-| **ATS 1-Click Onboard Engine** | Converts vetted candidates into active Employees with deterministic sequential IDs (`EMP-YYYY-XXXX`), provisions bcrypt temporary credentials (`mustChangePassword: true`), seeds statutory leave balances (24 Annual, 12 Sick, 8 Casual), and dispatches corporate Welcome Emails |
-| **Biometric Hub & Calculation Engine** | Ingests ZKTeco / eSSL hardware terminals (REST push webhook & CSV bulk upload), enforces 09:30 AM late arrival rule, `<4.0h` half-day trigger, break duration deductions, and automatic overtime calculation |
-| **Statutory Payroll Engine** | Prorated Gross calculation, MNC salary structure (50% Basic, 20% HRA, 30% Special Allowance), PF (12%), PT slabs (₹200/mo, ₹300 in Feb), TDS withholdings, auto-attaching approved expense claims to Net Pay, and RBI/NACH-compliant bank batch CSV exports |
-| **Native WebRTC Live Interviews** | Peer-to-peer technical video rooms with collaborative in-browser code editor, live chat, candidate evaluation scorecards, and automated interview stage advancement |
+| **Configurable Policy Engine** | Hierarchical 4-tier attendance resolution: `Employee (Tier 1)` $\rightarrow$ `Department (Tier 2)` $\rightarrow$ `Office Location (Tier 3)` $\rightarrow$ `Tenant Default (Tier 4)`. Configurable punch channels (`BIOMETRIC`, `WEB`, `GEOFENCE`), grace periods (15m, 30m), late mark forgiveness limits, penalties (`FLAG_ONLY`, `DEDUCT_HALF_DAY`, `DEDUCT_LEAVE`, `LOSS_OF_PAY`), and filing windows |
+| **Tenant Module Manifest & Feature Flags** | Dedicated B2B subscription manifest allowing tenants to dynamically enable or disable any of the 20 platform modules (`DASHBOARD`, `ATTENDANCE`, `PAYROLL`, `RECRUITMENT`, `INTELLIGENCE`, etc.). Sidebar automatically filters navigation menus based on live tenant feature flags |
+| **Universal Request & Approvals Hub** | Centralized self-service portal (`/requests`) supporting Missed Punch Regularization, Work From Home (WFH), On-Duty / Client Visits, Overtime Pre-Authorization, and Expense Claims with atomic date-level conflict prevention blocking overlapping requests |
+| **Approvals Command Center & Delegation** | Multi-tier sequential approval engine (`REPORTING_MANAGER` $\rightarrow$ `DEPARTMENT_HEAD` $\rightarrow$ `ROLE_HR`) with SLA deadlines (24h/48h), 1-click batch actions, and Out-of-Office manager delegation routing approvals without SLA bottlenecks |
+| **Dedicated Policy Hub UI (`/policies`)** | High-contrast B2B SaaS command center: 4 tabs covering Attendance Policy Editor, Policy Assignment Matrix, Tenant Module Subscriptions, and Approval Delegations |
 | **Master Deep Verification Suite** | 67/67 automated end-to-end integration and Playwright browser tests passing (`scripts/master-e2e-deep-test.js` & `scripts/e2e-suite.js`), verifying all personas and 21 modules |
 
 ---
@@ -125,13 +123,15 @@
 - [x] Encrypted document vault for contracts, PAN, and identity proofs
 - [x] Emergency contact records, designation hierarchies, and bank disbursement details
 
-### 📅 Attendance & Biometric Hub
-- [x] Real-time shift digital stopwatch with 8-hour visual progress indicator
-- [x] Break tracking controls: `Take Break` / `Resume Work` with break minute logging
-- [x] Work mode context switch: `Office` vs `Remote / WFH`
-- [x] Physical biometric terminal integration: REST push webhook (`/v1/attendance/biometric-sync`) and device fleet registry
-- [x] Bulk biometric CSV punch log upload and reconciliation engine
-- [x] Shift Late Rule: Punches after 09:30 AM automatically marked as `LATE_ARRIVAL`
+### 📅 Attendance, Shift Roster & Punch Management
+- [x] **Master Daily Attendance Register**: Single-pane enterprise view displaying real-time company headcount KPIs (`Total Scheduled`, `Present On-Time`, `Late Arrivals`, `On Break`, `Remote / WFH`, `Absent / No Punch`), search by employee code/name, and department filters.
+- [x] **Admin Punch Adjustment ("Adjust Punch")**: Direct row-level action allowing HR Admins and Managers to adjust employee **Check-In Time (Login)**, **Check-Out Time (Logout)**, and status with automatic net working hours recalculation, overtime detection, and mandatory compliance audit logging (`PUT /v1/attendance/{id}`).
+- [x] **Admin Punch Entry ("Mark Attendance")**: Create new attendance entries with native 24h/12h time pickers for Login and Logout, auto-calculated duration preview, and status assignment.
+- [x] **Employee Missed Punch Correction**: Self-service time correction request allowing employees to submit actual Login/Logout times with reason categories (`Hardware Glitch`, `Forgot Badge`, `Client On-Site Visit`) for manager approval within configured policy filing windows.
+- [x] **Real-time Shift Stopwatch**: Live workday session tracker with elapsed time counter (`HH:MM:SS`), break pause toggles, and 8-hour progress bar with Half-Day (4h) and Standard (8h) milestones.
+- [x] **Corporate Worksite Geofencing**: Automatic GPS perimeter validation against registered company campuses without clumsy manual location selectors.
+- [x] **Physical Biometric Turnstiles**: Hardware turnstile REST push webhook (`/v1/attendance/biometric-sync`), fleet status registry, and bulk CSV punch ingestion.
+- [x] **Policy-Driven Punctuality**: Expected shift timings (`09:00 AM – 06:00 PM`) with 15-minute grace window (late arrival cutoff at 09:15 AM) and monthly late mark allowances.
 - [x] Net Working Hours Formula: `workingHours = Math.max(0.0, (totalMinutes - breakMinutes) / 60.0)`
 - [x] Half-Day Trigger: `workingHours < 4.0` shifts status automatically to `HALF_DAY`
 - [x] Overtime Calculation: `overtimeHours = Math.max(0.0, workingHours - 8.0)`

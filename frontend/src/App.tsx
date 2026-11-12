@@ -29,6 +29,7 @@ import PayrollPage from './modules/payroll/pages/PayrollPage';
 import NotificationPage from './modules/notification/pages/NotificationPage';
 import ProfilePage from './modules/profile/pages/ProfilePage';
 import TenantAdminPage from './modules/tenant/pages/TenantAdminPage';
+import PolicyConfigPage from './modules/tenant/pages/PolicyConfigPage';
 
 // Phase 3 & 4 Modules
 import PerformancePage from './modules/performance/pages/PerformancePage';
@@ -104,43 +105,51 @@ const App: React.FC = () => {
       >
         <Route index element={<Navigate to={homeRoute} replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="approvals" element={<ApprovalsPage />} />
-        <Route path="requests" element={<RequestsPage />} />
-        <Route path="attendance" element={<AttendancePage />} />
-        <Route path="shifts" element={<ShiftRosterPage />} />
-        <Route path="intelligence" element={<WorkforceIntelligencePage />} />
-        <Route path="leaves" element={<LeavePage />} />
-        <Route path="documents" element={<DocumentVaultPage />} />
-        <Route path="employees" element={<EmployeeListPage />} />
+        <Route path="approvals" element={<ProtectedRoute moduleKey="APPROVALS"><ApprovalsPage /></ProtectedRoute>} />
+        <Route path="requests" element={<ProtectedRoute moduleKey="REQUESTS"><RequestsPage /></ProtectedRoute>} />
+        <Route path="attendance" element={<ProtectedRoute moduleKey="ATTENDANCE"><AttendancePage /></ProtectedRoute>} />
+        <Route path="shifts" element={<ProtectedRoute moduleKey="SHIFTS"><ShiftRosterPage /></ProtectedRoute>} />
+        <Route path="intelligence" element={<ProtectedRoute moduleKey="INTELLIGENCE"><WorkforceIntelligencePage /></ProtectedRoute>} />
+        <Route path="leaves" element={<ProtectedRoute moduleKey="LEAVES"><LeavePage /></ProtectedRoute>} />
+        <Route path="documents" element={<ProtectedRoute moduleKey="DOCUMENTS"><DocumentVaultPage /></ProtectedRoute>} />
+        <Route path="employees" element={<ProtectedRoute moduleKey="EMPLOYEES"><EmployeeListPage /></ProtectedRoute>} />
         <Route
           path="employees/new"
           element={
-            <ProtectedRoute roles={['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN']}>
+            <ProtectedRoute roles={['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN']} moduleKey="EMPLOYEES">
               <EmployeeFormPage />
             </ProtectedRoute>
           }
         />
-        <Route path="employees/:id" element={<EmployeeDetailPage />} />
+        <Route path="employees/:id" element={<ProtectedRoute moduleKey="EMPLOYEES"><EmployeeDetailPage /></ProtectedRoute>} />
         <Route
           path="employees/:id/edit"
           element={
-            <ProtectedRoute roles={['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN']}>
+            <ProtectedRoute roles={['ROLE_ADMIN', 'ROLE_HR', 'ROLE_SUPER_ADMIN']} moduleKey="EMPLOYEES">
               <EmployeeFormPage />
             </ProtectedRoute>
           }
         />
-        <Route path="departments" element={<DepartmentPage />} />
-        <Route path="payroll" element={<PayrollPage />} />
-        <Route path="expenses" element={<ExpenseClaimsPage />} />
+        <Route path="departments" element={<ProtectedRoute moduleKey="DEPARTMENTS"><DepartmentPage /></ProtectedRoute>} />
+        <Route path="payroll" element={<ProtectedRoute moduleKey="PAYROLL"><PayrollPage /></ProtectedRoute>} />
+        <Route path="expenses" element={<ProtectedRoute moduleKey="EXPENSES"><ExpenseClaimsPage /></ProtectedRoute>} />
         <Route path="notifications" element={<NotificationPage />} />
         <Route path="profile" element={<ProfilePage />} />
-        <Route path="performance" element={<PerformancePage />} />
-        <Route path="recruitment" element={<RecruitmentPage />} />
-        <Route path="assets" element={<AssetPage />} />
-        <Route path="helpdesk" element={<HelpdeskPage />} />
-        <Route path="announcements" element={<AnnouncementsPage />} />
-        <Route path="reports" element={<ReportsPage />} />
-        <Route path="offboarding" element={<OffboardingPage />} />
+        <Route path="performance" element={<ProtectedRoute moduleKey="PERFORMANCE"><PerformancePage /></ProtectedRoute>} />
+        <Route path="recruitment" element={<ProtectedRoute moduleKey="RECRUITMENT"><RecruitmentPage /></ProtectedRoute>} />
+        <Route path="assets" element={<ProtectedRoute moduleKey="ASSETS"><AssetPage /></ProtectedRoute>} />
+        <Route path="helpdesk" element={<ProtectedRoute moduleKey="HELPDESK"><HelpdeskPage /></ProtectedRoute>} />
+        <Route path="announcements" element={<ProtectedRoute moduleKey="COMMUNICATION"><AnnouncementsPage /></ProtectedRoute>} />
+        <Route path="reports" element={<ProtectedRoute moduleKey="REPORTS"><ReportsPage /></ProtectedRoute>} />
+        <Route path="offboarding" element={<ProtectedRoute moduleKey="OFFBOARDING"><OffboardingPage /></ProtectedRoute>} />
+        <Route
+          path="policies"
+          element={
+            <ProtectedRoute roles={['ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_HR']}>
+              <PolicyConfigPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="admin"
           element={

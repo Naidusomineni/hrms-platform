@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enterprise HRMS Platform — Visual Technical Blueprint & Operational Documentary</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748b;
+      --slate-300: #cbd5e1;
+      --slate-200: #e2e8f0;
+      --slate-100: #f1f5f9;
+      --slate-50: #f8fafc;
+      --blue-600: #2563eb;
+      --blue-700: #1d4ed8;
+      --emerald-600: #059669;
+      --emerald-50: #ecfdf5;
+      --card-border: #e2e8f0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--slate-50);
+      color: var(--slate-900);
+      line-height: 1.6;
+    }
+    .page-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+    /* Sticky Sidebar Navigation */
+    .sidebar {
+      width: 320px;
+      background: #ffffff;
+      border-right: 1px solid var(--slate-200);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 32px 24px;
+      flex-shrink: 0;
+    }
+    .brand-title {
+      font-size: 16px;
+      font-weight: 900;
+      color: var(--slate-900);
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+    .brand-sub {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--blue-600);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 24px;
+    }
+    .nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .nav-item a {
+      display: block;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--slate-600);
+      text-decoration: none;
+      border-radius: 8px;
+      transition: all 0.15s;
+    }
+    .nav-item a:hover {
+      background: var(--slate-100);
+      color: var(--slate-900);
+    }
+    /* Main Content Area */
+    .content-area {
+      flex: 1;
+      padding: 48px 64px;
+      max-width: 1150px;
+    }
+    .doc-header {
+      margin-bottom: 40px;
+      border-bottom: 1px solid var(--slate-200);
+      padding-bottom: 24px;
+    }
+    .doc-tag {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--blue-600);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+    .doc-title {
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      color: var(--slate-900);
+      margin-bottom: 12px;
+    }
+    .doc-desc {
+      font-size: 15px;
+      color: var(--slate-600);
+      max-width: 800px;
+    }
+    /* Section Containers */
+    .doc-section {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 36px 40px;
+      margin-bottom: 48px;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02);
+    }
+    .section-header {
+      margin-bottom: 24px;
+    }
+    .section-number {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--emerald-600);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    .section-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--slate-900);
+      letter-spacing: -0.02em;
+    }
+    /* Diagram Viewer Card */
+    .diagram-viewer {
+      background: var(--slate-50);
+      border: 1px solid var(--slate-200);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .diagram-viewer img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+    }
+    .diagram-caption {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--slate-500);
+      margin-top: 12px;
+    }
+    /* Step Cards */
+    .steps-container {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin: 20px 0;
+    }
+    .step-card {
+      background: var(--slate-50);
+      border: 1px solid var(--slate-200);
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .step-badge {
+      width: 28px;
+      height: 28px;
+      background: var(--blue-600);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 800;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .step-content h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--slate-900);
+      margin-bottom: 4px;
+    }
+    .step-content p {
+      font-size: 13px;
+      color: var(--slate-600);
+      line-height: 1.5;
+    }
+    /* Plain English Alert */
+    .plain-english-box {
+      background: #eff6ff;
+      border-left: 4px solid var(--blue-600);
+      padding: 16px 20px;
+      border-radius: 0 10px 10px 0;
+      margin-bottom: 24px;
+    }
+    .plain-english-box strong {
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--blue-700);
+      margin-bottom: 4px;
+    }
+    .plain-english-box p {
+      font-size: 13px;
+      color: var(--slate-700);
+    }
+    /* Code / Formula Box */
+    .formula-box {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      background: var(--slate-900);
+      color: #38bdf8;
+      padding: 14px 18px;
+      border-radius: 8px;
+      margin: 14px 0;
+      line-height: 1.6;
+    }
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 20px 0;
+    }
+    th, td {
+      padding: 10px 14px;
+      border: 1px solid var(--slate-200);
+      text-align: left;
+    }
+    th {
+      background: var(--slate-100);
+      font-weight: 700;
+      color: var(--slate-800);
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-layout">
+
+  <!-- Left Sidebar Navigation -->
+  <aside class="sidebar">
+    <div class="brand-title">HRMS Platform</div>
+    <div class="brand-sub">Technical Flow Documentary</div>
+    <ul class="nav-list">
+      <li class="nav-item"><a href="#arch">1. System Architecture</a></li>
+      <li class="nav-item"><a href="#rbac">2. Role-Based Actions (RBAC)</a></li>
+      <li class="nav-item"><a href="#sysadmin">3. System Admin & Security</a></li>
+      <li class="nav-item"><a href="#lifecycle">4. Employee Lifecycle</a></li>
+      <li class="nav-item"><a href="#idgen">5. Profile & ID Generation</a></li>
+      <li class="nav-item"><a href="#attendance">6. Biometrics & Attendance</a></li>
+      <li class="nav-item"><a href="#payroll">7. Payroll Engine & Bank CSV</a></li>
+      <li class="nav-item"><a href="#offer">8. Offer Letter Automation</a></li>
+      <li class="nav-item"><a href="#edgecases">9. Production Edge Cases</a></li>
+    </ul>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="content-area">
+
+    <div class="doc-header">
+      <div class="doc-tag">Production Reference Specification</div>
+      <h1 class="doc-title">HRMS Platform — Complete Operational Process Blueprint</h1>
+      <p class="doc-desc">
+        A visual, step-by-step technical documentary detailing high-scale multi-tenancy, deterministic employee ID provisioning, biometric turnstile ingestion, statutory payroll calculations, and failure-mode edge cases.
+      </p>
+    </div>
+
+    <!-- SECTION 1: ARCHITECTURE -->
+    <section class="doc-section" id="arch">
+      <div class="section-header">
+        <div class="section-number">Process Flow 01</div>
+        <h2 class="section-title">High-Level System Architecture & Flow</h2>
+      </div>
+
+      <div class="plain-english-box">
+        <strong>In Plain English:</strong>
+        <p>The system uses an Enterprise Multi-Tenant Modular Monolith. Requests from browsers hit an Nginx gateway and a rate limiter before entering the Spring Boot 3 core. Every company's data is strictly isolated using <code>tenant_id</code> discriminator columns across 55 database tables.</p>
+      </div>
+
+      <div class="diagram-viewer">
+        <img src="diagrams/01_system_architecture.png" alt="System Architecture Flowchart">
+        <div class="diagram-caption">Figure 1.1 — End-to-End System Ingress, Security Filters, Monolith Core, and PostgreSQL 18 Multi-Tenant Layer</div>
+      </div>
+
+      <div class="steps-container">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h4>Client Interaction (React 18 SPA)</h4>
+            <p>User performs an action in the UI. Axios attaches the authenticated JWT bearer token and <code>X-Tenant-ID: eoxys</code> header.</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h4>Security Gateway & Filter Chain</h4>
+            <p>Bucket4j validates IP rate limits (120 req/min). TenantContextFilter injects tenant ID into Java ThreadLocal. JwtAuthenticationFilter validates claims and role authorities.</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div class="step-content">
+            <h4>Transactional Business Core & Database</h4>
+            <p>Spring @Transactional domain services execute business rules. Queries are scoped with tenant_id, preventing cross-organization leakage.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: RBAC -->
+    <section class="doc-section" id="rbac">
+      <div class="section-header">
+        <div class="section-number">Process Flow 02</div>
+        <h2 class="section-title">Role-Based Actions: HR Manager vs. Employee vs. Admin</h2>
+      </div>
+
+      <div class="plain-english-box">
+        <strong>In Plain English:</strong>
+        <p>Employees are strictly sandboxed in their Employee Self-Service (ESS) portal (seeing only their own profile, attendance, and payslips). HR Managers have company-wide authority over hiring, directory CRUD, and payroll. System Admins control technical multi-tenant settings and security.</p>
+      </div>
+
+      <div class="diagram-viewer">
+        <img src="diagrams/02_rbac_matrix.png" alt="Role-Based Actions Diagram">
+        <div class="diagram-caption">Figure 2.1 — Three-Tier Operational Authorization Matrix</div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: SYSTEM ADMIN -->
+    <section class="doc-section" id="sysadmin">
+      <div class="section-header">
+        <div class="section-number">Process Flow 03</div>
+        <h2 class="section-title">System Admin Setup, Security & Tenant Isolation</h2>
+      </div>
+
+      <div class="diagram-viewer">
+        <img src="diagrams/03_sysadmin_security.png" alt="System Admin Security Sequence">
+        <div class="diagram-caption">Figure 3.1 — Administrative Execution Sequence & Audit Forensics</div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: EMPLOYEE LIFECYCLE -->
+    <section class="doc-section" id="lifecycle">
+      <div class="section-header">
+        <div class="section-number">Process Flow 04</div>
+        <h2 class="section-title">Complete Employee Lifecycle (Day-1 to Exit Relieving)</h2>
+      </div>
+
+      <div class="plain-english-box">
+        <strong>In Plain English:</strong>
+        <p>Covers candidate conversion, initial login gate (forced password change), daily self-service attendance and expense claims, formal resignation, 4-department clearance, and final relieving letter issuance.</p>
+      </div>
+
+      <div class="diagram-viewer">
+        <img src="diagrams/04_employee_lifecycle.png" alt="Employee Lifecycle State Diagram">
+        <div class="diagram-caption">Figure 4.1 — Complete Employee Employment State Machine</div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: PROFILE & ID GENERATION -->
+    <section class="doc-section" id="idgen">
+      <div class="section-header">
+        <div class="section-number">Process Flow 05</div>
+        <h2 class="section-title">Profile Generation & Deterministic Employee ID Logic</h2>
+      </div>
+
+      <div class="plain-english-box">
+        <strong>In Plain English:</strong>
+        <p>When an HR Manager clicks <strong>1-Click Onboard</strong>, the system calculates the permanent ID (EMP-YYYY-XXXX), generates temporary login credentials, initializes 24 Annual / 12 Sick / 8 Casual leave balances, and sends a corporate Welcome Email.</p>
+      </div>
+
+      <div class="diagram-viewer">
+        <img src="diagrams/05_profile_id_generation.png" alt="Profile Generation Sequence Diagram">
+        <div class="diagram-caption">Figure 5.1 — 1-Click Onboarding & Credential Generation Sequence</div>
+      </div>
+
+      <div class="formula-box">
+        String.format("EMP-%d-%04d", currentYear, employeeCount + 1)
+      </div>
+    </section>
+
+    <!-- SECTION 6: BIOMETRICS & ATTENDANCE -->
+    <section class="doc-section" id="attendance">
+      <div class="section-header">
+        <div class="section-number">Process Flow 06</div>
+        <h2 class="section-title">Biometric Integration & Attendance Calculation Rules</h2>
+      </div>
+
+      <div class="plain-english-box">
+        <strong>In Plain English:</strong>
+        <p>Physical biometric turnstiles push logs via REST or CSV. First punch = check-in. If checked in after 09:30 AM, status is flagged as Late. Check-out deducts break minutes. If total worked time is under 4.0 hours, status shifts to Half Day.</p>
+      </div>
+
+      <div class="diagram-viewer">
+        <img src="diagrams/06_biometric_attendance.png" alt="Biometric Attendance Logic Diagram">
+        <div class="diagram-caption">Figure 6.1 — Attendance Ingestion, Punctuality & Overtime Decision Tree</div>
+      </div>
+
+      <div class="formula-box">
+        workingHours = Math.max(0.0, (totalMinutes - breakMinutes) / 60.0);<br>
+        if (workingHours < 4.0) status = AttendanceStatus.HALF_DAY;<br>
+        overtimeHours = Math.max(0.0, workingHours - 8.0);
+      </div>
+    </section>
+
+    <!-- SECTION 7: PAYROLL ENGINE -->
+    <section class="doc-section" id="payroll">
+      <div class="section-header">
+        <div class="section-number">Process Flow 07</div>
+        <h2 class="section-title">Statutory Payroll Engine & Bank NACH/NEFT Disbursements</h2>
+      </div>
+
+      <div class="plain-english-box">
+        <strong>In Plain English:</strong>
+        <p>Calculates prorated gross pay based on working vs present days. Splits salary into 50% Basic, 20% HRA, and 30% Special Allowance. Deducts 12% PF, PT, and TDS. Integrates approved expense claims into net pay and exports an RBI-compliant bank transfer CSV.</p>
+      </div>
+
+      <div class="diagram-viewer">
+        <img src="diagrams/07_payroll_engine.png" alt="Statutory Payroll Flowchart">
+        <div class="diagram-caption">Figure 7.1 — Payroll Batch Reconciliation, Component Splitting & Bank Payout Flow</div>
+      </div>
+    </section>
+
+    <!-- SECTION 8: OFFER LETTERS -->
+    <section class="doc-section" id="offer">
+      <div class="section-header">
+        <div class="section-number">Process Flow 08</div>
+        <h2 class="section-title">Automated Offer Letter Generation & Dispatch</h2>
+      </div>
+
+      <div class="diagram-viewer">
+        <img src="diagrams/08_offer_letter.png" alt="Offer Letter Sequence Diagram">
+        <div class="diagram-caption">Figure 8.1 — Automated Offer Letter Pipeline & Cryptographic Verification</div>
+      </div>
+    </section>
+
+    <!-- SECTION 9: EDGE CASES -->
+    <section class="doc-section" id="edgecases">
+      <div class="section-header">
+        <div class="section-number">Process Flow 09</div>
+        <h2 class="section-title">Critical Production Edge Cases & Defenses</h2>
+      </div>
+
+      <div class="steps-container">
+        <div class="step-card">
+          <div class="step-badge">A</div>
+          <div class="step-content">
+            <h4>Cross-Midnight Night Shifts (22:00 &rarr; 06:00)</h4>
+            <p>Punches occurring before shift grace periods link to the previous calendar day's check-in, avoiding broken duration calculations across midnight.</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-badge">B</div>
+          <div class="step-content">
+            <h4>Loss of Pay (LOP) Prorations for Absences</h4>
+            <p>Unapproved absences dynamically scale earned gross (earnedGross = perDayRate * effectivePresentDays), scaling down all statutory deductions and preventing overpayment.</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-badge">C</div>
+          <div class="step-content">
+            <h4>Single Punch Anomaly & Regularization</h4>
+            <p>Nightly cron marks unclosed check-ins as INCOMPLETE_PUNCH. Employee submits an attendance regularization dispute ticket in ESS for manager sign-off.</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-badge">D</div>
+          <div class="step-content">
+            <h4>Async Worker Thread Context Loss</h4>
+            <p>TenantAwareTaskDecorator copies tenant_id from HTTP request threads into Spring @Async background worker pools, preventing cross-tenant data leaks.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+</div>
+
+</body>
+</html>
+

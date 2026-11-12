@@ -101,6 +101,13 @@ public class AttendanceController {
                 .body(ApiResponse.success("Biometric device saved", attendanceService.saveBiometricDevice(dto)));
     }
 
+    @DeleteMapping("/biometric-devices/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR')")
+    public ResponseEntity<ApiResponse<Void>> deleteBiometricDevice(@PathVariable("id") Long id) {
+        attendanceService.deleteBiometricDevice(id);
+        return ResponseEntity.ok(ApiResponse.success("Biometric device removed", null));
+    }
+
     @PostMapping("/regularize")
     public ResponseEntity<ApiResponse<RegularizationRequestDto>> regularize(@Valid @RequestBody RegularizationRequestDto req) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -128,6 +135,20 @@ public class AttendanceController {
     public ResponseEntity<ApiResponse<OfficeLocationDto>> saveOfficeLocation(@Valid @RequestBody OfficeLocationDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Office location saved", attendanceService.saveOfficeLocation(dto)));
+    }
+
+    @PutMapping("/office-locations/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR')")
+    public ResponseEntity<ApiResponse<OfficeLocationDto>> updateOfficeLocation(
+            @PathVariable("id") Long id, @Valid @RequestBody OfficeLocationDto dto) {
+        return ResponseEntity.ok(ApiResponse.success("Office location updated", attendanceService.updateOfficeLocation(id, dto)));
+    }
+
+    @DeleteMapping("/office-locations/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR')")
+    public ResponseEntity<ApiResponse<Void>> deleteOfficeLocation(@PathVariable("id") Long id) {
+        attendanceService.deleteOfficeLocation(id);
+        return ResponseEntity.ok(ApiResponse.success("Office location deleted", null));
     }
 
     @PostMapping

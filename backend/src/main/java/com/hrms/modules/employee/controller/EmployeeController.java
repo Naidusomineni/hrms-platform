@@ -129,6 +129,16 @@ public class EmployeeController {
                 .body(csvBytes);
     }
 
+    @PostMapping(value = "/bulk-import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN')")
+    @Operation(summary = "Preview and validate CSV file for bulk employee import (dry-run pre-flight)")
+    public ResponseEntity<ApiResponse<com.hrms.dto.response.BulkImportPreviewDto>> previewBulkImport(
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Pre-flight validation complete",
+                employeeService.previewBulkImport(file)));
+    }
+
     @PostMapping(value = "/bulk-import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN')")
     @Operation(summary = "Bulk import employees via CSV file")

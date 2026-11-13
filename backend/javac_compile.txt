@@ -329,3 +329,6 @@ UTF-8
 "backend/src/main/java/com/hrms/config/CacheConfig.java"
 "backend/src/main/java/com/hrms/security/TokenCleanupScheduler.java"
 "backend/src/main/java/com/hrms/dto/response/SessionResponse.java"
+"backend/src/main/java/com/hrms/dto/response/BulkImportPreviewDto.java"
+"backend/src/main/java/com/hrms/dto/response/BulkRowErrorDto.java"
+"backend/src/main/java/com/hrms/dto/response/BulkRowPreviewDto.java"

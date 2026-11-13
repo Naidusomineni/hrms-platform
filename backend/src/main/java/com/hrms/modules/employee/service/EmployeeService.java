@@ -2,6 +2,7 @@ package com.hrms.modules.employee.service;
 
 import com.hrms.dto.request.EmployeeRequest;
 import com.hrms.dto.response.EmployeeResponse;
+import com.hrms.dto.response.*;
 import com.hrms.entity.*;
 import com.hrms.enums.*;
 import com.hrms.exception.*;
@@ -430,6 +431,144 @@ public class EmployeeService {
              + "Vikram,Rao,vikram.rao@example.com,+91 9876543212,Finance,Accounts Manager,2026-07-01,85000,FULL_TIME\n";
     }
 
+    public com.hrms.dto.response.BulkImportPreviewDto previewBulkImport(MultipartFile file) {
+        FileValidationUtils.validateCsvFile(file, "bulk import CSV");
+
+        int totalRows = 0;
+        int validRows = 0;
+        int errorRows = 0;
+        List<com.hrms.dto.response.BulkRowErrorDto> errors = new java.util.ArrayList<>();
+        List<com.hrms.dto.response.BulkRowPreviewDto> previewRows = new java.util.ArrayList<>();
+        java.util.Set<String> seenEmails = new java.util.HashSet<>();
+
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(file.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
+
+            String line;
+            boolean isHeader = true;
+            int rowNumber = 0;
+
+            while ((line = reader.readLine()) != null) {
+                rowNumber++;
+                if (line.trim().isEmpty()) continue;
+                if (isHeader) {
+                    isHeader = false;
+                    continue;
+                }
+
+                totalRows++;
+                String[] cols = line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+                for (int i = 0; i < cols.length; i++) {
+                    cols[i] = cols[i].trim().replaceAll("^\"|\"$", "").trim();
+                }
+
+                String firstName = cols.length > 0 ? cols[0] : "";
+                String lastName = cols.length > 1 ? cols[1] : "";
+                String email = cols.length > 2 ? cols[2].toLowerCase() : "";
+                String phone = cols.length > 3 ? cols[3] : "";
+                String deptName = cols.length > 4 ? cols[4] : "";
+                String designation = cols.length > 5 ? cols[5] : "Associate";
+                String dojStr = cols.length > 6 ? cols[6] : "";
+                String salaryStr = cols.length > 7 ? cols[7] : "65000";
+                String statusStr = cols.length > 8 ? cols[8] : "PROBATION";
+
+                boolean rowValid = true;
+
+                if (firstName.isBlank()) {
+                    rowValid = false;
+                    errors.add(new com.hrms.dto.response.BulkRowErrorDto(rowNumber, "first_name", "First name is mandatory", firstName));
+                }
+                if (lastName.isBlank()) {
+                    rowValid = false;
+                    errors.add(new com.hrms.dto.response.BulkRowErrorDto(rowNumber, "last_name", "Last name is mandatory", lastName));
+                }
+                if (email.isBlank()) {
+                    rowValid = false;
+                    errors.add(new com.hrms.dto.response.BulkRowErrorDto(rowNumber, "email", "Email is mandatory", email));
+                } else if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                    rowValid = false;
+                    errors.add(new com.hrms.dto.response.BulkRowErrorDto(rowNumber, "email", "Invalid email format", email));
+                } else if (seenEmails.contains(email)) {
+                    rowValid = false;
+                    errors.add(new com.hrms.dto.response.BulkRowErrorDto(rowNumber, "email", "Duplicate email within file", email));
+                } else if (employeeRepository.existsByEmail(email) || userRepository.existsByEmail(email)) {
+                    rowValid = false;
+                    errors.add(new com.hrms.dto.response.BulkRowErrorDto(rowNumber, "email", "Email already exists in system", email));
+                }
+                if (!email.isBlank()) {
+                    seenEmails.add(email);
+                }
+
+                if (!deptName.isBlank() && !departmentRepository.existsByName(deptName)) {
+                    rowValid = false;
+                    errors.add(new com.hrms.dto.response.BulkRowErrorDto(rowNumber, "department", "Department does not exist", deptName));
+                }
+
+                if (!dojStr.isBlank()) {
+                    try {
+                        LocalDate.parse(dojStr);
+                    } catch (Exception e) {
+                        rowValid = false;
+                        errors.add(new com.hrms.dto.response.BulkRowErrorDto(rowNumber, "date_of_joining", "Invalid date format (expected YYYY-MM-DD)", dojStr));
+                    }
+                }
+
+                if (!salaryStr.isBlank()) {
+                    try {
+                        String cleaned = salaryStr.replaceAll("[^0-9.-]", "");
+                        BigDecimal sal = new BigDecimal(cleaned);
+                        if (sal.compareTo(BigDecimal.ZERO) < 0) {
+                            rowValid = false;
+                            errors.add(new com.hrms.dto.response.BulkRowErrorDto(rowNumber, "salary", "Salary must be non-negative", salaryStr));
+                        }
+                    } catch (Exception e) {
+                        rowValid = false;
+                        errors.add(new com.hrms.dto.response.BulkRowErrorDto(rowNumber, "salary", "Invalid numerical salary", salaryStr));
+                    }
+                }
+
+                if (!statusStr.isBlank()) {
+                    try {
+                        parseEmploymentStatus(statusStr);
+                    } catch (Exception e) {
+                        rowValid = false;
+                        errors.add(new com.hrms.dto.response.BulkRowErrorDto(rowNumber, "employment_status", "Invalid employment status enum", statusStr));
+                    }
+                }
+
+                if (rowValid) {
+                    validRows++;
+                } else {
+                    errorRows++;
+                }
+
+                previewRows.add(com.hrms.dto.response.BulkRowPreviewDto.builder()
+                        .row(rowNumber)
+                        .firstName(firstName)
+                        .lastName(lastName)
+                        .email(email)
+                        .phoneNumber(phone)
+                        .department(deptName)
+                        .designation(designation)
+                        .dateOfJoining(dojStr)
+                        .salary(salaryStr)
+                        .employmentStatus(statusStr)
+                        .valid(rowValid)
+                        .build());
+            }
+        } catch (java.io.IOException e) {
+            throw new BadRequestException("Failed to read CSV file: " + e.getMessage());
+        }
+
+        return com.hrms.dto.response.BulkImportPreviewDto.builder()
+                .totalRows(totalRows)
+                .validRowsCount(validRows)
+                .errorRowsCount(errorRows)
+                .errors(errors)
+                .previewRows(previewRows)
+                .build();
+    }
+
     public com.hrms.dto.response.BulkImportResultDto bulkImport(MultipartFile file) {
         FileValidationUtils.validateCsvFile(file, "bulk import CSV");
 
@@ -439,6 +578,7 @@ public class EmployeeService {
         int failureCount = 0;
         List<String> errors = new java.util.ArrayList<>();
         List<String> importedNumbers = new java.util.ArrayList<>();
+        java.util.Set<String> seenEmailsInBatch = new java.util.HashSet<>();
         int currentYear = LocalDate.now().getYear();
 
         try (java.io.BufferedReader reader = new java.io.BufferedReader(
@@ -483,6 +623,13 @@ public class EmployeeService {
                     errors.add("Row " + rowNumber + ": First name and email are mandatory.");
                     continue;
                 }
+
+                if (seenEmailsInBatch.contains(email)) {
+                    failureCount++;
+                    errors.add("Row " + rowNumber + ": Duplicate email '" + email + "' found within this import file.");
+                    continue;
+                }
+                seenEmailsInBatch.add(email);
 
                 if (employeeRepository.existsByEmail(email) || userRepository.existsByEmail(email)) {
                     failureCount++;
@@ -532,7 +679,7 @@ public class EmployeeService {
                     EmploymentStatus empStatus = EmploymentStatus.PROBATION;
                     if (!statusStr.isBlank()) {
                         try {
-                            empStatus = EmploymentStatus.valueOf(statusStr.toUpperCase());
+                            empStatus = parseEmploymentStatus(statusStr);
                         } catch (Exception ignored) {}
                     }
 
@@ -603,6 +750,17 @@ public class EmployeeService {
                 .errors(errors)
                 .importedEmployeeNumbers(importedNumbers)
                 .build();
+    }
+
+    private EmploymentStatus parseEmploymentStatus(String statusStr) {
+        if (statusStr == null || statusStr.isBlank()) {
+            return EmploymentStatus.PROBATION;
+        }
+        String clean = statusStr.trim().toUpperCase().replace("-", "_").replace(" ", "_");
+        if (clean.equals("FULL_TIME") || clean.equals("PERMANENT") || clean.equals("CONFIRMED")) {
+            return EmploymentStatus.ACTIVE;
+        }
+        return EmploymentStatus.valueOf(clean);
     }
 
     private String sanitizeFilename(String originalFilename) {

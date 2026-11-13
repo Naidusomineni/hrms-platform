@@ -66,6 +66,7 @@ public class AuthService {
     private final UserDetailsServiceImpl userDetailsService;
     private final EmailService emailService;
     private final DistributedTokenBlacklistService tokenBlacklistService;
+    private final com.hrms.common.audit.AuditService auditService;
     private final TotpService totpService = new TotpService();
 
     @Value("${jwt.refresh-token.expiration}")
@@ -172,6 +173,9 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail()).orElse(null);
         if (user != null && user.isAccountLocked()) {
             log.warn("Login blocked — account locked: {}", request.getEmail());
+            auditService.log("USER_LOGIN_BLOCKED", "AUTH", user.getId(),
+                "Login blocked — account locked until " + user.getAccountLockedUntil(),
+                null, null, request.getEmail(), ipAddress);
             throw new BadRequestException(
                 "Account is locked until " + user.getAccountLockedUntil() +
                 ". Please try again later or contact HR.");
@@ -232,6 +236,9 @@ public class AuthService {
             RefreshToken refreshToken = createRefreshToken(user, ipAddress, userAgent);
 
             log.info("Login success: email={}, ip={}", user.getEmail(), ipAddress);
+            auditService.log("USER_LOGIN_SUCCESS", "AUTH", user.getId(),
+                "User logged in successfully (Role: " + user.getRole() + ")",
+                null, null, user.getEmail(), ipAddress);
             return buildAuthResponse(user, accessToken, refreshToken.getToken());
 
         } catch (BadCredentialsException e) {
@@ -248,6 +255,9 @@ public class AuthService {
                 userRepository.save(user);
                 recordLoginHistory(user, ipAddress, userAgent, "FAILED");
             }
+            auditService.log("USER_LOGIN_FAILED", "AUTH", user != null ? user.getId() : null,
+                "Failed login attempt: Invalid credentials for " + request.getEmail(),
+                null, null, request.getEmail(), ipAddress);
             throw new BadCredentialsException("Invalid email or password");
         }
     }
@@ -295,6 +305,8 @@ public class AuthService {
             token.setIsRevoked(true);
             token.setRevokedAt(Instant.now());
             refreshTokenRepository.save(token);
+            auditService.log("USER_LOGOUT", "AUTH", token.getUser().getId(),
+                "User logged out and session revoked for " + token.getUser().getEmail());
         });
     }
 
@@ -302,6 +314,8 @@ public class AuthService {
     public void logoutAll(Long userId) {
         refreshTokenRepository.revokeAllForUser(userId);
         log.info("All sessions revoked for userId: {}", userId);
+        auditService.log("USER_LOGOUT_ALL", "AUTH", userId,
+            "All active login sessions revoked for user #" + userId);
     }
 
     // ── FORGOT PASSWORD ───────────────────────────────────────────
@@ -316,6 +330,8 @@ public class AuthService {
             userRepository.save(user);
             emailService.sendPasswordResetOtp(user.getEmail(), user.getFirstName(), rawOtp, otpExpiryMinutes);
             log.info("Password reset OTP sent to: {}", user.getEmail());
+            auditService.log("PASSWORD_RESET_REQUESTED", "AUTH", user.getId(),
+                "Password reset OTP requested for " + user.getEmail());
         });
     }
 
@@ -345,6 +361,8 @@ public class AuthService {
         refreshTokenRepository.revokeAllForUser(user.getId());
         emailService.sendPasswordChangedConfirmation(user.getEmail(), user.getFirstName());
         log.info("Password reset successfully for: {}", user.getEmail());
+        auditService.log("PASSWORD_RESET_COMPLETED", "AUTH", user.getId(),
+            "Password reset successfully with OTP for " + user.getEmail());
     }
 
     // ── EMAIL VERIFICATION ────────────────────────────────────────
@@ -409,6 +427,8 @@ public class AuthService {
 
         refreshTokenRepository.revokeAllForUser(userId);
         emailService.sendPasswordChangedConfirmation(user.getEmail(), user.getFirstName());
+        auditService.log("PASSWORD_CHANGED", "AUTH", user.getId(),
+            "Password changed successfully for " + user.getEmail());
     }
 
     // ── LOGIN HISTORY ─────────────────────────────────────────────
@@ -431,9 +451,57 @@ public class AuthService {
             .collect(Collectors.toList());
     }
 
+    // ── ACTIVE SESSIONS (SEC-008) ──────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<com.hrms.dto.response.SessionResponse> getActiveSessions(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
+        List<RefreshToken> sessions = refreshTokenRepository.findByUserIdAndIsRevokedFalseOrderByIdDesc(user.getId());
+        return sessions.stream().map(s -> com.hrms.dto.response.SessionResponse.builder()
+            .id(s.getId())
+            .ipAddress(s.getIpAddress())
+            .deviceInfo(s.getDeviceInfo())
+            .expiryDate(s.getExpiryDate())
+            .isRevoked(s.getIsRevoked())
+            .build()
+        ).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void revokeSession(String userEmail, Long sessionId) {
+        User user = userRepository.findByEmail(userEmail)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
+        RefreshToken session = refreshTokenRepository.findById(sessionId)
+            .orElseThrow(() -> new ResourceNotFoundException("Session not found"));
+        if (!session.getUser().getId().equals(user.getId())) {
+            throw new org.springframework.security.access.AccessDeniedException("You cannot revoke sessions belonging to another user");
+        }
+        session.setIsRevoked(true);
+        session.setRevokedAt(Instant.now());
+        refreshTokenRepository.save(session);
+        auditService.log("USER_SESSION_REVOKED", "AUTH", user.getId(),
+            "Revoked active login session #" + sessionId + " (IP: " + session.getIpAddress() + ")");
+    }
+
     // ── PRIVATE HELPERS ───────────────────────────────────────────
 
+    private static final int MAX_ACTIVE_SESSIONS = 5;
+
     private RefreshToken createRefreshToken(User user, String ipAddress, String deviceInfo) {
+        // SEC-008: Enforce concurrent session limit per user account
+        List<RefreshToken> activeTokens = refreshTokenRepository.findByUserIdAndIsRevokedFalseOrderByIdAsc(user.getId());
+        if (activeTokens.size() >= MAX_ACTIVE_SESSIONS) {
+            int toRevoke = activeTokens.size() - MAX_ACTIVE_SESSIONS + 1;
+            for (int i = 0; i < toRevoke; i++) {
+                RefreshToken oldest = activeTokens.get(i);
+                oldest.setIsRevoked(true);
+                oldest.setRevokedAt(Instant.now());
+                refreshTokenRepository.save(oldest);
+                log.info("SEC-008: Revoked oldest active session #{} for user {} due to concurrency limit", oldest.getId(), user.getEmail());
+            }
+        }
+
         RefreshToken token = RefreshToken.builder()
             .token(UUID.randomUUID().toString())
             .user(user)

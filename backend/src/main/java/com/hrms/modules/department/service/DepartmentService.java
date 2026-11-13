@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 public class DepartmentService {
     private final DepartmentRepository departmentRepository;
     private final EmployeeRepository employeeRepository;
+    private final com.hrms.common.audit.AuditService auditService;
 
     @CacheEvict(value = "departments", allEntries = true)
     public DepartmentResponse create(DepartmentRequest req) {
@@ -36,7 +37,9 @@ public class DepartmentService {
             .description(req.getDescription()).location(req.getLocation())
             .budget(req.getBudget()).isActive(true).manager(manager)
             .build();
-        return toResponse(departmentRepository.save(dept));
+        Department saved = departmentRepository.save(dept);
+        auditService.log("DEPARTMENT_CREATED", "DEPARTMENT", saved.getId(), "Created department " + saved.getName() + " (" + saved.getCode() + ")");
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -61,7 +64,9 @@ public class DepartmentService {
         if (req.getManagerId() != null)
             dept.setManager(employeeRepository.findById(req.getManagerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee","id",req.getManagerId())));
-        return toResponse(departmentRepository.save(dept));
+        Department saved = departmentRepository.save(dept);
+        auditService.log("DEPARTMENT_UPDATED", "DEPARTMENT", saved.getId(), "Updated department " + saved.getName());
+        return toResponse(saved);
     }
 
     @CacheEvict(value = "departments", allEntries = true)
@@ -69,6 +74,7 @@ public class DepartmentService {
         Department dept = findById(id);
         dept.setDeleted(true); dept.setIsActive(false);
         departmentRepository.save(dept);
+        auditService.log("DEPARTMENT_DELETED", "DEPARTMENT", dept.getId(), "Deactivated department " + dept.getName());
     }
 
     private Department findById(Long id) {

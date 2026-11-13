@@ -45,23 +45,30 @@ public class RateLimitConfig extends OncePerRequestFilter {
         String path = request.getServletPath();
         boolean isLogin = path.contains("/auth/login");
         boolean isRecovery = path.contains("/auth/forgot-password") || path.contains("/auth/reset-password") || path.contains("/auth/verify-email");
+        boolean isPasswordChange = path.contains("/auth/change-password");
+        boolean isBiometricSync = path.contains("/attendance/biometric-sync");
+        boolean isGuestInterview = path.contains("/recruitment/interviews/guest");
 
-        if (isLogin || isRecovery) {
+        if (isLogin || isRecovery || isPasswordChange || isBiometricSync || isGuestInterview) {
             String ip = getClientIp(request);
             boolean isLocal = "127.0.0.1".equals(ip) || "0:0:0:0:0:0:0:1".equals(ip);
-            int capacity = isLocal ? 500 : (isRecovery ? 15 : loginCapacity);
-            String bucketKey = ip + ":" + (isRecovery ? "recovery" : "login");
+            int capacity = isLocal ? 500 : (isRecovery ? 15 : (isPasswordChange ? 20 : (isBiometricSync ? 300 : (isGuestInterview ? 30 : loginCapacity))));
+            String category = isRecovery ? "recovery" : (isPasswordChange ? "change-pass" : (isBiometricSync ? "biometric" : (isGuestInterview ? "guest" : "login")));
+            String bucketKey = ip + ":" + category;
 
             Bucket bucket = getBucket(bucketKey, capacity);
             if (!bucket.tryConsume(1)) {
                 log.warn("Rate limit exceeded for IP: {} on endpoint: {}", ip, path);
                 response.setStatus(429);
+                response.setHeader("Retry-After", "60");
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                String msg = isRecovery
-                    ? "Too many password recovery attempts. Please try again in 1 minute."
-                    : "Too many login attempts. Please try again in 1 minute.";
+                String msg = "Too many requests. Please try again in 1 minute.";
+                if (isRecovery) msg = "Too many password recovery attempts. Please try again in 1 minute.";
+                else if (isLogin) msg = "Too many login attempts. Please try again in 1 minute.";
+                else if (isPasswordChange) msg = "Too many password change attempts. Please try again in 1 minute.";
+                else if (isGuestInterview) msg = "Too many guest interview join requests. Please wait a minute before retrying.";
                 response.getWriter().write(
-                    "{\"success\":false,\"message\":\"" + msg + "\"}");
+                    "{\"success\":false,\"status\":429,\"message\":\"" + msg + "\"}");
                 return;
             }
         }

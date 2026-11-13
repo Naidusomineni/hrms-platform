@@ -52,6 +52,7 @@ public class AttendanceService {
     private final PolicyResolverService policyResolverService;
     private final LeaveRequestRepository leaveRequestRepository;
     private final WorkflowEngineService workflowEngineService;
+    private final com.hrms.common.audit.AuditService auditService;
 
     public AttendanceResponse punch(AttendancePunchRequest req) {
         Employee emp = employeeRepository.findById(req.getEmployeeId())
@@ -312,6 +313,9 @@ public class AttendanceService {
             attendanceRepository.save(att);
         }
 
+        auditService.log("ATTENDANCE_REGULARIZATION_" + action.toUpperCase(), "ATTENDANCE_REGULARIZATION", reg.getId(),
+                "Attendance regularization " + action.toLowerCase() + " for employee #" + reg.getEmployee().getId() + " on " + reg.getDate());
+
         return RegularizationRequestDto.builder()
                 .id(reg.getId())
                 .employeeId(reg.getEmployee().getId())
@@ -461,7 +465,10 @@ public class AttendanceService {
         log.info("Attendance record {} adjusted by HR/Admin. In: {}, Out: {}, Hours: {}, Status: {}",
                 id, a.getCheckInTime(), a.getCheckOutTime(), a.getWorkingHours(), a.getStatus());
 
-        return toResponse(attendanceRepository.save(a));
+        Attendance saved = attendanceRepository.save(a);
+        auditService.log("ATTENDANCE_ADJUSTED", "ATTENDANCE", saved.getId(),
+                "Manual attendance adjustment for employee #" + saved.getEmployee().getId() + " on " + saved.getDate() + " (Status: " + saved.getStatus() + ")");
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)

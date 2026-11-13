@@ -107,6 +107,10 @@ public class SecurityConfig {
                         .requestMatchers("/v1/notifications/**")
                         .authenticated()
 
+                        // Session self-service revocation
+                        .requestMatchers(HttpMethod.DELETE, "/v1/auth/sessions/**")
+                        .authenticated()
+
                         // Delete APIs
                         .requestMatchers(HttpMethod.DELETE, "/v1/**")
                         .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN")

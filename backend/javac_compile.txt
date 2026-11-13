@@ -328,3 +328,4 @@ UTF-8
 "backend/src/main/java/com/hrms/util/PaginationUtils.java"
 "backend/src/main/java/com/hrms/config/CacheConfig.java"
 "backend/src/main/java/com/hrms/security/TokenCleanupScheduler.java"
+"backend/src/main/java/com/hrms/dto/response/SessionResponse.java"

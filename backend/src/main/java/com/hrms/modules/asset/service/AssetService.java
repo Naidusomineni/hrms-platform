@@ -28,6 +28,7 @@ public class AssetService {
     private final AssetRepository assetRepository;
     private final AssetAllocationRepository allocationRepository;
     private final EmployeeRepository employeeRepository;
+    private final com.hrms.common.audit.AuditService auditService;
 
     public List<AssetDto> getAssets() {
         String tenantId = TenantContext.getTenantId();
@@ -52,6 +53,8 @@ public class AssetService {
                 .build();
         asset.setTenantId(tenantId);
         asset = assetRepository.save(asset);
+        auditService.log("ASSET_CREATED", "ASSET", asset.getId(),
+                "Registered hardware asset: " + asset.getAssetTag() + " (" + asset.getBrand() + " " + asset.getModel() + ")");
         return toAssetDto(asset);
     }
 
@@ -75,6 +78,8 @@ public class AssetService {
 
         asset.setStatus("ALLOCATED");
         assetRepository.save(asset);
+        auditService.log("ASSET_ALLOCATED", "ASSET", asset.getId(),
+                "Allocated asset " + asset.getAssetTag() + " to employee #" + employeeId);
 
         return toAllocDto(alloc);
     }
@@ -93,6 +98,8 @@ public class AssetService {
         Asset asset = alloc.getAsset();
         asset.setStatus("AVAILABLE");
         assetRepository.save(asset);
+        auditService.log("ASSET_RETURNED", "ASSET", asset.getId(),
+                "Returned asset " + asset.getAssetTag() + " to inventory");
 
         return toAllocDto(alloc);
     }

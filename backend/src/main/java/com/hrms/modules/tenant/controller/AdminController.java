@@ -110,6 +110,7 @@ public class AdminController {
             .entityId(a.getEntityId())
             .description(a.getDescription())
             .performedBy(a.getPerformedBy())
+            .ipAddress(a.getIpAddress())
             .performedAt(a.getPerformedAt())
             .build());
         return ResponseEntity.ok(ApiResponse.success(logs));

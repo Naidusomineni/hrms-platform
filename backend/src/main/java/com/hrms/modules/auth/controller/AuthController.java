@@ -152,6 +152,30 @@ public class AuthController {
                 .body(ApiResponse.success("All sessions invalidated successfully"));
     }
 
+    @GetMapping("/sessions")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Get active login sessions for currently authenticated user")
+    public ResponseEntity<ApiResponse<java.util.List<SessionResponse>>> getActiveSessions(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Unauthorized");
+        }
+        return ResponseEntity.ok(ApiResponse.success(authService.getActiveSessions(userDetails.getUsername())));
+    }
+
+    @DeleteMapping("/sessions/{id}")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Revoke specific login session for currently authenticated user")
+    public ResponseEntity<ApiResponse<Void>> revokeSession(
+            @PathVariable("id") Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Unauthorized");
+        }
+        authService.revokeSession(userDetails.getUsername(), id);
+        return ResponseEntity.ok(ApiResponse.success("Session revoked successfully", null));
+    }
+
     @PostMapping("/forgot-password")
     @Operation(summary = "Initiate password reset — sends OTP to email")
     public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {

@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,19 +27,20 @@ public class AssetController {
     private final AssetService assetService;
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN','ROLE_SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<AssetDto>>> getAssets() {
         return ResponseEntity.ok(ApiResponse.success(assetService.getAssets()));
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN','ROLE_SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<AssetDto>> createAsset(@Valid @RequestBody AssetDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Asset registered", assetService.createAsset(dto)));
     }
 
     @PostMapping("/{id}/allocate")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN','ROLE_SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<AssetAllocationDto>> allocateAsset(
             @PathVariable("id") Long id,
             @RequestParam("employeeId") Long employeeId,
@@ -47,7 +50,7 @@ public class AssetController {
     }
 
     @PostMapping("/allocations/{id}/return")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN','ROLE_SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<AssetAllocationDto>> returnAsset(
             @PathVariable("id") Long id,
             @RequestParam(name = "notes", required = false) String notes) {
@@ -56,7 +59,9 @@ public class AssetController {
     }
 
     @GetMapping("/employee/{empId}")
-    public ResponseEntity<ApiResponse<List<AssetAllocationDto>>> getEmployeeAssets(@PathVariable("empId") Long empId) {
-        return ResponseEntity.ok(ApiResponse.success(assetService.getEmployeeAssets(empId)));
+    public ResponseEntity<ApiResponse<List<AssetAllocationDto>>> getEmployeeAssets(
+            @PathVariable("empId") Long empId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success(assetService.getEmployeeAssets(empId, userDetails)));
     }
 }

@@ -97,6 +97,25 @@ public class AssetService {
         return toAllocDto(alloc);
     }
 
+    public List<AssetAllocationDto> getEmployeeAssets(Long employeeId, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_IT_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_MANAGER") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                Employee emp = employeeRepository.findById(employeeId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
+                if (emp.getEmail() == null || !emp.getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only view your own asset allocations.");
+                }
+            }
+        }
+        return getEmployeeAssets(employeeId);
+    }
+
     public List<AssetAllocationDto> getEmployeeAssets(Long employeeId) {
         String tenantId = TenantContext.getTenantId();
         return allocationRepository.findByTenantIdAndEmployeeIdAndAllocationStatus(tenantId, employeeId, "ACTIVE").stream()

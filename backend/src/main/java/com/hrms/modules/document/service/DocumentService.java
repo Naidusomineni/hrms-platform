@@ -49,6 +49,34 @@ public class DocumentService {
             String documentNumber,
             LocalDate issueDate,
             LocalDate expiryDate,
+            MultipartFile file,
+            org.springframework.security.core.userdetails.UserDetails userDetails) {
+
+        Employee emp = employeeRepository.findById(empId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", empId));
+
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                if (emp.getEmail() == null || !emp.getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You are not authorized to upload documents for another employee.");
+                }
+            }
+        }
+
+        return uploadDocument(empId, category, title, documentNumber, issueDate, expiryDate, file);
+    }
+
+    public DocumentResponse uploadDocument(
+            Long empId,
+            String category,
+            String title,
+            String documentNumber,
+            LocalDate issueDate,
+            LocalDate expiryDate,
             MultipartFile file) {
 
         Employee emp = employeeRepository.findById(empId)
@@ -177,6 +205,23 @@ public class DocumentService {
     public Page<DocumentResponse> getPendingVerification(Pageable pageable) {
         String tenantId = TenantContext.getTenantId();
         return documentRepository.findByTenantIdAndStatus(tenantId, "PENDING", pageable).map(this::toResponse);
+    }
+
+    public void acknowledgePolicy(Long docId, Long empId, String ipAddress, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                Employee emp = employeeRepository.findById(empId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", empId));
+                if (emp.getEmail() == null || !emp.getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You cannot acknowledge policies for another employee.");
+                }
+            }
+        }
+        acknowledgePolicy(docId, empId, ipAddress);
     }
 
     public void acknowledgePolicy(Long docId, Long empId, String ipAddress) {

@@ -39,6 +39,24 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final com.hrms.common.audit.AuditService auditService;
 
     @Override
+    public ExpenseClaimDto submitClaim(Long employeeId, CreateExpenseClaimRequest request, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                Employee employee = employeeRepository.findById(employeeId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
+                if (employee.getEmail() == null || !employee.getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only submit expense claims for your own profile.");
+                }
+            }
+        }
+        return submitClaim(employeeId, request);
+    }
+
+    @Override
     public ExpenseClaimDto submitClaim(Long employeeId, CreateExpenseClaimRequest request) {
         String tenantId = TenantContext.getTenantId();
         Employee employee = employeeRepository.findById(employeeId)
@@ -139,6 +157,26 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<ExpenseClaimDto> getMyClaims(Long employeeId, Pageable pageable, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_MANAGER") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                Employee employee = employeeRepository.findById(employeeId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
+                if (employee.getEmail() == null || !employee.getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only view your own expense claims.");
+                }
+            }
+        }
+        return getMyClaims(employeeId, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<ExpenseClaimDto> getMyClaims(Long employeeId, Pageable pageable) {
         String tenantId = TenantContext.getTenantId();
         return expenseClaimRepository.findByTenantIdAndEmployeeIdOrderByExpenseDateDesc(tenantId, employeeId, pageable)
@@ -163,11 +201,30 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     @Override
     @Transactional(readOnly = true)
-    public ExpenseClaimDto getClaimById(Long claimId) {
+    public ExpenseClaimDto getClaimById(Long claimId, org.springframework.security.core.userdetails.UserDetails userDetails) {
         String tenantId = TenantContext.getTenantId();
         ExpenseClaim claim = expenseClaimRepository.findByTenantIdAndId(tenantId, claimId)
                 .orElseThrow(() -> new ResourceNotFoundException("ExpenseClaim", "id", claimId));
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_MANAGER") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                if (claim.getEmployee() == null || claim.getEmployee().getEmail() == null ||
+                        !claim.getEmployee().getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You do not have permission to view this expense claim.");
+                }
+            }
+        }
         return mapToDto(claim);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ExpenseClaimDto getClaimById(Long claimId) {
+        return getClaimById(claimId, null);
     }
 
     @Override

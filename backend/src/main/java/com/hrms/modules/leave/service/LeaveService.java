@@ -32,6 +32,23 @@ public class LeaveService {
     private final WorkflowEngineService workflowEngineService;
     private final com.hrms.common.audit.AuditService auditService;
 
+    public LeaveResponse apply(Long empId, LeaveApplicationRequest req, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                Employee emp = employeeRepository.findById(empId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", empId));
+                if (emp.getEmail() == null || !emp.getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only apply for leave on your own behalf.");
+                }
+            }
+        }
+        return apply(empId, req);
+    }
+
     public LeaveResponse apply(Long empId, LeaveApplicationRequest req) {
         Employee emp = employeeRepository.findById(empId)
             .orElseThrow(() -> new ResourceNotFoundException("Employee","id",empId));
@@ -126,6 +143,23 @@ public class LeaveService {
         return toResponse(leave);
     }
 
+    public LeaveResponse cancel(Long leaveId, Long empId, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                Employee emp = employeeRepository.findById(empId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", empId));
+                if (emp.getEmail() == null || !emp.getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only cancel your own leave requests.");
+                }
+            }
+        }
+        return cancel(leaveId, empId);
+    }
+
     public LeaveResponse cancel(Long leaveId, Long empId) {
         LeaveRequest leave = leaveRepository.findById(leaveId)
             .orElseThrow(() -> new ResourceNotFoundException("LeaveRequest","id",leaveId));
@@ -137,6 +171,25 @@ public class LeaveService {
         auditService.log("LEAVE_CANCELLED", "LEAVE_REQUEST", leave.getId(),
             "Cancelled leave #" + leaveId + " for " + leave.getEmployee().getFullName());
         return toResponse(leaveRepository.save(leave));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<LeaveResponse> getForEmployee(Long empId, Pageable pageable, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_MANAGER") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                Employee emp = employeeRepository.findById(empId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", empId));
+                if (emp.getEmail() == null || !emp.getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only view your own leave history.");
+                }
+            }
+        }
+        return getForEmployee(empId, pageable);
     }
 
     @Transactional(readOnly = true)

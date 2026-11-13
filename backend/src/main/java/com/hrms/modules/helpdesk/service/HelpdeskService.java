@@ -42,6 +42,26 @@ public class HelpdeskService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
 
+    public TicketResponse createTicket(TicketCreateRequest req, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_IT_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_IT_SUPPORT") ||
+                                   a.getAuthority().equals("ROLE_MANAGER") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                Employee emp = employeeRepository.findById(req.getEmployeeId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", req.getEmployeeId()));
+                if (emp.getEmail() == null || !emp.getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only create support tickets for your own employee profile.");
+                }
+            }
+        }
+        return createTicket(req);
+    }
+
     public TicketResponse createTicket(TicketCreateRequest req) {
         String tenantId = TenantContext.getTenantId();
         Employee emp = employeeRepository.findById(req.getEmployeeId())
@@ -111,6 +131,27 @@ public class HelpdeskService {
     }
 
     @Transactional(readOnly = true)
+    public Page<TicketResponse> getMyTickets(Long employeeId, Pageable pageable, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_IT_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_IT_SUPPORT") ||
+                                   a.getAuthority().equals("ROLE_MANAGER") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                Employee emp = employeeRepository.findById(employeeId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
+                if (emp.getEmail() == null || !emp.getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only query your own support tickets.");
+                }
+            }
+        }
+        return getMyTickets(employeeId, pageable);
+    }
+
+    @Transactional(readOnly = true)
     public Page<TicketResponse> getMyTickets(Long employeeId, Pageable pageable) {
         String tenantId = TenantContext.getTenantId();
         return ticketRepository.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(tenantId, employeeId, pageable)
@@ -118,10 +159,30 @@ public class HelpdeskService {
     }
 
     @Transactional(readOnly = true)
-    public TicketResponse getTicketById(Long id) {
+    public TicketResponse getTicketById(Long id, org.springframework.security.core.userdetails.UserDetails userDetails) {
         SupportTicket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("SupportTicket", "id", id));
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_IT_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_IT_SUPPORT") ||
+                                   a.getAuthority().equals("ROLE_MANAGER") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                if (ticket.getEmployee() == null || ticket.getEmployee().getEmail() == null ||
+                        !ticket.getEmployee().getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You do not have permission to view this ticket.");
+                }
+            }
+        }
         return toDto(ticket);
+    }
+
+    @Transactional(readOnly = true)
+    public TicketResponse getTicketById(Long id) {
+        return getTicketById(id, null);
     }
 
     public TicketResponse updateTicket(Long id, TicketUpdateRequest req, String updatedByEmail) {
@@ -167,6 +228,27 @@ public class HelpdeskService {
         }
 
         return toDto(ticket);
+    }
+
+    public TicketResponse.CommentDto addComment(Long ticketId, TicketCommentRequest req, String authorEmail, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        SupportTicket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException("SupportTicket", "id", ticketId));
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_IT_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_IT_SUPPORT") ||
+                                   a.getAuthority().equals("ROLE_MANAGER") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                if (ticket.getEmployee() == null || ticket.getEmployee().getEmail() == null ||
+                        !ticket.getEmployee().getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only comment on your own tickets.");
+                }
+            }
+        }
+        return addComment(ticketId, req, authorEmail);
     }
 
     public TicketResponse.CommentDto addComment(Long ticketId, TicketCommentRequest req, String authorEmail) {

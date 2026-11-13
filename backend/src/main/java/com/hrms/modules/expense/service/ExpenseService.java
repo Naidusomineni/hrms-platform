@@ -26,5 +26,17 @@ public interface ExpenseService {
 
     ExpenseClaimDto getClaimById(Long claimId);
 
+    default ExpenseClaimDto submitClaim(Long employeeId, CreateExpenseClaimRequest request, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        return submitClaim(employeeId, request);
+    }
+
+    default Page<ExpenseClaimDto> getMyClaims(Long employeeId, Pageable pageable, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        return getMyClaims(employeeId, pageable);
+    }
+
+    default ExpenseClaimDto getClaimById(Long claimId, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        return getClaimById(claimId);
+    }
+
     BigDecimal disburseClaimsForPayroll(Long employeeId, PayrollSlip slip);
 }

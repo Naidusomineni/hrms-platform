@@ -13,7 +13,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -26,13 +28,16 @@ public class HelpdeskController {
     private final HelpdeskService helpdeskService;
 
     @PostMapping("/tickets")
-    public ResponseEntity<ApiResponse<TicketResponse>> createTicket(@Valid @RequestBody TicketCreateRequest req) {
-        TicketResponse res = helpdeskService.createTicket(req);
+    public ResponseEntity<ApiResponse<TicketResponse>> createTicket(
+            @Valid @RequestBody TicketCreateRequest req,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        TicketResponse res = helpdeskService.createTicket(req, userDetails);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Support ticket logged successfully", res));
     }
 
     @GetMapping("/tickets")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN','ROLE_IT_SUPPORT','ROLE_MANAGER','ROLE_SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Page<TicketResponse>>> getAllTickets(
             @RequestParam(name = "status", required = false) String status,
             @RequestParam(name = "page", defaultValue = "0") int page,
@@ -45,18 +50,21 @@ public class HelpdeskController {
     public ResponseEntity<ApiResponse<Page<TicketResponse>>> getMyTickets(
             @RequestParam("employeeId") Long employeeId,
             @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "20") int size) {
-        Page<TicketResponse> res = helpdeskService.getMyTickets(employeeId, PaginationUtils.of(page, size));
+            @RequestParam(name = "size", defaultValue = "20") int size,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Page<TicketResponse> res = helpdeskService.getMyTickets(employeeId, PaginationUtils.of(page, size), userDetails);
         return ResponseEntity.ok(ApiResponse.success(res));
     }
 
     @GetMapping("/tickets/{id}")
-    public ResponseEntity<ApiResponse<TicketResponse>> getTicketById(@PathVariable("id") Long id) {
-        return ResponseEntity.ok(ApiResponse.success(helpdeskService.getTicketById(id)));
+    public ResponseEntity<ApiResponse<TicketResponse>> getTicketById(
+            @PathVariable("id") Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success(helpdeskService.getTicketById(id, userDetails)));
     }
 
     @PutMapping("/tickets/{id}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN','ROLE_IT_SUPPORT','ROLE_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_IT_ADMIN','ROLE_IT_SUPPORT','ROLE_MANAGER','ROLE_SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<TicketResponse>> updateTicket(
             @PathVariable("id") Long id,
             @RequestBody TicketUpdateRequest req) {
@@ -70,11 +78,12 @@ public class HelpdeskController {
     @PostMapping("/tickets/{id}/comments")
     public ResponseEntity<ApiResponse<TicketResponse.CommentDto>> addComment(
             @PathVariable("id") Long id,
-            @Valid @RequestBody TicketCommentRequest req) {
+            @Valid @RequestBody TicketCommentRequest req,
+            @AuthenticationPrincipal UserDetails userDetails) {
         String email = SecurityContextHolder.getContext().getAuthentication() != null
                 ? SecurityContextHolder.getContext().getAuthentication().getName()
                 : "system";
-        TicketResponse.CommentDto comment = helpdeskService.addComment(id, req, email);
+        TicketResponse.CommentDto comment = helpdeskService.addComment(id, req, email, userDetails);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Comment added", comment));
     }

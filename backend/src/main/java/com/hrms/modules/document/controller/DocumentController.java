@@ -44,9 +44,10 @@ public class DocumentController {
             @RequestParam(name = "documentNumber", required = false) String documentNumber,
             @RequestParam(name = "issueDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate issueDate,
             @RequestParam(name = "expiryDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate,
-            @RequestPart("file") MultipartFile file) {
+            @RequestPart("file") MultipartFile file,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
 
-        DocumentResponse res = documentService.uploadDocument(employeeId, category, title, documentNumber, issueDate, expiryDate, file);
+        DocumentResponse res = documentService.uploadDocument(employeeId, category, title, documentNumber, issueDate, expiryDate, file, userDetails);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Document uploaded successfully", res));
     }
 
@@ -93,12 +94,14 @@ public class DocumentController {
     public ResponseEntity<ApiResponse<String>> acknowledge(
             @PathVariable("id") Long id,
             @RequestParam("employeeId") Long employeeId,
-            HttpServletRequest request) {
-        documentService.acknowledgePolicy(id, employeeId, request.getRemoteAddr());
+            HttpServletRequest request,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        documentService.acknowledgePolicy(id, employeeId, request.getRemoteAddr(), userDetails);
         return ResponseEntity.ok(ApiResponse.success("Policy acknowledged successfully"));
     }
 
     @PostMapping("/letters/generate")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<DocumentResponse>> generateLetter(@Valid @RequestBody HrLetterRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("HR letter generated", documentService.generateHrLetter(req)));

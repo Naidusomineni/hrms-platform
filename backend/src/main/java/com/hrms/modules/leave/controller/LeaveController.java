@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController @RequestMapping("/v1/leaves") @RequiredArgsConstructor
@@ -21,9 +23,11 @@ public class LeaveController {
 
     @PostMapping("/apply/{empId}")
     public ResponseEntity<ApiResponse<LeaveResponse>> apply(
-            @PathVariable("empId") Long empId, @Valid @RequestBody LeaveApplicationRequest req) {
+            @PathVariable("empId") Long empId,
+            @Valid @RequestBody LeaveApplicationRequest req,
+            @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.success("Leave application submitted", leaveService.apply(empId, req)));
+            .body(ApiResponse.success("Leave application submitted", leaveService.apply(empId, req, userDetails)));
     }
 
     @PutMapping("/{id}/review")
@@ -34,16 +38,20 @@ public class LeaveController {
     }
 
     @PutMapping("/{id}/cancel/{empId}")
-    public ResponseEntity<ApiResponse<LeaveResponse>> cancel(@PathVariable("id") Long id, @PathVariable("empId") Long empId) {
-        return ResponseEntity.ok(ApiResponse.success("Leave cancelled", leaveService.cancel(id, empId)));
+    public ResponseEntity<ApiResponse<LeaveResponse>> cancel(
+            @PathVariable("id") Long id,
+            @PathVariable("empId") Long empId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success("Leave cancelled", leaveService.cancel(id, empId, userDetails)));
     }
 
     @GetMapping("/employee/{empId}")
     public ResponseEntity<ApiResponse<Page<LeaveResponse>>> getForEmployee(
             @PathVariable("empId") Long empId,
             @RequestParam(name = "page", defaultValue="0") int page,
-            @RequestParam(name = "size", defaultValue="10") int size) {
-        return ResponseEntity.ok(ApiResponse.success(leaveService.getForEmployee(empId, PaginationUtils.of(page, size))));
+            @RequestParam(name = "size", defaultValue="10") int size,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success(leaveService.getForEmployee(empId, PaginationUtils.of(page, size), userDetails)));
     }
 
     @GetMapping("/pending")

@@ -53,12 +53,48 @@ public class PerformanceService {
         return toCycleDto(cycle);
     }
 
+    public List<EmployeeGoalDto> getGoalsForEmployee(Long employeeId, Long cycleId, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_MANAGER") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                Employee emp = employeeRepository.findById(employeeId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
+                if (emp.getEmail() == null || !emp.getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only view your own goals.");
+                }
+            }
+        }
+        return getGoalsForEmployee(employeeId, cycleId);
+    }
+
     public List<EmployeeGoalDto> getGoalsForEmployee(Long employeeId, Long cycleId) {
         String tenantId = TenantContext.getTenantId();
         List<EmployeeGoal> goals = (cycleId != null)
                 ? goalRepository.findByTenantIdAndEmployeeIdAndCycleId(tenantId, employeeId, cycleId)
                 : goalRepository.findByTenantIdAndEmployeeId(tenantId, employeeId);
         return goals.stream().map(this::toGoalDto).collect(Collectors.toList());
+    }
+
+    public EmployeeGoalDto createGoal(EmployeeGoalDto dto, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_MANAGER") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                Employee emp = employeeRepository.findById(dto.getEmployeeId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", dto.getEmployeeId()));
+                if (emp.getEmail() == null || !emp.getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only create goals for your own profile.");
+                }
+            }
+        }
+        return createGoal(dto);
     }
 
     public EmployeeGoalDto createGoal(EmployeeGoalDto dto) {
@@ -87,13 +123,30 @@ public class PerformanceService {
         return toGoalDto(goal);
     }
 
-    public EmployeeGoalDto updateGoalProgress(Long goalId, Integer progress, String status) {
+    public EmployeeGoalDto updateGoalProgress(Long goalId, Integer progress, String status, org.springframework.security.core.userdetails.UserDetails userDetails) {
         EmployeeGoal goal = goalRepository.findById(goalId)
                 .orElseThrow(() -> new ResourceNotFoundException("EmployeeGoal", "id", goalId));
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_MANAGER") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                if (goal.getEmployee() == null || goal.getEmployee().getEmail() == null ||
+                        !goal.getEmployee().getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You cannot update progress on another employee's goal.");
+                }
+            }
+        }
         if (progress != null) goal.setProgress(Math.min(100, Math.max(0, progress)));
         if (status != null) goal.setStatus(status);
         goal = goalRepository.save(goal);
         return toGoalDto(goal);
+    }
+
+    public EmployeeGoalDto updateGoalProgress(Long goalId, Integer progress, String status) {
+        return updateGoalProgress(goalId, progress, status, null);
     }
 
     public List<PerformanceReviewDto> getAllReviews() {
@@ -103,10 +156,49 @@ public class PerformanceService {
                 .collect(Collectors.toList());
     }
 
+    public List<PerformanceReviewDto> getReviewsForEmployee(Long employeeId, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_MANAGER") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                Employee emp = employeeRepository.findById(employeeId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
+                if (emp.getEmail() == null || !emp.getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only view your own performance reviews.");
+                }
+            }
+        }
+        return getReviewsForEmployee(employeeId);
+    }
+
     public List<PerformanceReviewDto> getReviewsForEmployee(Long employeeId) {
         return reviewRepository.findByEmployeeIdOrderByCreatedAtDesc(employeeId).stream()
                 .map(this::toReviewDto)
                 .collect(Collectors.toList());
+    }
+
+    public PerformanceReviewDto submitReview(PerformanceReviewDto dto, org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails != null) {
+            boolean isElevated = userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                                   a.getAuthority().equals("ROLE_HR") ||
+                                   a.getAuthority().equals("ROLE_MANAGER") ||
+                                   a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            if (!isElevated) {
+                Employee emp = employeeRepository.findById(dto.getEmployeeId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", dto.getEmployeeId()));
+                if (emp.getEmail() == null || !emp.getEmail().equalsIgnoreCase(userDetails.getUsername())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only submit self-reviews for your own profile.");
+                }
+                if (dto.getManagerRating() != null || dto.getFinalRating() != null) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Employees cannot provide managerial ratings.");
+                }
+            }
+        }
+        return submitReview(dto);
     }
 
     public PerformanceReviewDto submitReview(PerformanceReviewDto dto) {

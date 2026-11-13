@@ -17,6 +17,8 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -31,8 +33,9 @@ public class ExpenseController {
     @Operation(summary = "Submit a new corporate expense claim with receipt")
     public ResponseEntity<ApiResponse<ExpenseClaimDto>> submitClaim(
             @RequestParam Long employeeId,
-            @Valid @RequestBody CreateExpenseClaimRequest request) {
-        ExpenseClaimDto claim = expenseService.submitClaim(employeeId, request);
+            @Valid @RequestBody CreateExpenseClaimRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        ExpenseClaimDto claim = expenseService.submitClaim(employeeId, request, userDetails);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Expense claim submitted successfully", claim));
     }
@@ -41,8 +44,9 @@ public class ExpenseController {
     @Operation(summary = "Retrieve current employee's submitted expense claims")
     public ResponseEntity<ApiResponse<Page<ExpenseClaimDto>>> getMyClaims(
             @RequestParam Long employeeId,
-            @PageableDefault(size = 10, sort = "expenseDate", direction = Sort.Direction.DESC) Pageable pageable) {
-        Page<ExpenseClaimDto> claims = expenseService.getMyClaims(employeeId, pageable);
+            @PageableDefault(size = 10, sort = "expenseDate", direction = Sort.Direction.DESC) Pageable pageable,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Page<ExpenseClaimDto> claims = expenseService.getMyClaims(employeeId, pageable, userDetails);
         return ResponseEntity.ok(ApiResponse.success(claims));
     }
 
@@ -60,8 +64,10 @@ public class ExpenseController {
 
     @GetMapping("/claims/{id}")
     @Operation(summary = "Get single expense claim details")
-    public ResponseEntity<ApiResponse<ExpenseClaimDto>> getClaimById(@PathVariable Long id) {
-        ExpenseClaimDto claim = expenseService.getClaimById(id);
+    public ResponseEntity<ApiResponse<ExpenseClaimDto>> getClaimById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        ExpenseClaimDto claim = expenseService.getClaimById(id, userDetails);
         return ResponseEntity.ok(ApiResponse.success(claim));
     }
 

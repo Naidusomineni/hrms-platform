@@ -17,12 +17,15 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -38,6 +41,9 @@ import java.util.Map;
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
+
+    @Value("${biometric.device.api-key:hrms-biometric-terminal-secret-key}")
+    private String configuredBiometricApiKey;
 
     @PostMapping("/punch")
     public ResponseEntity<ApiResponse<AttendanceResponse>> punch(@Valid @RequestBody AttendancePunchRequest req) {
@@ -68,8 +74,24 @@ public class AttendanceController {
     }
 
     @PostMapping("/biometric-sync")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> syncBiometric(@Valid @RequestBody List<BiometricPunchDto> punches) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> syncBiometric(
+            @RequestHeader(name = "X-Device-Api-Key", required = false) String deviceApiKey,
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody List<BiometricPunchDto> punches) {
+
+        boolean isAuthorizedRole = userDetails != null && userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
+                               a.getAuthority().equals("ROLE_HR") ||
+                               a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+
+        boolean isValidApiKey = deviceApiKey != null && !deviceApiKey.isBlank() &&
+                deviceApiKey.equals(configuredBiometricApiKey);
+
+        if (!isAuthorizedRole && !isValidApiKey) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Unauthorized biometric sync: valid device API key or Administrator authentication required");
+        }
+
         return ResponseEntity.ok(ApiResponse.success("Biometric sync completed", attendanceService.syncBiometricPunches(punches)));
     }
 

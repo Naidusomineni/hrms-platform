@@ -15,6 +15,7 @@ import com.hrms.modules.document.repository.EmployeeDocumentRepository;
 import com.hrms.modules.document.repository.PolicyAcknowledgementRepository;
 import com.hrms.repository.EmployeeRepository;
 import com.hrms.repository.UserRepository;
+import com.hrms.util.FileValidationUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -53,9 +54,7 @@ public class DocumentService {
         Employee emp = employeeRepository.findById(empId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", empId));
 
-        if (file.isEmpty()) {
-            throw new BadRequestException("Uploaded file cannot be empty");
-        }
+        FileValidationUtils.validateDocumentFile(file, "document");
 
         String directory = "documents/" + empId;
         String tenantId = TenantContext.getTenantId();

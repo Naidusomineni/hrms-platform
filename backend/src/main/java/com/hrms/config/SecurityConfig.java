@@ -49,6 +49,7 @@ public class SecurityConfig {
             "/v1/auth/resend-verification",
             "/v1/tenants/current",
             "/v1/recruitment/interviews/guest/**",
+            "/v1/attendance/biometric-sync",
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/v3/api-docs/**",

@@ -76,10 +76,11 @@ async function testBulkImport() {
     // 3. Test Bulk Upload with Multipart/form-data
     console.log('\n--- 2. Testing POST /v1/employees/bulk-import ---');
     const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2);
+    const ts = Date.now();
     const testCsv = 
 `first_name,last_name,email,phone_number,department,designation,date_of_joining,salary,employment_status
-Siddharth,Verma,siddharth.verma@eoxys.com,+91 9876543290,Engineering,Backend Lead,2026-06-01,95000,FULL_TIME
-Ananya,Deshmukh,ananya.deshmukh@eoxys.com,+91 9876543291,Engineering,QA Lead,2026-06-15,80000,FULL_TIME
+Siddharth,Verma,siddharth.${ts}@eoxys.com,+91 9876543290,Engineering,Backend Lead,2026-06-01,95000,FULL_TIME
+Ananya,Deshmukh,ananya.${ts}@eoxys.com,+91 9876543291,Engineering,QA Lead,2026-06-15,80000,FULL_TIME
 Invalid,,admin@hrms.com,+91 9876543292,Engineering,Tester,2026-06-15,50000,PROBATION
 `;
 

@@ -322,5 +322,6 @@ UTF-8
 "backend/src/main/java/com/hrms/security/jwt/JwtUtils.java"
 "backend/src/main/java/com/hrms/security/service/UserDetailsServiceImpl.java"
 "backend/src/main/java/com/hrms/service/EmailService.java"
+"backend/src/main/java/com/hrms/util/FileValidationUtils.java"
 "backend/src/main/java/com/hrms/util/OtpUtils.java"
 "backend/src/main/java/com/hrms/util/PaginationUtils.java"

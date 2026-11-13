@@ -9,6 +9,7 @@ import com.hrms.repository.*;
 import com.hrms.service.EmailService;
 import com.hrms.common.audit.AuditService;
 import com.hrms.infrastructure.multitenancy.context.TenantContext;
+import com.hrms.util.FileValidationUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -335,7 +336,7 @@ public class EmployeeService {
         if (emp.getUser() != null) {
             verifyOwnerOrAdmin(emp.getUser().getEmail(), userDetails);
         }
-        validateFile(file, allowedImageTypes, "image");
+        FileValidationUtils.validateImageFile(file, "profile picture");
 
         String fileName = storeFile(file, profilePictureDir);
         String url = buildFileUrl("profiles", fileName);
@@ -361,7 +362,7 @@ public class EmployeeService {
     public EmployeeResponse uploadDocument(Long id, MultipartFile file, UserDetails userDetails) {
         Employee emp = findById(id);
         verifyOwnerOrAdmin(emp.getUser().getEmail(), userDetails);
-        validateFile(file, allowedDocTypes, "document");
+        FileValidationUtils.validateDocumentFile(file, "document");
 
         String fileName = storeFile(file, documentDir);
         String url = buildFileUrl("documents", fileName);
@@ -430,9 +431,7 @@ public class EmployeeService {
     }
 
     public com.hrms.dto.response.BulkImportResultDto bulkImport(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new BadRequestException("Uploaded CSV file cannot be empty");
-        }
+        FileValidationUtils.validateCsvFile(file, "bulk import CSV");
 
         String tenantId = TenantContext.getTenantId();
         int totalRows = 0;

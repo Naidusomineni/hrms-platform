@@ -74,7 +74,8 @@ async function runBatch5Tests() {
         firstName: 'Devendra',
         lastName: 'Joshi',
         email: `devendra.${ts}@eoxys.com`,
-        phoneNumber: '+91 9123456789',
+        phoneNumber: '919123456789',
+        password: 'Password@123',
         departmentId: 1, // Engineering
         designation: 'Senior Infrastructure Engineer',
         dateOfJoining: '2021-03-01', // 5+ years for gratuity eligibility

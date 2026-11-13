@@ -36,3 +36,4 @@ public final class PaginationUtils {
         return PageRequest.of(boundPage(page), boundSize(size), sort);
     }
 }
+

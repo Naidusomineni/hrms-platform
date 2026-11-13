@@ -14,3 +14,4 @@ public class BulkImportResultDto {
     @Builder.Default
     private List<String> importedEmployeeNumbers = new ArrayList<>();
 }
+

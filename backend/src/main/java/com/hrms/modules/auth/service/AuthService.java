@@ -210,6 +210,14 @@ public class AuthService {
             user.setAccountLockedUntil(null);
             user.setLastLoginAt(LocalDateTime.now());
             user.setLastLoginIp(ipAddress);
+
+            // SEC-016: 90-day password aging lifecycle policy
+            if (user.getPasswordChangedAt() != null &&
+                user.getPasswordChangedAt().isBefore(LocalDateTime.now().minusDays(90))) {
+                user.setMustChangePassword(true);
+                log.info("SEC-016: Password expired (>90 days) for user: {}", user.getEmail());
+            }
+
             userRepository.save(user);
 
             // Record login history

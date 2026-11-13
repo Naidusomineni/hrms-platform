@@ -17,6 +17,8 @@ import com.hrms.repository.DepartmentRepository;
 import com.hrms.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -128,6 +130,7 @@ public class PolicyResolverService {
     // --- Policy CRUD Operations ---
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "shiftPolicies", key = "T(com.hrms.infrastructure.multitenancy.context.TenantContext).getTenantId()")
     public List<AttendancePolicyDto> getAllPolicies() {
         String tenantId = TenantContext.getTenantId();
         return policyRepository.findByTenantIdAndIsActiveTrue(tenantId).stream()
@@ -142,6 +145,7 @@ public class PolicyResolverService {
                 .orElseThrow(() -> new ResourceNotFoundException("AttendancePolicy", "id", id));
     }
 
+    @CacheEvict(value = "shiftPolicies", allEntries = true)
     public AttendancePolicyDto createPolicy(AttendancePolicyDto dto) {
         String tenantId = TenantContext.getTenantId();
 
@@ -188,6 +192,7 @@ public class PolicyResolverService {
         return toPolicyDto(policy);
     }
 
+    @CacheEvict(value = "shiftPolicies", allEntries = true)
     public AttendancePolicyDto updatePolicy(Long id, AttendancePolicyDto dto) {
         String tenantId = TenantContext.getTenantId();
         AttendancePolicy policy = policyRepository.findById(id)
@@ -228,6 +233,7 @@ public class PolicyResolverService {
         return toPolicyDto(policy);
     }
 
+    @CacheEvict(value = "shiftPolicies", allEntries = true)
     public void deletePolicy(Long id) {
         AttendancePolicy policy = policyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("AttendancePolicy", "id", id));

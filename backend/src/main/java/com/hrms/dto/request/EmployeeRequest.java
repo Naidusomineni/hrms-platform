@@ -33,5 +33,9 @@ public class EmployeeRequest {
     private String emergencyContactRelation;
     private Long departmentId;
     private Long managerId;
-    @Size(min=8) private String password;
+    @Pattern(
+        regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!._-]).{8,64}$|^$",
+        message = "Password, if provided, must be at least 8 characters and include uppercase, lowercase, number, and special character (@#$%^&+=!._-)"
+    )
+    private String password;
 }

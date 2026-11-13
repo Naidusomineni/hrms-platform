@@ -23,6 +23,8 @@ import com.hrms.modules.attendance.repository.BiometricDeviceRepository;
 import com.hrms.modules.workflow.service.WorkflowEngineService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -323,6 +325,8 @@ public class AttendanceService {
     }
 
     // --- Office Locations ---
+    @Transactional(readOnly = true)
+    @Cacheable(value = "officeLocations", key = "T(com.hrms.infrastructure.multitenancy.context.TenantContext).getTenantId()")
     public List<OfficeLocationDto> getOfficeLocations() {
         String tenantId = TenantContext.getTenantId();
         return officeLocationRepository.findByTenantIdAndIsActiveTrue(tenantId).stream()
@@ -339,6 +343,7 @@ public class AttendanceService {
                 .collect(Collectors.toList());
     }
 
+    @CacheEvict(value = "officeLocations", allEntries = true)
     public OfficeLocationDto saveOfficeLocation(OfficeLocationDto dto) {
         OfficeLocation ol = OfficeLocation.builder()
                 .name(dto.getName())
@@ -354,6 +359,7 @@ public class AttendanceService {
         return dto;
     }
 
+    @CacheEvict(value = "officeLocations", allEntries = true)
     public OfficeLocationDto updateOfficeLocation(Long id, OfficeLocationDto dto) {
         OfficeLocation ol = officeLocationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("OfficeLocation", "id", id));
@@ -369,6 +375,7 @@ public class AttendanceService {
         return dto;
     }
 
+    @CacheEvict(value = "officeLocations", allEntries = true)
     public void deleteOfficeLocation(Long id) {
         OfficeLocation ol = officeLocationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("OfficeLocation", "id", id));

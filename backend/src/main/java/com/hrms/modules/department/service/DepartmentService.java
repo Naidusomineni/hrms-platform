@@ -7,6 +7,8 @@ import com.hrms.exception.*;
 import com.hrms.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -17,6 +19,7 @@ public class DepartmentService {
     private final DepartmentRepository departmentRepository;
     private final EmployeeRepository employeeRepository;
 
+    @CacheEvict(value = "departments", allEntries = true)
     public DepartmentResponse create(DepartmentRequest req) {
         if (departmentRepository.existsByName(req.getName()))
             throw new DuplicateResourceException("Department","name",req.getName());
@@ -37,6 +40,7 @@ public class DepartmentService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "departments", key = "T(com.hrms.infrastructure.multitenancy.context.TenantContext).getTenantId()")
     public List<DepartmentResponse> getAll() {
         return departmentRepository.findAllActive().stream().map(this::toResponse).collect(Collectors.toList());
     }
@@ -46,6 +50,7 @@ public class DepartmentService {
         return toResponse(findById(id));
     }
 
+    @CacheEvict(value = "departments", allEntries = true)
     public DepartmentResponse update(Long id, DepartmentRequest req) {
         Department dept = findById(id);
         if (!dept.getName().equals(req.getName()) && departmentRepository.existsByName(req.getName()))
@@ -59,6 +64,7 @@ public class DepartmentService {
         return toResponse(departmentRepository.save(dept));
     }
 
+    @CacheEvict(value = "departments", allEntries = true)
     public void delete(Long id) {
         Department dept = findById(id);
         dept.setDeleted(true); dept.setIsActive(false);

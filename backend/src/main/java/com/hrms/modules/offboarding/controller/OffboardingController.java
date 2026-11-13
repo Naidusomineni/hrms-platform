@@ -68,6 +68,13 @@ public class OffboardingController {
                 offboardingService.reviewSeparation(id, action, approvedLwd, comments, reviewerEmail)));
     }
 
+    @PutMapping("/separations/{id}/withdraw")
+    public ResponseEntity<ApiResponse<SeparationRequestDto>> withdrawSeparation(@PathVariable("id") Long id) {
+        String callerEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(ApiResponse.success("Resignation withdrawn successfully",
+                offboardingService.withdrawResignation(id, callerEmail)));
+    }
+
     @PutMapping("/clearances/{id}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_MANAGER')")
     public ResponseEntity<ApiResponse<ClearanceDto>> updateClearance(

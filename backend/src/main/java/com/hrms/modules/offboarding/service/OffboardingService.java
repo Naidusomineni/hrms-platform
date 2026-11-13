@@ -12,6 +12,11 @@ import com.hrms.modules.offboarding.dto.ClearanceDto;
 import com.hrms.modules.offboarding.dto.SeparationRequestDto;
 import com.hrms.modules.offboarding.dto.SettlementDto;
 import com.hrms.modules.offboarding.entity.EmployeeSeparation;
+import com.hrms.common.audit.AuditService;
+import com.hrms.modules.asset.entity.Asset;
+import com.hrms.modules.asset.entity.AssetAllocation;
+import com.hrms.modules.asset.repository.AssetAllocationRepository;
+import com.hrms.modules.asset.repository.AssetRepository;
 import com.hrms.modules.offboarding.entity.FullAndFinalSettlement;
 import com.hrms.modules.offboarding.entity.SeparationClearance;
 import com.hrms.modules.offboarding.repository.EmployeeSeparationRepository;
@@ -46,6 +51,9 @@ public class OffboardingService {
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
     private final EmployeeLeaveBalanceRepository leaveBalanceRepository;
+    private final AssetAllocationRepository assetAllocationRepository;
+    private final AssetRepository assetRepository;
+    private final AuditService auditService;
 
     // --- 1. Resignation Submission ---
     public SeparationRequestDto submitResignation(SeparationRequestDto dto) {
@@ -93,6 +101,8 @@ public class OffboardingService {
         sep.setClearances(clearances);
 
         log.info("Separation initialized for empId={}, id={}", emp.getId(), sep.getId());
+        auditService.log("SEPARATION_SUBMITTED", "SEPARATION", sep.getId(),
+                "Employee " + emp.getFullName() + " submitted " + sep.getSeparationType() + " request");
         return toDto(sep);
     }
 
@@ -117,7 +127,39 @@ public class OffboardingService {
             throw new BadRequestException("Invalid action: " + action + ". Must be APPROVED or REJECTED.");
         }
 
-        return toDto(separationRepository.save(sep));
+        EmployeeSeparation saved = separationRepository.save(sep);
+        auditService.log("SEPARATION_" + action.toUpperCase(), "SEPARATION", saved.getId(),
+                "Separation " + action + " for " + sep.getEmployee().getFullName() + " (Reviewer: " + reviewerEmail + ")");
+        return toDto(saved);
+    }
+
+    // --- 2b. Resignation Withdrawal Workflow ---
+    public SeparationRequestDto withdrawResignation(Long separationId, String callerEmail) {
+        EmployeeSeparation sep = separationRepository.findById(separationId)
+                .orElseThrow(() -> new ResourceNotFoundException("EmployeeSeparation", "id", separationId));
+
+        if ("SETTLED".equalsIgnoreCase(sep.getStatus()) || "REJECTED".equalsIgnoreCase(sep.getStatus())) {
+            throw new BadRequestException("Cannot withdraw a separation that is already " + sep.getStatus());
+        }
+
+        sep.setStatus("WITHDRAWN");
+        Employee emp = sep.getEmployee();
+        emp.setLastWorkingDate(null);
+        employeeRepository.save(emp);
+
+        List<SeparationClearance> clearances = clearanceRepository.findBySeparationIdOrderByIdAsc(sep.getId());
+        for (SeparationClearance sc : clearances) {
+            if (!"CLEARED".equalsIgnoreCase(sc.getStatus())) {
+                sc.setStatus("CANCELLED");
+                clearanceRepository.save(sc);
+            }
+        }
+
+        EmployeeSeparation saved = separationRepository.save(sep);
+        auditService.log("SEPARATION_WITHDRAWN", "SEPARATION", saved.getId(),
+                "Resignation withdrawn for employee " + emp.getFullName() + " by " + callerEmail);
+        log.info("Separation #{} withdrawn for employee {}", saved.getId(), emp.getFullName());
+        return toDto(saved);
     }
 
     // --- 3. Departmental Clearance Update ---
@@ -132,14 +174,22 @@ public class OffboardingService {
         sc.setClearedBy(clearedBy);
         sc = clearanceRepository.save(sc);
 
-        // Check if all clearances for this separation are completed
+        // Auto-reconcile active assets if IT_ASSETS clearance is CLEARED
         EmployeeSeparation sep = sc.getSeparation();
+        if ("IT_ASSETS".equalsIgnoreCase(sc.getDepartmentType()) && "CLEARED".equalsIgnoreCase(status)) {
+            reconcileEmployeeAssets(sep.getEmployee(), remarks);
+        }
+
+        // Check if all clearances for this separation are completed
         List<SeparationClearance> all = clearanceRepository.findBySeparationIdOrderByIdAsc(sep.getId());
         boolean allCleared = all.stream().allMatch(c -> "CLEARED".equalsIgnoreCase(c.getStatus()));
         if (allCleared && !"SETTLED".equalsIgnoreCase(sep.getStatus())) {
             sep.setStatus("CLEARANCE_COMPLETED");
             separationRepository.save(sep);
         }
+
+        auditService.log("SEPARATION_CLEARANCE_UPDATED", "CLEARANCE", sc.getId(),
+                sc.getDepartmentType() + " clearance marked " + status + " for " + sep.getEmployee().getFullName() + " by " + clearedBy);
 
         return ClearanceDto.builder()
                 .id(sc.getId())
@@ -151,6 +201,29 @@ public class OffboardingService {
                 .pendingDues(sc.getPendingDues())
                 .remarks(sc.getRemarks())
                 .build();
+    }
+
+    private void reconcileEmployeeAssets(Employee emp, String remarks) {
+        if (emp == null) return;
+        String tenantId = emp.getTenantId();
+        List<AssetAllocation> activeAllocs =
+                assetAllocationRepository.findByTenantIdAndEmployeeIdAndAllocationStatus(tenantId, emp.getId(), "ACTIVE");
+        LocalDateTime now = LocalDateTime.now();
+        for (AssetAllocation alloc : activeAllocs) {
+            alloc.setReturnedAt(now);
+            alloc.setAllocationStatus("RETURNED");
+            alloc.setNotes((alloc.getNotes() != null ? alloc.getNotes() + " | " : "") + "Auto-surrendered in offboarding: " + (remarks != null ? remarks : "NOC Clearance"));
+            assetAllocationRepository.save(alloc);
+
+            Asset asset = alloc.getAsset();
+            if (asset != null) {
+                asset.setStatus("AVAILABLE");
+                assetRepository.save(asset);
+            }
+        }
+        if (!activeAllocs.isEmpty()) {
+            log.info("Auto-surrendered {} active IT hardware assets for employee #{}", activeAllocs.size(), emp.getId());
+        }
     }
 
     // --- 4. Auto-Compute F&F Settlement ---
@@ -297,9 +370,25 @@ public class OffboardingService {
             emp.setEmploymentStatus(EmploymentStatus.TERMINATED);
             emp.setDateOfLeaving(sep.getApprovedLastWorkingDay() != null ? sep.getApprovedLastWorkingDay() : LocalDate.now());
             employeeRepository.save(emp);
+
+            // SEC-015: Deactivate User account to prevent post-termination system access
+            if (emp.getUser() != null) {
+                User u = emp.getUser();
+                u.setIsActive(false);
+                userRepository.save(u);
+                log.info("SEC-015: Deactivated user account for terminated employee #{} ({})", emp.getId(), u.getEmail());
+            }
+
+            // Ensure all remaining assets are marked surrendered
+            reconcileEmployeeAssets(emp, "F&F Settlement Disbursed");
+
+            auditService.log("SETTLEMENT_DISBURSED", "SETTLEMENT", settlement.getId(),
+                "Disbursed F&F Settlement of ₹" + settlement.getNetPayableAmount() + " for " + emp.getFullName() + " (User account deactivated, status: TERMINATED)");
             log.info("F&F Settlement disbursed for employee {}: ₹{}", emp.getId(), settlement.getNetPayableAmount());
         } else {
             settlement.setStatus("APPROVED");
+            auditService.log("SETTLEMENT_SAVED", "SETTLEMENT", settlement.getId(),
+                "Saved draft F&F settlement of ₹" + settlement.getNetPayableAmount() + " for " + emp.getFullName());
         }
 
         settlement = settlementRepository.save(settlement);

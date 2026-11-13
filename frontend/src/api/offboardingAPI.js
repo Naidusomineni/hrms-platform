@@ -9,6 +9,7 @@ export const offboardingAPI = {
     apiClient.put(`/v1/offboarding/separations/${id}/review`, null, {
       params: { action, approvedLwd: lwd, comments }
     }),
+  withdrawSeparation:    (id)                       => apiClient.put(`/v1/offboarding/separations/${id}/withdraw`),
   updateClearance:       (id, status, dues, remarks) =>
     apiClient.put(`/v1/offboarding/clearances/${id}`, null, {
       params: { status, pendingDues: dues, remarks }

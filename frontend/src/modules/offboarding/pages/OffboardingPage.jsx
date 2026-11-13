@@ -151,6 +151,18 @@ const OffboardingPage = () => {
     }
   }
 
+  // Handle Withdrawal
+  const handleWithdrawSeparation = async (separationId) => {
+    if (!window.confirm('Are you sure you want to withdraw this resignation request?')) return
+    try {
+      await offboardingAPI.withdrawSeparation(separationId)
+      toast.success('Resignation successfully withdrawn')
+      fetchSeparations()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to withdraw resignation')
+    }
+  }
+
   // Handle Clearance Update
   const handleUpdateClearance = async (e) => {
     e.preventDefault()
@@ -361,6 +373,19 @@ const OffboardingPage = () => {
                           >
                             View Checklist <ArrowRight size={12} />
                           </Button>
+                          {(sep.status === 'SUBMITTED' || sep.status === 'CLEARANCE_PENDING') && (!isAdminHR || sep.employeeId === user?.employeeId) && (
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleWithdrawSeparation(sep.id)
+                              }}
+                              className="text-xs"
+                            >
+                              Withdraw
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

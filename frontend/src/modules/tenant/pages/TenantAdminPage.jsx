@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Card, CardHeader, CardBody, Badge, Spinner, EmptyState, Button, Input, SearchInput, Pagination } from '../../../components/common'
-import { Shield, Users, Settings, Key, Activity, Search, Palette, Building2, Upload, Trash2, Check, RefreshCw, Eye } from 'lucide-react'
+import { Shield, Users, Settings, Key, Activity, Search, Palette, Building2, Upload, Trash2, Check, RefreshCw, Eye, Download } from 'lucide-react'
 import { tenantService } from '../services/tenantService'
 import { updateTenantBrandingThunk, uploadTenantLogoThunk } from '../../../store/slices/tenantSlice'
 import toast from 'react-hot-toast'
@@ -35,6 +35,7 @@ const TenantAdminPage = () => {
   const [auditEntityType, setAuditEntityType] = useState('')
   const [auditPerformedBy, setAuditPerformedBy] = useState('')
   const [auditPagination, setAuditPagination] = useState({ page: 0, size: 20, totalElements: 0, totalPages: 0 })
+  const [exportingAudit, setExportingAudit] = useState(false)
   const [settings, setSettings] = useState([])
   const [configLoading, setConfigLoading] = useState(false)
   const [settingsUpdates, setSettingsUpdates] = useState({})
@@ -186,6 +187,33 @@ const TenantAdminPage = () => {
       toast.error('Failed to load audit logs')
     } finally {
       setAuditLoading(false)
+    }
+  }
+
+  const handleExportAuditLogs = async () => {
+    setExportingAudit(true)
+    try {
+      const params = {}
+      if (auditSearch?.trim()) params.q = auditSearch.trim()
+      if (auditAction) params.action = auditAction
+      if (auditEntityType) params.entityType = auditEntityType
+      if (auditPerformedBy?.trim()) params.performedBy = auditPerformedBy.trim()
+
+      const res = await tenantService.exportAuditLogs(params)
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `audit_logs_${new Date().toISOString().slice(0, 10)}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      toast.success('Audit logs exported successfully')
+    } catch (err) {
+      toast.error('Failed to export audit logs: ' + (err.response?.data?.message || err.message))
+    } finally {
+      setExportingAudit(false)
     }
   }
 
@@ -703,6 +731,10 @@ const TenantAdminPage = () => {
                 <Input value={auditPerformedBy} onChange={e => setAuditPerformedBy(e.target.value)} placeholder="Performed by" className="max-w-[180px]" />
                 <Button variant="secondary" size="sm" onClick={() => fetchAuditLogs(0, auditSearch)}>Search</Button>
                 <Button variant="secondary" size="sm" onClick={() => fetchAuditLogs(0, auditSearch)}>Refresh</Button>
+                <Button variant="secondary" size="sm" onClick={handleExportAuditLogs} loading={exportingAudit} disabled={exportingAudit}>
+                  <Download size={14} className="mr-1" />
+                  Export CSV
+                </Button>
                 {hasAuditFilters && (
                   <Button variant="danger" size="sm" onClick={clearAuditFilters}>Clear filters</Button>
                 )}

@@ -50,4 +50,10 @@ public class AuditService {
             performedBy == null || performedBy.isBlank() ? null : performedBy.trim(),
             pageable);
     }
+
+    @Transactional(readOnly = true)
+    public java.util.List<AuditLog> exportLogs(String query, String action, String entityType, String performedBy) {
+        Pageable pageable = PageRequest.of(0, 5000, Sort.by("performedAt").descending());
+        return getAll(pageable, query, action, entityType, performedBy).getContent();
+    }
 }

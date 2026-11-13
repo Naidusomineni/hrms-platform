@@ -46,6 +46,7 @@ public class RecruitmentService {
     private final EmployeeLeaveBalanceRepository leaveBalanceRepository;
     private final com.hrms.service.EmailService emailService;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    private final com.hrms.common.audit.AuditService auditService;
 
     public List<JobPostingDto> getJobPostings() {
         String tenantId = TenantContext.getTenantId();
@@ -80,6 +81,7 @@ public class RecruitmentService {
                 .build();
         job.setTenantId(tenantId);
         job = jobPostingRepository.save(job);
+        auditService.log("JOB_POSTING_CREATED", "JOB_POSTING", job.getId(), "Created job opening: " + job.getTitle());
         return toJobDto(job);
     }
 
@@ -127,9 +129,53 @@ public class RecruitmentService {
         Candidate cand = candidateRepository.findById(candidateId)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidate", "id", candidateId));
         CandidateStage stage = CandidateStage.valueOf(stageStr.toUpperCase());
+        CandidateStage oldStage = cand.getStage();
         cand.setStage(stage);
         cand = candidateRepository.save(cand);
+
+        auditService.log("CANDIDATE_STAGE_UPDATED", "CANDIDATE", cand.getId(),
+                "Candidate " + cand.getName() + " stage updated from " + oldStage + " to " + stage);
+
+        if (cand.getEmail() != null && !cand.getEmail().isBlank() && oldStage != stage) {
+            try {
+                boolean isFinalOffer = (stage == CandidateStage.OFFER_PENDING || stage == CandidateStage.HIRED);
+                String jobTitle = (cand.getJobPosting() != null ? cand.getJobPosting().getTitle() : "Position");
+                String roundDisplay = oldStage != null ? oldStage.name().replace('_', ' ') : "Evaluation";
+                String humanNextStage = formatStageName(stage);
+
+                emailService.sendInterviewStageAdvanceEmail(
+                        cand.getEmail(),
+                        cand.getName(),
+                        jobTitle,
+                        roundDisplay,
+                        humanNextStage,
+                        isFinalOffer
+                );
+                log.info("Dispatched stage advancement email to candidate '{}' ({}) -> {}",
+                        cand.getName(), cand.getEmail(), humanNextStage);
+            } catch (Exception e) {
+                log.warn("Failed to dispatch stage advancement email to candidate {}: {}", cand.getEmail(), e.getMessage());
+            }
+        }
+
         return toCandidateDto(cand);
+    }
+
+    private String formatStageName(CandidateStage stage) {
+        if (stage == null) return "Next Round";
+        return switch (stage) {
+            case APPLIED -> "Application Received";
+            case SCREENING -> "Resume Screening";
+            case INTERVIEW_ROUND_1 -> "Technical Interview Round 1";
+            case INTERVIEW_ROUND_2 -> "Technical Interview Round 2 / Panel";
+            case TECHNICAL -> "Technical Deep Dive";
+            case HR_ROUND -> "HR Culture Fit Round";
+            case OFFER_PENDING -> "Job Offer Formulation";
+            case OFFER_ACCEPTED -> "Offer Accepted";
+            case OFFER_REJECTED -> "Offer Declined";
+            case HIRED -> "Welcome to the Team!";
+            case DROPPED -> "Application Review Completed";
+        };
     }
 
     public InterviewScorecardDto addScorecard(InterviewScorecardDto dto) {
@@ -278,6 +324,8 @@ public class RecruitmentService {
         candidateRepository.save(cand);
 
         log.info("Candidate {} successfully converted to Employee {}", cand.getName(), emp.getEmployeeNumber());
+        auditService.log("CANDIDATE_CONVERTED_TO_EMPLOYEE", "EMPLOYEE", emp.getId(),
+            "Converted candidate " + cand.getName() + " into active employee " + emp.getEmployeeNumber() + " (" + emp.getDesignation() + ")");
         return employeeService.toResponse(emp);
     }
 

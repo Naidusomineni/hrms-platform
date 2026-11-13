@@ -36,6 +36,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final ExpenseClaimRepository expenseClaimRepository;
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
+    private final com.hrms.common.audit.AuditService auditService;
 
     @Override
     public ExpenseClaimDto submitClaim(Long employeeId, CreateExpenseClaimRequest request) {
@@ -69,6 +70,8 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         ExpenseClaim saved = expenseClaimRepository.save(claim);
         log.info("Expense claim created: {} by employee {} (amount: ₹{})", claimNumber, employee.getEmployeeNumber(), request.getAmount());
+        auditService.log("EXPENSE_SUBMITTED", "EXPENSE_CLAIM", saved.getId(),
+            "Submitted claim " + claimNumber + " (₹" + request.getAmount() + " - " + request.getTitle() + ") by " + employee.getFullName());
         return mapToDto(saved);
     }
 
@@ -98,6 +101,8 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         ExpenseClaim saved = expenseClaimRepository.save(claim);
         log.info("Expense claim {} manager review action: {}", claim.getClaimNumber(), request.getAction());
+        auditService.log("EXPENSE_MANAGER_REVIEW", "EXPENSE_CLAIM", saved.getId(),
+            "Manager action " + request.getAction() + " for claim " + claim.getClaimNumber() + " (₹" + claim.getAmount() + ")");
         return mapToDto(saved);
     }
 
@@ -127,6 +132,8 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         ExpenseClaim saved = expenseClaimRepository.save(claim);
         log.info("Expense claim {} finance review action: {}", claim.getClaimNumber(), request.getAction());
+        auditService.log("EXPENSE_FINANCE_REVIEW", "EXPENSE_CLAIM", saved.getId(),
+            "Finance action " + request.getAction() + " for claim " + claim.getClaimNumber() + " (₹" + claim.getAmount() + ")");
         return mapToDto(saved);
     }
 
@@ -185,6 +192,8 @@ public class ExpenseServiceImpl implements ExpenseService {
         expenseClaimRepository.saveAll(approvedClaims);
         log.info("Auto-disbursed {} expense claims totaling ₹{} for employee {} into payroll slip #{}",
                 approvedClaims.size(), total, employeeId, slip.getId());
+        auditService.log("EXPENSE_DISBURSED_PAYROLL", "EXPENSE_CLAIM", null,
+            "Auto-disbursed " + approvedClaims.size() + " claims totaling ₹" + total + " into payroll slip #" + slip.getId());
         return total;
     }
 

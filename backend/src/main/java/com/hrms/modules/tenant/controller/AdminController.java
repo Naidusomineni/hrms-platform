@@ -115,6 +115,37 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success(logs));
     }
 
+    @GetMapping(value = "/audit/export", produces = "text/csv;charset=UTF-8")
+    public ResponseEntity<byte[]> exportAuditLogs(
+            @RequestParam(name = "q", required = false) String q,
+            @RequestParam(name = "action", required = false) String action,
+            @RequestParam(name = "entityType", required = false) String entityType,
+            @RequestParam(name = "performedBy", required = false) String performedBy) {
+        List<com.hrms.entity.AuditLog> logs = auditService.exportLogs(q, action, entityType, performedBy);
+        StringBuilder sb = new StringBuilder();
+        sb.append("Timestamp,Action,Entity Type,Entity ID,Performed By,Description,Request ID\n");
+        for (com.hrms.entity.AuditLog log : logs) {
+            sb.append("\"").append(log.getPerformedAt() != null ? log.getPerformedAt().toString() : "").append("\",")
+              .append("\"").append(escapeCsv(log.getAction())).append("\",")
+              .append("\"").append(escapeCsv(log.getEntityType())).append("\",")
+              .append(log.getEntityId() != null ? log.getEntityId() : "").append(",")
+              .append("\"").append(escapeCsv(log.getPerformedBy())).append("\",")
+              .append("\"").append(escapeCsv(log.getDescription())).append("\",")
+              .append("\"").append(escapeCsv(log.getRequestId())).append("\"\n");
+        }
+        byte[] csvBytes = sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String filename = "audit_logs_" + java.time.LocalDate.now() + ".csv";
+        return ResponseEntity.ok()
+            .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+            .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "text/csv;charset=UTF-8")
+            .body(csvBytes);
+    }
+
+    private String escapeCsv(String val) {
+        if (val == null) return "";
+        return val.replace("\"", "\"\"");
+    }
+
     @GetMapping("/settings")
     public ResponseEntity<ApiResponse<List<SystemSettingResponse>>> getSettings() {
         return ResponseEntity.ok(ApiResponse.success(systemConfigService.getAllSettings()));

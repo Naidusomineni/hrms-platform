@@ -31,6 +31,7 @@ public class PayrollService {
     private final AttendanceRepository attendanceRepository;
     private final EmailService emailService;
     private final com.hrms.modules.expense.service.ExpenseService expenseService;
+    private final com.hrms.common.audit.AuditService auditService;
 
     public PayrollSlip process(Long empId, int month, int year) {
         if (payrollSlipRepository.findByEmployeeIdAndMonthAndYear(empId, month, year).isPresent())
@@ -138,6 +139,8 @@ public class PayrollService {
         result.put("year", year);
         log.info("Batch draft payroll calculated: {} processed, {} skipped, totalDraftNet={} for month={}/{}",
             processed, skipped, totalDraftNet, month, year);
+        auditService.log("PAYROLL_GENERATED", "PAYROLL", null,
+            "Generated payroll run for " + month + "/" + year + ": " + processed + " slips calculated (Total: ₹" + totalDraftNet + ")");
         return result;
     }
 
@@ -226,6 +229,8 @@ public class PayrollService {
 
         log.info("Payroll slip #{} adjusted by {}: netSalary={}, remarks={}",
             slip.getId(), hrEmail, slip.getNetSalary(), slip.getHrRemarks());
+        auditService.log("PAYROLL_SLIP_ADJUSTED", "PAYROLL", slip.getId(),
+            "Adjusted payroll for " + slip.getEmployee().getFullName() + " (Period: " + slip.getMonth() + "/" + slip.getYear() + ", Net: ₹" + slip.getNetSalary() + ", Remarks: " + slip.getHrRemarks() + ")");
         return slip;
     }
 
@@ -239,6 +244,8 @@ public class PayrollService {
         slip = payrollSlipRepository.save(slip);
         sendPayrollEmail(slip);
         log.info("Payroll slip #{} approved by {}", slipId, approverEmail);
+        auditService.log("PAYROLL_SLIP_APPROVED", "PAYROLL", slip.getId(),
+            "Approved payslip for " + slip.getEmployee().getFullName() + " (Period: " + slip.getMonth() + "/" + slip.getYear() + ", Net: ₹" + slip.getNetSalary() + ")");
         return slip;
     }
 
@@ -266,6 +273,8 @@ public class PayrollService {
         result.put("month", month);
         result.put("year", year);
         log.info("Batch payroll approved: {} slips finalized for month={}/{} by {}", approvedCount, month, year, approverEmail);
+        auditService.log("PAYROLL_BATCH_APPROVED", "PAYROLL", null,
+            "Approved " + approvedCount + " payroll slips for period " + month + "/" + year + " (Total: ₹" + totalNet + ")");
         return result;
     }
 
@@ -288,6 +297,8 @@ public class PayrollService {
         res.put("markedPaidCount", marked);
         res.put("month", month);
         res.put("year", year);
+        auditService.log("PAYROLL_BATCH_PAID", "PAYROLL", null,
+            "Marked " + marked + " payroll slips as PAID for period " + month + "/" + year + (paymentRef != null ? " (Ref: " + paymentRef + ")" : ""));
         return res;
     }
 
@@ -442,6 +453,8 @@ public class PayrollService {
               .append(item.getPaymentType()).append(",")
               .append("\"").append(item.getNarration()).append("\"\n");
         }
+        auditService.log("PAYROLL_BANK_EXPORT", "PAYROLL", null,
+            "Exported NEFT/RTGS bank disbursement batch CSV for period " + month + "/" + year + " (" + items.size() + " records)");
         return sb.toString();
     }
 

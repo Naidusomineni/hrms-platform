@@ -12,6 +12,7 @@ UTF-8
 "backend/src/main/java/com/hrms/common/mail/EmailServiceImpl.java"
 "backend/src/main/java/com/hrms/config/AsyncConfig.java"
 "backend/src/main/java/com/hrms/config/CorsConfig.java"
+"backend/src/main/java/com/hrms/config/CustomAccessDeniedHandler.java"
 "backend/src/main/java/com/hrms/config/DataInitializer.java"
 "backend/src/main/java/com/hrms/config/JwtAuthEntryPoint.java"
 "backend/src/main/java/com/hrms/config/RateLimitConfig.java"

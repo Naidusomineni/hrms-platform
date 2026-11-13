@@ -30,6 +30,7 @@ public class LeaveService {
     private final EmailService emailService;
     private final EmployeeLeaveBalanceRepository balanceRepository;
     private final WorkflowEngineService workflowEngineService;
+    private final com.hrms.common.audit.AuditService auditService;
 
     public LeaveResponse apply(Long empId, LeaveApplicationRequest req) {
         Employee emp = employeeRepository.findById(empId)
@@ -77,6 +78,8 @@ public class LeaveService {
         }
 
         log.info("Leave applied: empId={}, days={}, type={}", empId, days, req.getLeaveType());
+        auditService.log("LEAVE_APPLIED", "LEAVE_REQUEST", leave.getId(),
+            "Applied " + req.getLeaveType() + " leave (" + days + " days) for " + emp.getFullName());
         return toResponse(leave);
     }
 
@@ -117,6 +120,9 @@ public class LeaveService {
             action.name(), req.getComments() != null ? req.getComments() : ""
         );
 
+        auditService.log("LEAVE_" + action.name(), "LEAVE_REQUEST", leave.getId(),
+            (action == LeaveStatus.APPROVED ? "Approved" : "Rejected") + " " + leave.getLeaveType() + " leave (" + leave.getNumberOfDays() + " days) for " + emp.getFullName() + " (Reviewer: " + reviewerEmail + ")");
+
         return toResponse(leave);
     }
 
@@ -128,6 +134,8 @@ public class LeaveService {
         if (leave.getStatus() != LeaveStatus.PENDING)
             throw new BadRequestException("Only pending leave requests can be cancelled");
         leave.setStatus(LeaveStatus.CANCELLED);
+        auditService.log("LEAVE_CANCELLED", "LEAVE_REQUEST", leave.getId(),
+            "Cancelled leave #" + leaveId + " for " + leave.getEmployee().getFullName());
         return toResponse(leaveRepository.save(leave));
     }
 

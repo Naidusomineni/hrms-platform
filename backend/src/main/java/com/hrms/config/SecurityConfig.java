@@ -38,6 +38,7 @@ public class SecurityConfig {
     private final TenantModuleEnforcementFilter tenantModuleEnforcementFilter;
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtAuthEntryPoint jwtAuthEntryPoint;
+    private final CustomAccessDeniedHandler customAccessDeniedHandler;
 
     private static final String[] PUBLIC_PATHS = {
             "/v1/auth/login",
@@ -66,8 +67,9 @@ public class SecurityConfig {
 
                 .cors(Customizer.withDefaults())
 
-                .exceptionHandling(ex ->
-                        ex.authenticationEntryPoint(jwtAuthEntryPoint)
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jwtAuthEntryPoint)
+                        .accessDeniedHandler(customAccessDeniedHandler)
                 )
 
                 .sessionManagement(session ->

@@ -40,14 +40,17 @@ The sample is a shape illustration; timestamps and optional properties depend on
 | Auth | `POST /v1/auth/register` | `RegisterRequest`; returns `AuthResponse` |
 | Auth | `POST /v1/auth/login` | `LoginRequest`; returns access/refresh data and sets refresh cookie |
 | Auth | `POST /v1/auth/refresh` | refresh token in body or cookie; rotates token |
-| Auth | `POST /v1/auth/logout`, `/logout-all` | Revoke token or request session invalidation; logout-all controller is currently a success stub |
+| Auth | `POST /v1/auth/logout`, `/logout-all` | Revoke token or session invalidation across all user devices |
+| Auth | `GET /v1/auth/sessions` | List active concurrent sessions for current user (IP, device, login time) |
+| Auth | `DELETE /v1/auth/sessions/{id}`, `DELETE /v1/auth/sessions` | Revoke specific session or all other sessions |
 | Auth | `POST /v1/auth/forgot-password`, `/reset-password` | OTP reset requests |
 | Auth | `POST /v1/auth/verify-email`, `/resend-verification` | Query parameters `token/email` or `email` |
-| Auth | `POST /v1/auth/change-password` | `ChangePasswordRequest` |
+| Auth | `POST /v1/auth/change-password` | `ChangePasswordRequest` enforced by enterprise complexity regex |
 | Auth | `GET /v1/auth/login-history?userId=…` | Login history query |
 | Auth | `POST /v1/auth/2fa/setup`, `/2fa/enable`, `/2fa/disable` | TOTP setup/verification; see controller DTOs |
-| Employees | `GET /v1/employees`, `/me`, `/{id}`, `/department/{deptId}` | Employee lists/detail/profile; list endpoints accept pagination/filter parameters in controller |
+| Employees | `GET /v1/employees`, `/me`, `/{id}`, `/department/{deptId}`, `/export` | Employee lists/detail/profile/export; export supports `masked=true` for sensitive PII sanitization |
 | Employees | `POST /v1/employees`, `PUT /{id}`, `DELETE /{id}` | Create/update/soft-delete using `EmployeeRequest` |
+| Employees | `POST /v1/employees/bulk-import/preview`, `/bulk-import` | Pre-flight validation dry-run and bulk CSV employee ingestion |
 | Employees | `POST /v1/employees/photo`, `/{id}/photo`, `/{id}/document` | Multipart upload |
 | Departments | `GET /v1/departments`, `/{id}`; `POST /`, `PUT /{id}`, `DELETE /{id}` | Department CRUD with `DepartmentRequest` |
 | Attendance | `POST /v1/attendance/punch`, `/auto-login-punch`, `/break-toggle` | Punch or toggle break; request DTO/employee ID per controller |
@@ -78,10 +81,11 @@ The sample is a shape illustration; timestamps and optional properties depend on
 | Assets | `GET/POST /v1/assets`; `POST /{id}/allocate`, `/allocations/{id}/return`; `GET /employee/{empId}` | Asset inventory and allocations |
 | Helpdesk | `POST/GET /v1/helpdesk/tickets`, `/tickets/my`, `/{id}`, `/stats`; `PUT /tickets/{id}`; `POST /tickets/{id}/comments` | Ticket creation, review, comments, stats |
 | Communication | `POST/GET /v1/communication/announcements`, `GET /announcements/all`, `POST /announcements/{id}/acknowledge`, `DELETE /announcements/{id}` | Announcement lifecycle |
-| Notifications | `GET /v1/notifications/user/{userId}`, `/unread-count`; `PUT /user/{userId}/mark-all-read`, `/{id}/read` | Notification queries/read markers |
+| Notifications | `GET /v1/notifications`, `/unread-count`; `PUT /mark-all-read`, `/{id}/read`; `GET /user/{userId}` | In-app notification hub with self-service endpoints and BOLA protection |
 | Intelligence | `POST /v1/intelligence/assistant/ask`; policy GET/POST/upload/PUT/DELETE paths; risk-analysis, re-evaluate and department-overview; `POST /ats/evaluate-candidate` | Assistant/policy/risk/candidate matching APIs |
 | Reports/dashboard | `GET /v1/reports/analytics`, `/tax/employee/{empId}`; `POST /tax`; `GET /v1/dashboard/admin` | Analytics, declarations and dashboard |
-| Admin | `GET /v1/admin/users`, `/audit`, `/settings`; `PATCH /users/{id}/status`, `/users/{id}/role`; `PUT /settings/{key}` | User, audit and system settings |
+| Admin | `GET /v1/admin/users`, `/audit`, `/audit/export`, `/system/metrics`, `/settings`; `PATCH /users/{id}/status`, `/users/{id}/role`; `PUT /settings/{key}` | User, SOC-2 audit logging with IP extraction, system telemetry (HikariCP/JVM), and settings |
+| Actuator | `GET /api/actuator/health`, `/api/actuator/metrics` | Production health probes (liveness/readiness) and authenticated metrics |
 | Tenants | `GET /v1/tenants`, `/current`, `/{id}`, `/{id}/settings`; `POST /`; `PUT /{id}/settings/{key}`, `/current/branding`, `/{id}/branding`; logo multipart POST paths | Tenant management and branding |
 | Tenant modules | `GET /v1/tenant/modules`, `/enabled`; `PUT /{moduleKey}`, `/batch` | Manifest reads/toggle/batch update |
 

@@ -35,6 +35,7 @@ public class AdminController {
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final SystemConfigService systemConfigService;
+    private final com.hrms.modules.tenant.service.SystemMetricsService systemMetricsService;
 
     @GetMapping("/users")
     public ResponseEntity<ApiResponse<Page<UserResponse>>> getAllUsers(
@@ -158,5 +159,11 @@ public class AdminController {
             @PathVariable("key") String key,
             @Valid @RequestBody SystemSettingRequest request) {
         return ResponseEntity.ok(ApiResponse.success(systemConfigService.updateSetting(key, request.getValue())));
+    }
+
+    @GetMapping("/system/metrics")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_SUPER_ADMIN','ROLE_IT_ADMIN')")
+    public ResponseEntity<ApiResponse<com.hrms.dto.response.SystemMetricsDto>> getSystemMetrics() {
+        return ResponseEntity.ok(ApiResponse.success("System observability metrics", systemMetricsService.getSystemMetrics()));
     }
 }

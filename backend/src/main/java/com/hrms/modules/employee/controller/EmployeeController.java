@@ -117,6 +117,20 @@ public class EmployeeController {
         return ResponseEntity.ok(ApiResponse.success("Employee removed successfully"));
     }
 
+    @GetMapping(value = "/export", produces = "text/csv;charset=UTF-8")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN')")
+    @Operation(summary = "Export employee master register with dynamic PII masking support")
+    public ResponseEntity<byte[]> exportEmployees(
+            @RequestParam(name = "masked", required = false, defaultValue = "false") boolean masked) {
+        String csv = employeeService.exportEmployeesCsv(masked);
+        byte[] csvBytes = csv.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String filename = "employee_directory_" + java.time.LocalDate.now() + (masked ? "_masked" : "") + ".csv";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .header(HttpHeaders.CONTENT_TYPE, "text/csv; charset=UTF-8")
+                .body(csvBytes);
+    }
+
     @GetMapping(value = "/bulk-import/template", produces = "text/csv")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR','ROLE_SUPER_ADMIN')")
     @Operation(summary = "Download sample CSV template for bulk employee import")

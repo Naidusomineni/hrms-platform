@@ -127,11 +127,13 @@ public class PayrollController {
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_HR')")
     public ResponseEntity<byte[]> exportBankBatch(
             @RequestParam("month") int month,
-            @RequestParam("year") int year) {
-        String csv = payrollService.generateBankBatchCsv(month, year);
+            @RequestParam("year") int year,
+            @RequestParam(name = "masked", required = false, defaultValue = "false") boolean masked) {
+        String csv = payrollService.generateBankBatchCsv(month, year, masked);
         byte[] bytes = csv.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String filename = "salary_batch_disbursement_" + month + "_" + year + (masked ? "_masked" : "") + ".csv";
         return ResponseEntity.ok()
-            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"salary_batch_disbursement_" + month + "_" + year + ".csv\"")
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
             .contentType(MediaType.parseMediaType("text/csv"))
             .body(bytes);
     }

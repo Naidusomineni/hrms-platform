@@ -332,3 +332,5 @@ UTF-8
 "backend/src/main/java/com/hrms/dto/response/BulkImportPreviewDto.java"
 "backend/src/main/java/com/hrms/dto/response/BulkRowErrorDto.java"
 "backend/src/main/java/com/hrms/dto/response/BulkRowPreviewDto.java"
+"backend/src/main/java/com/hrms/dto/response/SystemMetricsDto.java"
+"backend/src/main/java/com/hrms/modules/tenant/service/SystemMetricsService.java"

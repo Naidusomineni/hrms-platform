@@ -778,6 +778,46 @@ public class EmployeeService {
         return String.format("EMP-%d-%04d", year, count);
     }
 
+    @Transactional(readOnly = true)
+    public String exportEmployeesCsv(boolean masked) {
+        String tenantId = TenantContext.getTenantId();
+        List<Employee> employees = (tenantId != null && !tenantId.isBlank() && !"default".equalsIgnoreCase(tenantId))
+                ? employeeRepository.findByTenantId(tenantId)
+                : employeeRepository.findAll();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("EmployeeNumber,FirstName,LastName,Email,Department,Designation,Status,Phone,Salary,BankAccountNumber,DateOfJoining\n");
+        for (Employee emp : employees) {
+            String phone = emp.getPhoneNumber() != null ? emp.getPhoneNumber() : "";
+            String salary = emp.getSalary() != null ? emp.getSalary().toPlainString() : "";
+            String bankAcc = emp.getBankAccountNumber() != null ? emp.getBankAccountNumber() : "";
+
+            if (masked) {
+                phone = phone.length() > 4 ? "••••••" + phone.substring(phone.length() - 4) : "••••";
+                salary = "••••••";
+                bankAcc = bankAcc.length() > 4 ? "••••••••" + bankAcc.substring(bankAcc.length() - 4) : "••••••••";
+            }
+
+            sb.append("\"").append(escapeCsv(emp.getEmployeeNumber())).append("\",")
+              .append("\"").append(escapeCsv(emp.getFirstName())).append("\",")
+              .append("\"").append(escapeCsv(emp.getLastName())).append("\",")
+              .append("\"").append(escapeCsv(emp.getEmail())).append("\",")
+              .append("\"").append(emp.getDepartment() != null ? escapeCsv(emp.getDepartment().getName()) : "").append("\",")
+              .append("\"").append(escapeCsv(emp.getDesignation())).append("\",")
+              .append("\"").append(emp.getEmploymentStatus() != null ? emp.getEmploymentStatus().name() : "").append("\",")
+              .append("\"").append(escapeCsv(phone)).append("\",")
+              .append("\"").append(escapeCsv(salary)).append("\",")
+              .append("\"").append(escapeCsv(bankAcc)).append("\",")
+              .append(emp.getDateOfJoining() != null ? emp.getDateOfJoining().toString() : "").append("\n");
+        }
+        return sb.toString();
+    }
+
+    private String escapeCsv(String val) {
+        if (val == null) return "";
+        return val.replace("\"", "\"\"");
+    }
+
     public EmployeeResponse toResponse(Employee e) {
         return EmployeeResponse.builder()
             .id(e.getId()).employeeNumber(e.getEmployeeNumber())

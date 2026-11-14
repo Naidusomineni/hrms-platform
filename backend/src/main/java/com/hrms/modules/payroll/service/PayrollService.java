@@ -438,15 +438,21 @@ public class PayrollService {
 
     @Transactional(readOnly = true)
     public String generateBankBatchCsv(int month, int year) {
+        return generateBankBatchCsv(month, year, false);
+    }
+
+    @Transactional(readOnly = true)
+    public String generateBankBatchCsv(int month, int year, boolean masked) {
         List<BankDisbursementDto> items = getBankBatchDisbursements(month, year);
         StringBuilder sb = new StringBuilder();
         sb.append("SrNo,EmployeeNumber,BeneficiaryName,AccountNumber,IFSCCode,BankName,Amount,PaymentType,Narration\n");
         int count = 1;
         for (BankDisbursementDto item : items) {
+            String accNo = masked ? maskAccountNumber(item.getBankAccountNumber()) : item.getBankAccountNumber();
             sb.append(count++).append(",")
               .append("\"").append(item.getEmployeeNumber()).append("\",")
               .append("\"").append(item.getEmployeeName()).append("\",")
-              .append("\"").append(item.getBankAccountNumber()).append("\",")
+              .append("\"").append(accNo).append("\",")
               .append("\"").append(item.getIfscCode()).append("\",")
               .append("\"").append(item.getBankName()).append("\",")
               .append(item.getNetSalary() != null ? item.getNetSalary().toPlainString() : "0.00").append(",")
@@ -454,8 +460,18 @@ public class PayrollService {
               .append("\"").append(item.getNarration()).append("\"\n");
         }
         auditService.log("PAYROLL_BANK_EXPORT", "PAYROLL", null,
-            "Exported NEFT/RTGS bank disbursement batch CSV for period " + month + "/" + year + " (" + items.size() + " records)");
+            "Exported NEFT/RTGS bank disbursement batch CSV for period " + month + "/" + year + " (" + items.size() + " records, masked=" + masked + ")");
         return sb.toString();
+    }
+
+    private String maskAccountNumber(String acc) {
+        if (acc == null || acc.isBlank() || "PENDING_UPDATE".equalsIgnoreCase(acc)) {
+            return "PENDING_UPDATE";
+        }
+        if (acc.length() <= 4) {
+            return "••••••••";
+        }
+        return "••••••••" + acc.substring(acc.length() - 4);
     }
 
     private void sendPayrollEmail(PayrollSlip slip) {

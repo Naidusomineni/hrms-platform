@@ -17,6 +17,8 @@ public interface AttendanceRegularizationRepository extends JpaRepository<Attend
     Page<AttendanceRegularization> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
     List<AttendanceRegularization> findByTenantIdAndStatus(String tenantId, String status);
 
+    boolean existsByEmployeeIdAndDateAndStatus(Long employeeId, LocalDate date, String status);
+
     @Query("SELECT COUNT(ar) FROM AttendanceRegularization ar WHERE ar.employee.id = :empId " +
            "AND ar.date >= :startDate AND ar.date <= :endDate AND ar.status != 'REJECTED'")
     long countByEmployeeIdAndDateBetweenAndNotRejected(

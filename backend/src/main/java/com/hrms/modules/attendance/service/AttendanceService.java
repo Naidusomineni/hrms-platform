@@ -131,7 +131,7 @@ public class AttendanceService {
             LocalTime shiftStart = policy.getShiftStartTime() != null ? policy.getShiftStartTime() : LocalTime.of(9, 0);
             LocalTime lateCutoff = shiftStart.plusMinutes(graceMinutes);
 
-            if (!isWfh && time.isAfter(lateCutoff)) {
+            if (!isWfh && isLateArrival(time, shiftStart, graceMinutes)) {
                 attendance.setStatus(AttendanceStatus.LATE_ARRIVAL);
                 attendance.setLateArrivalReason(req.getLateArrivalReason() != null
                         ? req.getLateArrivalReason()
@@ -159,6 +159,10 @@ public class AttendanceService {
 
             // Calculate net working hours (minus break time or policy auto-deduction)
             long totalMinutes = Duration.between(attendance.getCheckInTime(), time).toMinutes();
+            if (totalMinutes < 0) {
+                // Cross-midnight punch-out for overnight shifts
+                totalMinutes += 24 * 60;
+            }
             int breakMins = attendance.getBreakMinutes() != null ? attendance.getBreakMinutes() : 0;
             if (breakMins == 0 && Boolean.TRUE.equals(policy.getAutoDeductBreak())) {
                 breakMins = policy.getBreakDeductionMinutes() != null ? policy.getBreakDeductionMinutes() : 45;
@@ -207,6 +211,12 @@ public class AttendanceService {
     public RegularizationRequestDto submitRegularization(RegularizationRequestDto req) {
         Employee emp = employeeRepository.findById(req.getEmployeeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", req.getEmployeeId()));
+
+        // 0. Duplicate Pending Regularization Guard
+        boolean alreadyPending = regularizationRepository.existsByEmployeeIdAndDateAndStatus(emp.getId(), req.getDate(), "PENDING");
+        if (alreadyPending) {
+            throw new BadRequestException("A regularization request for " + req.getDate() + " is already pending approval.");
+        }
 
         // Resolve Policy for Employee on Regularization Date
         AttendancePolicy policy = policyResolverService.resolveAttendancePolicy(emp.getId(), req.getDate());
@@ -304,7 +314,11 @@ public class AttendanceService {
             if (reg.getRequestedCheckOut() != null)
                 att.setCheckOutTime(reg.getRequestedCheckOut());
             if (att.getCheckInTime() != null && att.getCheckOutTime() != null) {
-                double hours = Duration.between(att.getCheckInTime(), att.getCheckOutTime()).toMinutes() / 60.0;
+                long totalMinutes = Duration.between(att.getCheckInTime(), att.getCheckOutTime()).toMinutes();
+                if (totalMinutes < 0) {
+                    totalMinutes += 24 * 60; // Overnight shift
+                }
+                double hours = totalMinutes / 60.0;
                 att.setWorkingHours(Math.round(hours * 100.0) / 100.0);
                 att.setOvertimeHours(Math.round(Math.max(0.0, hours - 8.0) * 100.0) / 100.0);
             }
@@ -398,9 +412,14 @@ public class AttendanceService {
 
         Double hours = null;
         if (req.getCheckInTime() != null && req.getCheckOutTime() != null) {
-            if (req.getCheckOutTime().isBefore(req.getCheckInTime()))
-                throw new BadRequestException("Check-out time cannot be before check-in time");
-            hours = Duration.between(req.getCheckInTime(), req.getCheckOutTime()).toMinutes() / 60.0;
+            long totalMinutes = Duration.between(req.getCheckInTime(), req.getCheckOutTime()).toMinutes();
+            if (totalMinutes < 0) {
+                totalMinutes += 24 * 60; // Cross-midnight overnight shift
+            }
+            if (totalMinutes > 16 * 60) {
+                throw new BadRequestException("Check-out time exceeds maximum 16-hour shift duration");
+            }
+            hours = totalMinutes / 60.0;
         }
 
         Attendance attendance = Attendance.builder()
@@ -417,10 +436,13 @@ public class AttendanceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance", "id", id));
 
         if (req.getCheckInTime() != null && req.getCheckOutTime() != null) {
-            if (req.getCheckOutTime().isBefore(req.getCheckInTime())) {
-                throw new BadRequestException("Check-out time cannot be before check-in time");
-            }
             long totalMinutes = Duration.between(req.getCheckInTime(), req.getCheckOutTime()).toMinutes();
+            if (totalMinutes < 0) {
+                totalMinutes += 24 * 60; // Cross-midnight overnight shift
+            }
+            if (totalMinutes > 16 * 60) {
+                throw new BadRequestException("Check-out time exceeds maximum 16-hour shift duration");
+            }
             int breakMins = a.getBreakMinutes() != null ? a.getBreakMinutes() : 0;
             double hours = Math.max(0.0, (totalMinutes - breakMins) / 60.0);
             a.setWorkingHours(Math.round(hours * 100.0) / 100.0);
@@ -588,6 +610,7 @@ public class AttendanceService {
                 int graceMinutes = (policy != null && policy.getGracePeriodMinutes() != null) ? policy.getGracePeriodMinutes() : 15;
                 LocalTime shiftStart = (policy != null && policy.getShiftStartTime() != null) ? policy.getShiftStartTime() : LocalTime.of(9, 0);
                 LocalTime lateCutoff = shiftStart.plusMinutes(graceMinutes);
+                boolean isLate = isLateArrival(time, shiftStart, graceMinutes);
 
                 Optional<Attendance> opt = attendanceRepository.findByEmployeeIdAndDate(emp.getId(), date);
                 Attendance att;
@@ -601,8 +624,8 @@ public class AttendanceService {
                             .punchSource("BIOMETRIC_DEVICE")
                             .deviceId(punch.getDeviceId())
                             .geofenceStatus("BIOMETRIC_VERIFIED")
-                            .status(time.isAfter(lateCutoff) ? AttendanceStatus.LATE_ARRIVAL : AttendanceStatus.PRESENT)
-                            .lateArrivalReason(time.isAfter(lateCutoff) ? "Late biometric punch at " + time + " (Cutoff: " + lateCutoff + ")" : null)
+                            .status(isLate ? AttendanceStatus.LATE_ARRIVAL : AttendanceStatus.PRESENT)
+                            .lateArrivalReason(isLate ? "Late biometric punch at " + time + " (Cutoff: " + lateCutoff + ")" : null)
                             .remarks("Biometric punch via " + punch.getDeviceId())
                             .build();
                 } else {
@@ -615,7 +638,7 @@ public class AttendanceService {
                         att.setPunchSource("BIOMETRIC_DEVICE");
                         att.setDeviceId(punch.getDeviceId());
                         att.setGeofenceStatus("BIOMETRIC_VERIFIED");
-                        att.setStatus(time.isAfter(lateCutoff) ? AttendanceStatus.LATE_ARRIVAL : AttendanceStatus.PRESENT);
+                        att.setStatus(isLate ? AttendanceStatus.LATE_ARRIVAL : AttendanceStatus.PRESENT);
                     } else if (time.isBefore(existingCheckIn)) {
                         // Crucial Enterprise Truth: Hardware punch happened earlier than web punch
                         // Prioritize earlier physical arrival time and waive late penalty if arrived on time
@@ -623,20 +646,26 @@ public class AttendanceService {
                         att.setDeviceId(punch.getDeviceId());
                         att.setPunchSource("BIOMETRIC_DEVICE");
                         att.setGeofenceStatus("BIOMETRIC_VERIFIED");
-                        if (!time.isAfter(lateCutoff)) {
+                        if (!isLate) {
                             att.setStatus(AttendanceStatus.PRESENT);
                             att.setLateArrivalReason(null);
                         }
                     } else {
                         // Subsequent punch after check-in. Ignore duplicate scans within 30 minutes of check-in
                         long minutesSinceCheckIn = Duration.between(existingCheckIn, time).toMinutes();
+                        if (minutesSinceCheckIn < 0) {
+                            minutesSinceCheckIn += 24 * 60; // Overnight shift
+                        }
                         if (minutesSinceCheckIn >= 30) {
                             // Departure / Exit Punch: record Check-Out
-                            if (att.getCheckOutTime() == null || time.isAfter(att.getCheckOutTime())) {
+                            if (att.getCheckOutTime() == null || time.isAfter(att.getCheckOutTime()) || minutesSinceCheckIn > 60) {
                                 att.setCheckOutTime(time);
                                 att.setDeviceId(punch.getDeviceId());
 
                                 long totalMinutes = Duration.between(existingCheckIn, time).toMinutes();
+                                if (totalMinutes < 0) {
+                                    totalMinutes += 24 * 60; // Overnight shift
+                                }
                                 int breakMins = att.getBreakMinutes() != null ? att.getBreakMinutes() : 0;
                                 double hours = Math.max(0.0, (totalMinutes - breakMins) / 60.0);
                                 att.setWorkingHours(Math.round(hours * 100.0) / 100.0);
@@ -791,5 +820,16 @@ public class AttendanceService {
                 .isOnBreak(a.getIsOnBreak())
                 .workMode(a.getWorkMode())
                 .build();
+    }
+
+    private boolean isLateArrival(LocalTime punchTime, LocalTime shiftStart, int graceMinutes) {
+        if (punchTime == null || shiftStart == null) return false;
+        LocalTime lateCutoff = shiftStart.plusMinutes(graceMinutes);
+        if (lateCutoff.isBefore(shiftStart)) {
+            // Cutoff wrapped around midnight (e.g. shiftStart = 23:55, grace = 15 => lateCutoff = 00:10)
+            return punchTime.isAfter(lateCutoff) && punchTime.isBefore(shiftStart);
+        } else {
+            return punchTime.isAfter(lateCutoff);
+        }
     }
 }

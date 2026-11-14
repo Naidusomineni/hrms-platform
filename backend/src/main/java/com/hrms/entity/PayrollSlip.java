@@ -103,6 +103,10 @@ public class PayrollSlip extends BaseTenantEntity {
     @Column(name = "slip_url", length = 500)
     private String slipUrl;
 
+    @Column(name = "currency", length = 10)
+    @Builder.Default
+    private String currency = "INR";
+
     @Column(name = "payment_reference", length = 100)
     private String paymentReference;
 
@@ -154,5 +158,10 @@ public class PayrollSlip extends BaseTenantEntity {
         try {
             return (employee != null && org.hibernate.Hibernate.isInitialized(employee)) ? employee.getSalary() : null;
         } catch (Exception e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("currency")
+    public String getCurrency() {
+        return currency != null ? currency : "INR";
     }
 }

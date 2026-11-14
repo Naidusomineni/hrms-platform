@@ -32,6 +32,7 @@ public class PayrollService {
     private final EmailService emailService;
     private final com.hrms.modules.expense.service.ExpenseService expenseService;
     private final com.hrms.common.audit.AuditService auditService;
+    private final TenantSettingRepository tenantSettingRepository;
 
     public PayrollSlip process(Long empId, int month, int year) {
         if (payrollSlipRepository.findByEmployeeIdAndMonthAndYear(empId, month, year).isPresent())
@@ -72,9 +73,18 @@ public class PayrollService {
         BigDecimal totalDeductions = pf.add(pt).add(tds);
         BigDecimal netSalary = earned.subtract(totalDeductions);
 
+        String tenantId = TenantContext.getTenantId();
+        String currency = "INR";
+        if (tenantId != null && tenantSettingRepository != null) {
+            currency = tenantSettingRepository.findByTenantIdAndConfigKey(tenantId, "CURRENCY_CODE")
+                    .map(TenantSetting::getConfigValue)
+                    .orElse("INR");
+        }
+
         // Initial creation in DRAFT state for HR review
         PayrollSlip slip = PayrollSlip.builder()
             .employee(emp).month(month).year(year)
+            .currency(currency)
             .basicSalary(basic).hra(hra).specialAllowance(special)
             .grossSalary(earned).pfDeduction(pf).professionalTax(pt)
             .incomeTax(tds).totalDeductions(totalDeductions).netSalary(netSalary)
@@ -400,6 +410,12 @@ public class PayrollService {
     @Transactional(readOnly = true)
     public List<BankDisbursementDto> getBankBatchDisbursements(int month, int year) {
         String tenantId = TenantContext.getTenantId();
+        String tenantCurrency = "INR";
+        if (tenantId != null && tenantSettingRepository != null) {
+            tenantCurrency = tenantSettingRepository.findByTenantIdAndConfigKey(tenantId, "CURRENCY_CODE")
+                    .map(TenantSetting::getConfigValue)
+                    .orElse("INR");
+        }
         List<PayrollSlip> slips = payrollSlipRepository.findByTenantIdAndMonthAndYear(tenantId, month, year);
         List<BankDisbursementDto> list = new ArrayList<>();
         for (PayrollSlip slip : slips) {
@@ -427,6 +443,7 @@ public class PayrollService {
                 .bankName(bankName)
                 .ifscCode(ifsc)
                 .netSalary(slip.getNetSalary())
+                .currency(slip.getCurrency() != null ? slip.getCurrency() : tenantCurrency)
                 .paymentType(pType)
                 .narration("SALARY_" + month + "_" + year)
                 .month(month)
@@ -445,10 +462,11 @@ public class PayrollService {
     public String generateBankBatchCsv(int month, int year, boolean masked) {
         List<BankDisbursementDto> items = getBankBatchDisbursements(month, year);
         StringBuilder sb = new StringBuilder();
-        sb.append("SrNo,EmployeeNumber,BeneficiaryName,AccountNumber,IFSCCode,BankName,Amount,PaymentType,Narration\n");
+        sb.append("SrNo,EmployeeNumber,BeneficiaryName,AccountNumber,IFSCCode,BankName,Amount,Currency,PaymentType,Narration\n");
         int count = 1;
         for (BankDisbursementDto item : items) {
             String accNo = masked ? maskAccountNumber(item.getBankAccountNumber()) : item.getBankAccountNumber();
+            String curr = item.getCurrency() != null ? item.getCurrency() : "INR";
             sb.append(count++).append(",")
               .append("\"").append(item.getEmployeeNumber()).append("\",")
               .append("\"").append(item.getEmployeeName()).append("\",")
@@ -456,6 +474,7 @@ public class PayrollService {
               .append("\"").append(item.getIfscCode()).append("\",")
               .append("\"").append(item.getBankName()).append("\",")
               .append(item.getNetSalary() != null ? item.getNetSalary().toPlainString() : "0.00").append(",")
+              .append("\"").append(curr).append("\",")
               .append(item.getPaymentType()).append(",")
               .append("\"").append(item.getNarration()).append("\"\n");
         }

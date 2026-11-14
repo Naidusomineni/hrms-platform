@@ -12,6 +12,8 @@ public class BankDisbursementDto {
     private String bankName;
     private String ifscCode;
     private BigDecimal netSalary;
+    @Builder.Default
+    private String currency = "INR";
     private String paymentType; // NEFT, RTGS, IMPS
     private String narration;
     private Integer month;

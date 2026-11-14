@@ -22,7 +22,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
             absoluteUri += "/";
         }
 
-        registry.addResourceHandler("/uploads/**")
-                .addResourceLocations(absoluteUri, "file:uploads/", "file:backend/uploads/");
+        // SEC-019: Only expose public folder assets (profiles and logos) statically.
+        // Confidential documents are NOT registered as static resources and must be accessed
+        // exclusively through authenticated, authorized REST endpoints.
+        registry.addResourceHandler("/uploads/profiles/**")
+                .addResourceLocations(absoluteUri + "profiles/", "file:uploads/profiles/", "file:backend/uploads/profiles/");
+        registry.addResourceHandler("/uploads/logos/**")
+                .addResourceLocations(absoluteUri + "logos/", "file:uploads/logos/", "file:backend/uploads/logos/");
     }
 }

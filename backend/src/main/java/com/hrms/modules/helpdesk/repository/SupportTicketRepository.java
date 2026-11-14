@@ -27,4 +27,7 @@ public interface SupportTicketRepository extends JpaRepository<SupportTicket, Lo
 
     @Query("SELECT COUNT(t) FROM SupportTicket t WHERE t.tenantId = :tenantId AND t.status IN ('OPEN', 'IN_PROGRESS')")
     long countOpenTickets(@Param("tenantId") String tenantId);
+
+    @Query("SELECT COUNT(t) FROM SupportTicket t WHERE t.tenantId = :tenantId AND t.status IN ('OPEN', 'IN_PROGRESS') AND t.slaDeadline < :now")
+    long countBreachedTickets(@Param("tenantId") String tenantId, @Param("now") java.time.LocalDateTime now);
 }

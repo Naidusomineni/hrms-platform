@@ -69,6 +69,27 @@ public class ExpenseServiceImpl implements ExpenseService {
             throw new BadRequestException("Cross-tenant employee claim submission is not permitted");
         }
 
+        if (request.getExpenseDate() != null && request.getExpenseDate().isAfter(LocalDate.now())) {
+            throw new BadRequestException("Expense claim date cannot be in the future");
+        }
+
+        // Multi-tier category policy ceiling enforcement
+        BigDecimal ceiling;
+        switch (request.getCategory()) {
+            case MEALS: ceiling = new BigDecimal("5000.00"); break;
+            case INTERNET_WFH: ceiling = new BigDecimal("3000.00"); break;
+            case FUEL: ceiling = new BigDecimal("10000.00"); break;
+            case OFFICE_SUPPLIES: ceiling = new BigDecimal("15000.00"); break;
+            case CERTIFICATION: ceiling = new BigDecimal("50000.00"); break;
+            case TRAVEL: ceiling = new BigDecimal("100000.00"); break;
+            default: ceiling = new BigDecimal("25000.00"); break;
+        }
+
+        if (request.getAmount() != null && request.getAmount().compareTo(ceiling) > 0) {
+            throw new BadRequestException("Expense claim amount of ₹" + request.getAmount() +
+                    " exceeds allowable policy ceiling of ₹" + ceiling + " for " + request.getCategory() + ".");
+        }
+
         int year = LocalDate.now().getYear();
         String prefix = "EXP-" + year + "-";
         long count = expenseClaimRepository.countClaimsWithPrefix(tenantId, prefix + "%") + 1;

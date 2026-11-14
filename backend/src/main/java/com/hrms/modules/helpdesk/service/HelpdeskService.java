@@ -284,6 +284,7 @@ public class HelpdeskService {
                 .inProgress(ticketRepository.countByTenantIdAndStatus(tenantId, "IN_PROGRESS"))
                 .resolved(ticketRepository.countByTenantIdAndStatus(tenantId, "RESOLVED"))
                 .criticalCount(ticketRepository.countByTenantIdAndPriority(tenantId, "CRITICAL"))
+                .slaBreachedCount(ticketRepository.countBreachedTickets(tenantId, LocalDateTime.now()))
                 .build();
     }
 
@@ -299,6 +300,10 @@ public class HelpdeskService {
                 .isInternal(c.getIsInternal())
                 .createdAt(c.getCreatedAt())
                 .build()).collect(Collectors.toList());
+
+        boolean isBreached = ticket.getSlaDeadline() != null &&
+                (ticket.getResolvedAt() != null ? ticket.getResolvedAt().isAfter(ticket.getSlaDeadline())
+                                               : LocalDateTime.now().isAfter(ticket.getSlaDeadline()));
 
         return TicketResponse.builder()
                 .id(ticket.getId())
@@ -318,6 +323,7 @@ public class HelpdeskService {
                 .assignedToUserId(ticket.getAssignedTo() != null ? ticket.getAssignedTo().getId() : null)
                 .assignedToName(ticket.getAssignedTo() != null ? ticket.getAssignedTo().getEmail() : "Unassigned")
                 .slaDeadline(ticket.getSlaDeadline())
+                .isSlaBreached(isBreached)
                 .resolutionNotes(ticket.getResolutionNotes())
                 .resolvedAt(ticket.getResolvedAt())
                 .createdAt(ticket.getCreatedAt())

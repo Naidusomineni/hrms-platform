@@ -25,6 +25,7 @@ public class TicketResponse {
     private Long assignedToUserId;
     private String assignedToName;
     private LocalDateTime slaDeadline;
+    private Boolean isSlaBreached;
     private String resolutionNotes;
     private LocalDateTime resolvedAt;
     private LocalDateTime createdAt;

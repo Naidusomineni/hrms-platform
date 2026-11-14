@@ -2,6 +2,7 @@ package com.hrms.modules.performance.service;
 
 import com.hrms.entity.Employee;
 import com.hrms.entity.PerformanceReview;
+import com.hrms.exception.BadRequestException;
 import com.hrms.exception.ResourceNotFoundException;
 import com.hrms.infrastructure.multitenancy.context.TenantContext;
 import com.hrms.modules.performance.dto.AppraisalCycleDto;
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,7 +36,15 @@ public class PerformanceService {
 
     public List<AppraisalCycleDto> getCycles() {
         String tenantId = TenantContext.getTenantId();
-        return cycleRepository.findByTenantIdOrderByYearDesc(tenantId).stream()
+        List<AppraisalCycle> cycles = cycleRepository.findByTenantIdOrderByYearDesc(tenantId);
+        LocalDate today = LocalDate.now();
+        for (AppraisalCycle c : cycles) {
+            if (c.getEndDate() != null && today.isAfter(c.getEndDate()) && !"CLOSED".equalsIgnoreCase(c.getStatus())) {
+                c.setStatus("CLOSED");
+                cycleRepository.save(c);
+            }
+        }
+        return cycles.stream()
                 .map(this::toCycleDto)
                 .collect(Collectors.toList());
     }
@@ -105,6 +115,9 @@ public class PerformanceService {
         AppraisalCycle cycle = null;
         if (dto.getCycleId() != null) {
             cycle = cycleRepository.findById(dto.getCycleId()).orElse(null);
+            if (cycle != null && ("CLOSED".equalsIgnoreCase(cycle.getStatus()) || (cycle.getEndDate() != null && LocalDate.now().isAfter(cycle.getEndDate())))) {
+                throw new BadRequestException("Cannot add goals to a closed or expired appraisal cycle: " + cycle.getName());
+            }
         }
 
         EmployeeGoal goal = EmployeeGoal.builder()
@@ -205,6 +218,10 @@ public class PerformanceService {
         String tenantId = TenantContext.getTenantId();
         Employee emp = employeeRepository.findById(dto.getEmployeeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", dto.getEmployeeId()));
+
+        if (dto.getReviewPeriodEnd() != null && dto.getReviewPeriodStart() != null && dto.getReviewPeriodEnd().isBefore(dto.getReviewPeriodStart())) {
+            throw new BadRequestException("Review period end date cannot be before start date");
+        }
 
         Employee reviewer = null;
         if (dto.getReviewerId() != null) {

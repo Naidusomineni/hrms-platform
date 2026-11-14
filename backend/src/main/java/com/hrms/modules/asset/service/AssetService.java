@@ -1,6 +1,8 @@
 package com.hrms.modules.asset.service;
 
 import com.hrms.entity.Employee;
+import com.hrms.entity.User;
+import com.hrms.enums.NotificationType;
 import com.hrms.exception.ResourceNotFoundException;
 import com.hrms.infrastructure.multitenancy.context.TenantContext;
 import com.hrms.modules.asset.dto.AssetAllocationDto;
@@ -9,7 +11,9 @@ import com.hrms.modules.asset.entity.Asset;
 import com.hrms.modules.asset.entity.AssetAllocation;
 import com.hrms.modules.asset.repository.AssetAllocationRepository;
 import com.hrms.modules.asset.repository.AssetRepository;
+import com.hrms.modules.notification.service.NotificationService;
 import com.hrms.repository.EmployeeRepository;
+import com.hrms.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,7 +32,9 @@ public class AssetService {
     private final AssetRepository assetRepository;
     private final AssetAllocationRepository allocationRepository;
     private final EmployeeRepository employeeRepository;
+    private final UserRepository userRepository;
     private final com.hrms.common.audit.AuditService auditService;
+    private final NotificationService notificationService;
 
     public List<AssetDto> getAssets() {
         String tenantId = TenantContext.getTenantId();
@@ -81,6 +87,24 @@ public class AssetService {
         auditService.log("ASSET_ALLOCATED", "ASSET", asset.getId(),
                 "Allocated asset " + asset.getAssetTag() + " to employee #" + employeeId);
 
+        // Dispatch in-app notification to Employee
+        try {
+            Long empUserId = emp.getUser() != null ? emp.getUser().getId() :
+                    userRepository.findByEmail(emp.getEmail()).map(User::getId).orElse(null);
+            if (empUserId != null) {
+                String assetDesc = (asset.getBrand() != null ? asset.getBrand() + " " : "") + (asset.getModel() != null ? asset.getModel() : asset.getCategory());
+                notificationService.send(
+                        empUserId,
+                        "IT Asset Assigned: " + assetDesc,
+                        "Asset " + assetDesc + " (" + asset.getAssetTag() + ") has been allocated to you" + (notes != null && !notes.isBlank() ? " (" + notes + ")" : "") + ".",
+                        NotificationType.ASSET_ASSIGNED,
+                        "/assets"
+                );
+            }
+        } catch (Exception e) {
+            log.warn("Failed to dispatch asset allocation notification: {}", e.getMessage());
+        }
+
         return toAllocDto(alloc);
     }
 
@@ -100,6 +124,27 @@ public class AssetService {
         assetRepository.save(asset);
         auditService.log("ASSET_RETURNED", "ASSET", asset.getId(),
                 "Returned asset " + asset.getAssetTag() + " to inventory");
+
+        // Dispatch in-app notification to Employee
+        try {
+            Employee emp = alloc.getEmployee();
+            if (emp != null) {
+                Long empUserId = emp.getUser() != null ? emp.getUser().getId() :
+                        userRepository.findByEmail(emp.getEmail()).map(User::getId).orElse(null);
+                if (empUserId != null) {
+                    String assetDesc = (asset.getBrand() != null ? asset.getBrand() + " " : "") + (asset.getModel() != null ? asset.getModel() : asset.getCategory());
+                    notificationService.send(
+                            empUserId,
+                            "IT Asset Return Acknowledged: " + assetDesc,
+                            "Return of asset " + assetDesc + " (" + asset.getAssetTag() + ") has been processed into inventory.",
+                            NotificationType.ASSET_RETURNED,
+                            "/assets"
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to dispatch asset return notification: {}", e.getMessage());
+        }
 
         return toAllocDto(alloc);
     }

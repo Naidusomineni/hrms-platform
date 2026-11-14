@@ -14,3 +14,4 @@ public class BulkImportPreviewDto {
     @Builder.Default
     private List<BulkRowPreviewDto> previewRows = new ArrayList<>();
 }
+

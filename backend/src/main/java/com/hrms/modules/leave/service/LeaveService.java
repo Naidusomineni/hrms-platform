@@ -31,6 +31,7 @@ public class LeaveService {
     private final EmployeeLeaveBalanceRepository balanceRepository;
     private final WorkflowEngineService workflowEngineService;
     private final com.hrms.common.audit.AuditService auditService;
+    private final com.hrms.modules.notification.service.NotificationService notificationService;
 
     public LeaveResponse apply(Long empId, LeaveApplicationRequest req, org.springframework.security.core.userdetails.UserDetails userDetails) {
         if (userDetails != null) {
@@ -94,6 +95,25 @@ public class LeaveService {
             log.warn("Could not initiate workflow for leave {}: {}", leave.getId(), e.getMessage());
         }
 
+        // Dispatch in-app notification to Manager
+        try {
+            if (emp.getManager() != null) {
+                Long managerUserId = emp.getManager().getUser() != null ? emp.getManager().getUser().getId() :
+                        userRepository.findByEmail(emp.getManager().getEmail()).map(User::getId).orElse(null);
+                if (managerUserId != null) {
+                    notificationService.send(
+                            managerUserId,
+                            "Leave Request: " + emp.getFullName(),
+                            emp.getFullName() + " requested " + days + " day(s) of " + req.getLeaveType() + " leave (" + req.getStartDate() + " to " + req.getEndDate() + ")",
+                            NotificationType.LEAVE_APPLIED,
+                            "/approvals"
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to dispatch leave applied notification: {}", e.getMessage());
+        }
+
         log.info("Leave applied: empId={}, days={}, type={}", empId, days, req.getLeaveType());
         auditService.log("LEAVE_APPLIED", "LEAVE_REQUEST", leave.getId(),
             "Applied " + req.getLeaveType() + " leave (" + days + " days) for " + emp.getFullName());
@@ -136,6 +156,23 @@ public class LeaveService {
             leave.getStartDate().toString(), leave.getEndDate().toString(),
             action.name(), req.getComments() != null ? req.getComments() : ""
         );
+
+        // Dispatch in-app notification to Employee
+        try {
+            Long empUserId = emp.getUser() != null ? emp.getUser().getId() :
+                    userRepository.findByEmail(emp.getEmail()).map(User::getId).orElse(null);
+            if (empUserId != null) {
+                notificationService.send(
+                        empUserId,
+                        "Leave Request " + action.name(),
+                        "Your request for " + leave.getNumberOfDays() + " day(s) of " + leave.getLeaveType() + " leave has been " + action.name() + (req.getComments() != null && !req.getComments().isBlank() ? ": " + req.getComments() : "."),
+                        action == LeaveStatus.APPROVED ? NotificationType.LEAVE_APPROVED : NotificationType.LEAVE_REJECTED,
+                        "/leaves"
+                );
+            }
+        } catch (Exception e) {
+            log.warn("Failed to dispatch leave review notification: {}", e.getMessage());
+        }
 
         auditService.log("LEAVE_" + action.name(), "LEAVE_REQUEST", leave.getId(),
             (action == LeaveStatus.APPROVED ? "Approved" : "Rejected") + " " + leave.getLeaveType() + " leave (" + leave.getNumberOfDays() + " days) for " + emp.getFullName() + " (Reviewer: " + reviewerEmail + ")");

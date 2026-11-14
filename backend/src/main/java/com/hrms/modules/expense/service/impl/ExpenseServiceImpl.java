@@ -15,6 +15,8 @@ import com.hrms.modules.expense.repository.ExpenseClaimRepository;
 import com.hrms.modules.expense.service.ExpenseService;
 import com.hrms.repository.EmployeeRepository;
 import com.hrms.repository.UserRepository;
+import com.hrms.enums.NotificationType;
+import com.hrms.modules.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -37,6 +39,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
     private final com.hrms.common.audit.AuditService auditService;
+    private final NotificationService notificationService;
 
     @Override
     public ExpenseClaimDto submitClaim(Long employeeId, CreateExpenseClaimRequest request, org.springframework.security.core.userdetails.UserDetails userDetails) {
@@ -87,6 +90,26 @@ public class ExpenseServiceImpl implements ExpenseService {
         claim.setTenantId(tenantId);
 
         ExpenseClaim saved = expenseClaimRepository.save(claim);
+
+        // Dispatch in-app notification to Manager
+        try {
+            if (employee.getManager() != null) {
+                Long managerUserId = employee.getManager().getUser() != null ? employee.getManager().getUser().getId() :
+                        userRepository.findByEmail(employee.getManager().getEmail()).map(User::getId).orElse(null);
+                if (managerUserId != null) {
+                    notificationService.send(
+                            managerUserId,
+                            "Expense Claim Submitted: " + employee.getFullName(),
+                            employee.getFullName() + " submitted expense claim " + claimNumber + " for ₹" + request.getAmount() + " (" + request.getTitle() + ")",
+                            NotificationType.EXPENSE_SUBMITTED,
+                            "/expenses"
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to dispatch expense submitted notification: {}", e.getMessage());
+        }
+
         log.info("Expense claim created: {} by employee {} (amount: ₹{})", claimNumber, employee.getEmployeeNumber(), request.getAmount());
         auditService.log("EXPENSE_SUBMITTED", "EXPENSE_CLAIM", saved.getId(),
             "Submitted claim " + claimNumber + " (₹" + request.getAmount() + " - " + request.getTitle() + ") by " + employee.getFullName());
@@ -118,6 +141,28 @@ public class ExpenseServiceImpl implements ExpenseService {
         claim.setManagerReviewedAt(LocalDateTime.now());
 
         ExpenseClaim saved = expenseClaimRepository.save(claim);
+
+        // Dispatch in-app notification to Employee
+        try {
+            Employee emp = claim.getEmployee();
+            if (emp != null) {
+                Long empUserId = emp.getUser() != null ? emp.getUser().getId() :
+                        userRepository.findByEmail(emp.getEmail()).map(User::getId).orElse(null);
+                if (empUserId != null) {
+                    boolean approved = "APPROVE".equalsIgnoreCase(request.getAction());
+                    notificationService.send(
+                            empUserId,
+                            "Expense Claim " + (approved ? "Manager Approved" : "Rejected"),
+                            "Your expense claim " + claim.getClaimNumber() + " (₹" + claim.getAmount() + ") has been " + (approved ? "approved by manager" : "rejected") + (request.getRemarks() != null && !request.getRemarks().isBlank() ? ": " + request.getRemarks() : "."),
+                            approved ? NotificationType.EXPENSE_APPROVED : NotificationType.EXPENSE_REJECTED,
+                            "/expenses"
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to dispatch expense manager review notification: {}", e.getMessage());
+        }
+
         log.info("Expense claim {} manager review action: {}", claim.getClaimNumber(), request.getAction());
         auditService.log("EXPENSE_MANAGER_REVIEW", "EXPENSE_CLAIM", saved.getId(),
             "Manager action " + request.getAction() + " for claim " + claim.getClaimNumber() + " (₹" + claim.getAmount() + ")");
@@ -149,6 +194,28 @@ public class ExpenseServiceImpl implements ExpenseService {
         claim.setFinanceReviewedAt(LocalDateTime.now());
 
         ExpenseClaim saved = expenseClaimRepository.save(claim);
+
+        // Dispatch in-app notification to Employee
+        try {
+            Employee emp = claim.getEmployee();
+            if (emp != null) {
+                Long empUserId = emp.getUser() != null ? emp.getUser().getId() :
+                        userRepository.findByEmail(emp.getEmail()).map(User::getId).orElse(null);
+                if (empUserId != null) {
+                    boolean approved = "APPROVE".equalsIgnoreCase(request.getAction());
+                    notificationService.send(
+                            empUserId,
+                            "Expense Claim " + (approved ? "Finance Approved" : "Rejected"),
+                            "Your expense claim " + claim.getClaimNumber() + " (₹" + claim.getAmount() + ") has been " + (approved ? "approved by Finance for payout" : "rejected") + (request.getRemarks() != null && !request.getRemarks().isBlank() ? ": " + request.getRemarks() : "."),
+                            approved ? NotificationType.EXPENSE_APPROVED : NotificationType.EXPENSE_REJECTED,
+                            "/expenses"
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to dispatch expense finance review notification: {}", e.getMessage());
+        }
+
         log.info("Expense claim {} finance review action: {}", claim.getClaimNumber(), request.getAction());
         auditService.log("EXPENSE_FINANCE_REVIEW", "EXPENSE_CLAIM", saved.getId(),
             "Finance action " + request.getAction() + " for claim " + claim.getClaimNumber() + " (₹" + claim.getAmount() + ")");

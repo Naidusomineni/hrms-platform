@@ -9,3 +9,4 @@ public class BulkRowErrorDto {
     private String error;
     private String value;
 }
+

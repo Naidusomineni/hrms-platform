@@ -121,7 +121,7 @@ public class SecurityConfig {
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR", "ROLE_MANAGER", "ROLE_IT_ADMIN")
 
                         // Notification APIs
-                        .requestMatchers("/v1/notifications/**")
+                        .requestMatchers("/v1/notifications", "/v1/notifications/**")
                         .authenticated()
 
                         // Session self-service revocation
